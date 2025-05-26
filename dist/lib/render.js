@@ -1,34 +1,38 @@
-function buildElementTree(desc, element) {
+export function buildElementTree(desc, element) {
     const el = element || document.createElement(desc.tagName);
     for (const [key, value] of Object.entries(desc)) {
-        if (key === 'tagName' || key === 'children')
-            continue;
         switch (key) {
-            case 'style':
-                Object.assign(el.style, value);
+            case 'tagName':
+                // Skip - already used for createElement
                 break;
-            case 'attributes':
+            case 'children':
                 if (Array.isArray(value)) {
-                    for (const attr of value) {
-                        if (attr && typeof attr === 'object' && 'name' in attr && 'value' in attr) {
-                            el.setAttribute(attr.name, attr.value);
-                        }
+                    for (const child of value) {
+                        el.appendChild(buildElementTree(child));
                     }
                 }
                 break;
+            case 'attributes':
+                if (value && typeof value === 'object') {
+                    for (const [attrName, attrValue] of Object.entries(value)) {
+                        el.setAttribute(attrName, attrValue);
+                    }
+                }
+                break;
+            case 'style':
+                if (value && typeof value === 'object') {
+                    Object.assign(el.style, value);
+                }
+                break;
             default:
+                // Set all other properties directly on the element
                 el[key] = value;
                 break;
         }
     }
-    if (Array.isArray(desc.children)) {
-        for (const child of desc.children) {
-            el.appendChild(buildElementTree(child));
-        }
-    }
     return el;
 }
-function registerCustomElements(map) {
+export function registerCustomElements(map) {
     for (const [tag, def] of Object.entries(map)) {
         class DeclarativeComponent extends HTMLElement {
             constructor() {
@@ -46,16 +50,37 @@ function registerCustomElements(map) {
  * Reference implementation of rendering a DeclarativeWindow object to a real DOM.
  * This is not part of the DeclarativeDOM spec itself—only a demonstration.
  */
-export function renderDeclarativeDOM(window) {
-    if (window.customElements) {
-        registerCustomElements(window.customElements);
+export function renderWindow(desc) {
+    for (const [key, value] of Object.entries(desc)) {
+        switch (key) {
+            case 'document':
+                if (value) {
+                    if (value.body) {
+                        buildElementTree(value.body, document.body);
+                    }
+                    if (value.head) {
+                        buildElementTree(value.head, document.head);
+                    }
+                }
+                break;
+            case 'customElements':
+                if (value) {
+                    registerCustomElements(value);
+                }
+                break;
+            default:
+                // Set all other properties directly on the window object
+                // @ts-ignore
+                window[key] = value;
+                break;
+        }
     }
-    const containers = [
-        { source: window.document?.body, target: document.body },
-        { source: window.document?.head, target: document.head }
-    ];
-    for (const { source, target } of containers) {
-        if (source)
-            buildElementTree(source, target);
-    }
+}
+// Auto-expose DDOM namespace globally
+if (typeof window !== 'undefined') {
+    window.DDOM = {
+        renderWindow,
+        buildElementTree,
+        registerCustomElements
+    };
 }

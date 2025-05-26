@@ -5,14 +5,9 @@
  * necessary changes to support declarative definition.
  */
 
-type DeclarativeAttr = {
-	name: string;
-	value: string;
-};
-
 type WritableHTMLElementOverrides = {
 	tagName: string;
-	attributes?: DeclarativeAttr[];
+	attributes?: Record<string, string>;
 	children?: DeclarativeHTMLElement[];
 };
 

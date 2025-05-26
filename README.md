@@ -31,9 +31,9 @@ Declarative DOM is:
 ## Example
 
 ```js
-import { renderDeclarativeDOM } from 'declarative-dom';
+import { renderWindow } from 'declarative-dom';
 
-renderDeclarativeDOM({
+renderWindow({
   customElements: {
     'my-box': {
       tagName: 'div',
