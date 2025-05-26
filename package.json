@@ -1,0 +1,26 @@
+{
+  "name": "declarative-dom",
+  "version": "0.1.0",
+  "description": "A specification and TypeScript type system for describing DOM structure as serializable JavaScript objects.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "keywords": [
+    "declarative",
+    "dom",
+    "components",
+    "spec",
+    "ui",
+    "typescript",
+    "json",
+    "data-structure"
+  ],
+  "author": "Avunu LLC",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}
