@@ -1,4 +1,5 @@
 import { DeclarativeCustomElement, DeclarativeHTMLElement, DeclarativeWindow, DeclarativeDocument } from './../types';
+import { clearDDOMStyles } from './css';
 export declare function render(desc: DeclarativeHTMLElement | DeclarativeWindow | DeclarativeDocument, element?: HTMLBodyElement | HTMLElement | HTMLHeadElement | Document | Window): HTMLBodyElement | HTMLElement | HTMLHeadElement | Document | Window | null;
 export declare function registerCustomElements(elements: DeclarativeCustomElement[]): void;
 /**
@@ -12,6 +13,7 @@ declare global {
             renderWindow: typeof renderWindow;
             render: typeof render;
             registerCustomElements: typeof registerCustomElements;
+            clearDDOMStyles: typeof clearDDOMStyles;
         };
     }
 }

@@ -1,3 +1,5 @@
+import { generateElementSelector } from './utils';
+import { processElementStyles, clearDDOMStyles } from './css';
 export function render(desc, element) {
     const el = element || (() => {
         if ('tagName' in desc && desc.tagName) {
@@ -33,7 +35,9 @@ export function render(desc, element) {
                 break;
             case 'style':
                 if (value && typeof value === 'object') {
-                    Object.assign(el.style, value);
+                    // Generate selector for the element
+                    const selector = generateElementSelector(el);
+                    processElementStyles(value, el, selector);
                 }
                 break;
             case 'document':
@@ -82,6 +86,10 @@ export function registerCustomElements(elements) {
         customElements.define(def.tagName, class extends HTMLElement {
             constructor() {
                 super();
+                // Call custom constructor if defined
+                if (def.constructor) {
+                    new def.constructor(this);
+                }
             }
             connectedCallback() {
                 // Check for existing shadow root (declarative or programmatic)
@@ -124,7 +132,9 @@ export function registerCustomElements(elements) {
                             break;
                         case 'style':
                             if (value && typeof value === 'object') {
-                                Object.assign(this.style, value);
+                                // Generate selector for custom element
+                                const selector = generateElementSelector(this);
+                                processElementStyles(value, this, selector);
                             }
                             break;
                         default:
@@ -178,6 +188,7 @@ if (typeof window !== 'undefined') {
     window.DDOM = {
         renderWindow,
         render,
-        registerCustomElements
+        registerCustomElements,
+        clearDDOMStyles
     };
 }

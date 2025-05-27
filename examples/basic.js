@@ -25,7 +25,8 @@ export default {
 						color: 'white',
 						border: 'none',
 						borderRadius: '4px',
-						cursor: 'pointer'
+						cursor: 'pointer',
+						':hover': { backgroundColor: '#007acc', color: 'white' }
 					},
 					onclick: () => { alert('Button clicked!'); }
 				}

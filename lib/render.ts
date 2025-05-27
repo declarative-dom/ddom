@@ -5,7 +5,11 @@ import {
 	DeclarativeHTMLHeadElement,
 	DeclarativeWindow,
 	DeclarativeDocument,
+	NestedCSSProperties,
 } from './../types';
+
+import { generateElementSelector } from './utils';
+import { processElementStyles, clearDDOMStyles } from './css';
 
 export function render(desc: DeclarativeHTMLElement | DeclarativeWindow | DeclarativeDocument, element?: HTMLBodyElement | HTMLElement | HTMLHeadElement | Document | Window): HTMLBodyElement | HTMLElement | HTMLHeadElement | Document | Window | null {
 	const el = element || (() => {
@@ -43,7 +47,9 @@ export function render(desc: DeclarativeHTMLElement | DeclarativeWindow | Declar
 				break;
 			case 'style':
 				if (value && typeof value === 'object') {
-					Object.assign((el as any).style, value);
+					// Generate selector for the element
+					const selector = generateElementSelector(el as HTMLElement);
+					processElementStyles(value as NestedCSSProperties, el as HTMLElement, selector);
 				}
 				break;
 			case 'document':
@@ -87,25 +93,30 @@ export function registerCustomElements(elements: DeclarativeCustomElement[]) {
 
 	for (const def of unregisteredElements) {
 		console.log(`Registering custom element: ${def.tagName}`);
-		
+
 		// Handle global document modifications from custom element
 		if (def.document) {
 			render(def.document as DeclarativeDocument, document);
 		}
-		
+
 		customElements.define(def.tagName, class extends HTMLElement {
 			constructor() {
 				super();
+
+				// Call custom constructor if defined
+				if (def.constructor) {
+					new def.constructor(this);
+				}
 			}
 
 			connectedCallback() {
 				// Check for existing shadow root (declarative or programmatic)
 				const supportsDeclarative = HTMLElement.prototype.hasOwnProperty("attachInternals");
 				const internals = supportsDeclarative ? this.attachInternals() : undefined;
-				
+
 				// Check for a Declarative Shadow Root or existing shadow root
 				let container = internals?.shadowRoot || this.shadowRoot || this;
-				
+
 				// Clear any existing content
 				container.innerHTML = '';
 
@@ -142,7 +153,9 @@ export function registerCustomElements(elements: DeclarativeCustomElement[]) {
 							break;
 						case 'style':
 							if (value && typeof value === 'object') {
-								Object.assign(this.style, value);
+								// Generate selector for custom element
+								const selector = generateElementSelector(this);
+								processElementStyles(value as NestedCSSProperties, this, selector);
 							}
 							break;
 						default:
@@ -204,6 +217,7 @@ declare global {
 			renderWindow: typeof renderWindow;
 			render: typeof render;
 			registerCustomElements: typeof registerCustomElements;
+			clearDDOMStyles: typeof clearDDOMStyles;
 		};
 	}
 }
@@ -213,6 +227,7 @@ if (typeof window !== 'undefined') {
 	window.DDOM = {
 		renderWindow,
 		render,
-		registerCustomElements
+		registerCustomElements,
+		clearDDOMStyles
 	};
 }

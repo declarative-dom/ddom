@@ -37,16 +37,38 @@ renderWindow({
   customElements: [
     {
       tagName: 'my-box',
-      style: { backgroundColor: 'skyblue', padding: '1em' },
+      style: { 
+        backgroundColor: 'skyblue', 
+        padding: '1em',
+        ':hover': {
+          backgroundColor: 'lightblue',
+          transform: 'scale(1.05)'
+        }
+      },
       children: [
         { tagName: 'h2', textContent: 'Hello!' },
-        { tagName: 'button', textContent: 'Click me', onclick: () => alert('Clicked!') }
+        { 
+          tagName: 'button', 
+          textContent: 'Click me', 
+          style: {
+            padding: '0.5em 1em',
+            border: 'none',
+            borderRadius: '4px',
+            ':hover': { backgroundColor: '#007acc', color: 'white' }
+          },
+          onclick: () => alert('Clicked!') 
+        }
       ]
     }
   ],
   document: {
     body: {
-      style: { margin: '2em', background: '#111', color: 'white' },
+      style: { 
+        margin: '2em', 
+        background: '#111', 
+        color: 'white',
+        fontFamily: 'system-ui, sans-serif'
+      },
       children: [
         { tagName: 'my-box' }
       ]

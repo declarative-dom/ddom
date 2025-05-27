@@ -5,16 +5,24 @@
  * necessary changes to support declarative definition.
  */
 
+export type NestedCSSProperties = {
+	[K in keyof CSSStyleDeclaration]?: CSSStyleDeclaration[K];
+} & {
+	[selector: string]: NestedCSSProperties;
+};
+
 type WritableOverrides = {
 	tagName?: string;
 	attributes?: Record<string, string>;
 	children?: DeclarativeHTMLElement[];
 	document?: Partial<DeclarativeDocument>;
 	customElements?: DeclarativeCustomElement[];
+	style?: NestedCSSProperties;
 };
 
 export type DeclarativeCustomElement = WritableOverrides & {
 	tagName: string; // Required for custom elements
+	constructor?: new (...args: any[]) => HTMLElement;
 	connectedCallback?: (element: HTMLElement) => void;
 	disconnectedCallback?: (element: HTMLElement) => void;
 	attributeChangedCallback?: (element: HTMLElement, name: string, oldValue: string | null, newValue: string | null) => void;

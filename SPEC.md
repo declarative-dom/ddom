@@ -143,7 +143,7 @@ All standard DOM properties are supported with their native types:
 
 #### 5.2 Style Properties
 
-Styles are represented as objects with camelCase property names:
+Styles are represented as objects with camelCase property names and support full CSS nesting syntax:
 
 ```javascript
 {
@@ -152,8 +152,59 @@ Styles are represented as objects with camelCase property names:
     backgroundColor: 'blue',
     marginTop: '10px',
     fontSize: '16px',
-    display: 'flex'
+    display: 'flex',
+    
+    // Pseudo-selectors using & syntax
+    ':hover': {
+      backgroundColor: 'red',
+      cursor: 'pointer'
+    },
+    
+    // Nested selectors for child elements
+    '.child': {
+      color: 'white',
+      fontWeight: 'bold',
+      
+      ':hover': {
+        color: 'yellow'
+      }
+    },
+    
+    // Direct descendant selectors
+    'span': {
+      textDecoration: 'underline'
+    }
   }
+}
+```
+
+**Nested CSS Generation:**
+The style system automatically generates structured CSS rules in a dedicated DDOM stylesheet using modern CSS nesting syntax. The above example would generate:
+
+```css
+body>div:nth-child(1) {
+  background-color: blue;
+  margin-top: 10px;
+  font-size: 16px;
+  display: flex;
+
+  &:hover {
+    background-color: red;
+    cursor: pointer;
+  }
+
+  .child {
+    color: white;
+    font-weight: bold;
+
+    &:hover {
+      color: yellow;
+    }
+  }
+}
+
+body>div:nth-child(1) span {
+  text-decoration: underline;
 }
 ```
 
@@ -274,9 +325,43 @@ Once defined, custom elements can be used like standard elements:
 
 Custom elements can use shadow DOM through standard Web Components APIs within their lifecycle callbacks. The declarative structure applies to the light DOM or shadow root depending on the implementation.
 
-### 8. Document Structure
+### 8. CSS Management System
 
-#### 8.1 Full Document Example
+#### 8.1 DDOM Stylesheet
+
+Declarative DOM maintains a dedicated stylesheet for all nested CSS rules using modern web APIs:
+
+- **Primary**: Uses `new CSSStyleSheet()` and `document.adoptedStyleSheets` when available
+- **Fallback**: Creates a `<style>` element with ID `ddom-styles` for older browsers
+
+#### 8.2 CSS Rule Generation
+
+The system automatically:
+1. Generates unique selectors for each rendered element based on DOM position
+2. Converts camelCase CSS properties to kebab-case
+3. Creates properly nested CSS rules using modern CSS nesting syntax
+4. Separates pseudo-selectors (`:hover`, `::before`) from descendant selectors
+
+#### 8.3 Style Processing
+
+For each element with styles:
+1. Direct CSS properties are applied to `element.style`
+2. Nested selectors generate CSS rules in the global DDOM stylesheet
+3. Pseudo-selectors use `&` syntax for proper nesting
+4. Descendant selectors create separate rules
+
+#### 8.4 Stylesheet Management
+
+```javascript
+// Clear all DDOM styles
+window.DDOM.clearDDOMStyles();
+
+// Styles are automatically managed during rendering
+```
+
+### 9. Document Structure
+
+#### 9.1 Full Document Example
 
 ```javascript
 {
@@ -317,7 +402,7 @@ Custom elements can use shadow DOM through standard Web Components APIs within t
 }
 ```
 
-### 9. Global Document Modifications
+### 10. Global Document Modifications
 
 Custom elements can specify global document modifications that are applied when the element is registered:
 
@@ -344,9 +429,9 @@ Custom elements can specify global document modifications that are applied when 
 }
 ```
 
-### 10. Serialization
+### 11. Serialization
 
-#### 10.1 JSON Compatibility
+#### 11.1 JSON Compatibility
 
 All Declarative DOM structures must be JSON-serializable. This means:
 - No function references in serialized form
@@ -360,9 +445,9 @@ When serializing structures with event handlers:
 - A separate mechanism must be provided to restore function references
 - Lifecycle callbacks for custom elements are similarly handled
 
-### 11. Implementation Requirements
+### 12. Implementation Requirements
 
-#### 11.1 Rendering
+#### 12.1 Rendering
 
 Implementations must:
 - Create actual DOM elements from declarative descriptions
@@ -371,32 +456,32 @@ Implementations must:
 - Register custom elements with the browser's CustomElementRegistry
 - Execute lifecycle callbacks at appropriate times
 
-#### 11.2 Type Safety
+#### 12.2 Type Safety
 
 TypeScript implementations must:
 - Provide accurate type definitions for all supported elements
 - Enable type checking for element properties
 - Support IntelliSense for available properties and methods
 
-### 12. Security Considerations
+### 13. Security Considerations
 
-#### 12.1 Script Injection
+#### 13.1 Script Injection
 
 Implementations should be aware that:
 - Event handler functions can execute arbitrary code
 - innerHTML and similar properties can introduce XSS vulnerabilities
 - Custom element lifecycle callbacks have full DOM access
 
-#### 12.2 Sanitization
+#### 13.2 Sanitization
 
 When accepting declarative DOM from untrusted sources:
 - Function properties should be stripped or validated
 - HTML content should be sanitized
 - Attribute values should be validated
 
-### 13. Examples
+### 14. Examples
 
-#### 13.1 Simple Form
+#### 14.1 Simple Form
 
 ```javascript
 {
@@ -428,7 +513,7 @@ When accepting declarative DOM from untrusted sources:
 }
 ```
 
-#### 13.2 Interactive Component
+#### 14.2 Interactive Component
 
 ```javascript
 {
@@ -479,30 +564,30 @@ When accepting declarative DOM from untrusted sources:
 }
 ```
 
-### 14. Future Considerations
+### 15. Future Considerations
 
-#### 14.1 Template Syntax
+#### 15.1 Template Syntax
 
 Future versions may consider:
 - Template variable substitution
 - Conditional rendering directives
 - Loop constructs for dynamic content
 
-#### 14.2 Performance
+#### 15.2 Performance
 
 Potential optimizations:
 - Incremental rendering for large structures
 - Virtual DOM diffing capabilities
 - Lazy loading of custom element definitions
 
-#### 14.3 Tooling
+#### 15.3 Tooling
 
 Development of:
 - Visual editors for declarative DOM structures
 - Validation tools for structure correctness
 - Migration utilities from other formats
 
-### 15. Conformance
+### 16. Conformance
 
 An implementation conforms to this specification if it:
 - Correctly interprets all declarative DOM structures defined herein
