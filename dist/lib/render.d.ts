@@ -1,5 +1,5 @@
 import { DeclarativeCustomElement, DeclarativeHTMLElement, DeclarativeWindow, DeclarativeDocument } from './../types';
-export declare function createElementDOM(desc: DeclarativeHTMLElement | DeclarativeWindow | DeclarativeDocument, element?: HTMLBodyElement | HTMLElement | HTMLHeadElement | Document | Window): HTMLBodyElement | HTMLElement | HTMLHeadElement | Document | Window | null;
+export declare function render(desc: DeclarativeHTMLElement | DeclarativeWindow | DeclarativeDocument, element?: HTMLBodyElement | HTMLElement | HTMLHeadElement | Document | Window): HTMLBodyElement | HTMLElement | HTMLHeadElement | Document | Window | null;
 export declare function registerCustomElements(elements: DeclarativeCustomElement[]): void;
 /**
  * Reference implementation of rendering a DeclarativeWindow object to a real DOM.
@@ -10,7 +10,7 @@ declare global {
     interface Window {
         DDOM: {
             renderWindow: typeof renderWindow;
-            createElementDOM: typeof createElementDOM;
+            render: typeof render;
             registerCustomElements: typeof registerCustomElements;
         };
     }

@@ -425,7 +425,7 @@ export default {
 		const url = URL.createObjectURL(dataBlob);
 		
 		// Create download link using declarative DOM
-		const link = DDOM.createElementDOM({
+		const link = DDOM.render({
 			tagName: 'a',
 			attributes: {
 				href: url,
@@ -468,7 +468,7 @@ export default {
 
 		// Render each child element
 		this.currentStructure.document.body.children.forEach((child, index) => {
-			const element = DDOM.createElementDOM(child);
+			const element = DDOM.render(child);
 			if (element) {
 				// Add visual indicators for drag and drop
 				element.style.position = 'relative';
@@ -533,7 +533,7 @@ export default {
 		const midY = rect.top + rect.height / 2;
 		const isAbove = event.clientY < midY;
 
-		const indicator = DDOM.createElementDOM({
+		const indicator = DDOM.render({
 			tagName: 'canvas-drop-indicator'
 		});
 
@@ -593,7 +593,7 @@ export default {
 		this.selectElement(dataElement.id);
 
 		// Create input element
-		const input = DDOM.createElementDOM({
+		const input = DDOM.render({
 			tagName: 'inline-editor',
 			attributes: {
 				originalText: dataElement.textContent || '',
@@ -619,7 +619,7 @@ export default {
 
 	renderElementTree: function (elements, container, depth) {
 		elements.forEach((element, index) => {
-			const item = DDOM.createElementDOM({
+			const item = DDOM.render({
 				tagName: 'tree-item',
 				attributes: {
 					elementData: JSON.stringify(element),
@@ -666,7 +666,7 @@ export default {
 		const midY = rect.top + rect.height / 2;
 		const isAbove = event.clientY < midY;
 
-		const indicator = DDOM.createElementDOM({
+		const indicator = DDOM.render({
 			tagName: 'drop-indicator'
 		});
 
@@ -745,7 +745,7 @@ export default {
 		panel.innerHTML = '';
 
 		if (!this.selectedElement) {
-			const emptyState = DDOM.createElementDOM({
+			const emptyState = DDOM.render({
 				tagName: 'div',
 				style: { padding: '20px', textAlign: 'center', color: '#999' },
 				textContent: 'Select an element to edit properties'
@@ -755,7 +755,7 @@ export default {
 		}
 
 		// Create properties container
-		const container = DDOM.createElementDOM({
+		const container = DDOM.render({
 			tagName: 'div',
 			style: { padding: '15px' },
 			children: [
@@ -1072,7 +1072,7 @@ export default {
 		const palette = document.getElementById('element-palette');
 		if (palette) {
 			this.elementTypes.forEach(elementType => {
-				const button = DDOM.createElementDOM({
+				const button = DDOM.render({
 					tagName: 'palette-button',
 					attributes: {
 						icon: elementType.icon,

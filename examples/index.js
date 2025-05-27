@@ -73,7 +73,7 @@ export default {
 					DDOM.registerCustomElements(example.config.customElements);
 				}
 
-				// Render the body content directly using createElementDOM
+				// Render the body content directly using render
 				if (example.config.document && example.config.document.body) {
 					// Create a container div and apply the body content to it
 					const bodyDescriptor = { 
@@ -81,12 +81,12 @@ export default {
 						...example.config.document.body 
 					};
 					console.log('Body descriptor:', bodyDescriptor);
-					const bodyElement = DDOM.createElementDOM(bodyDescriptor);
+					const bodyElement = DDOM.render(bodyDescriptor);
 					console.log('Body element:', bodyElement);
 					if (bodyElement && bodyElement instanceof Node) {
 						exampleContainer.appendChild(bodyElement);
 					} else {
-						console.error('createElementDOM did not return a valid Node:', bodyElement);
+						console.error('render did not return a valid Node:', bodyElement);
 					}
 				}
 

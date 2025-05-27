@@ -1,4 +1,4 @@
-export function createElementDOM(desc, element) {
+export function render(desc, element) {
     const el = element || (() => {
         if ('tagName' in desc && desc.tagName) {
             return document.createElement(desc.tagName);
@@ -15,7 +15,7 @@ export function createElementDOM(desc, element) {
             case 'children':
                 if (Array.isArray(value)) {
                     for (const child of value) {
-                        const childNode = createElementDOM(child);
+                        const childNode = render(child);
                         if (childNode && 'appendChild' in el) {
                             el.appendChild(childNode);
                         }
@@ -38,17 +38,17 @@ export function createElementDOM(desc, element) {
                 break;
             case 'document':
                 if (value && el === window) {
-                    createElementDOM(value, document);
+                    render(value, document);
                 }
                 break;
             case 'body':
                 if (value && (el === document || 'documentElement' in el)) {
-                    createElementDOM(value, document.body);
+                    render(value, document.body);
                 }
                 break;
             case 'head':
                 if (value && (el === document || 'documentElement' in el)) {
-                    createElementDOM(value, document.head);
+                    render(value, document.head);
                 }
                 break;
             case 'customElements':
@@ -77,7 +77,7 @@ export function registerCustomElements(elements) {
         console.log(`Registering custom element: ${def.tagName}`);
         // Handle global document modifications from custom element
         if (def.document) {
-            createElementDOM(def.document, document);
+            render(def.document, document);
         }
         customElements.define(def.tagName, class extends HTMLElement {
             constructor() {
@@ -106,7 +106,7 @@ export function registerCustomElements(elements) {
                         case 'children':
                             if (Array.isArray(value)) {
                                 for (const child of value) {
-                                    const childNode = createElementDOM(child);
+                                    const childNode = render(child);
                                     if (childNode && 'appendChild' in container) {
                                         container.appendChild(childNode);
                                     }
@@ -171,13 +171,13 @@ export function registerCustomElements(elements) {
  * This is not part of the DeclarativeDOM spec itself—only a demonstration.
  */
 export function renderWindow(desc) {
-    createElementDOM(desc, window);
+    render(desc, window);
 }
 // Auto-expose DDOM namespace globally
 if (typeof window !== 'undefined') {
     window.DDOM = {
         renderWindow,
-        createElementDOM,
+        render,
         registerCustomElements
     };
 }
