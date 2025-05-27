@@ -18,7 +18,12 @@
             DDOM.renderWindow(indexConfig);
             // Call onRender to initialize examples
             if (indexConfig.onRender) {
-                indexConfig.onRender.call(indexConfig);
+                try {
+                    indexConfig.onRender.call(indexConfig);
+                } catch (error) {
+                    console.error('Error calling onRender:', error);
+                    console.log('indexConfig:', indexConfig);
+                }
             }
         });
     </script>

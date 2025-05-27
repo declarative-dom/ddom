@@ -1,5 +1,12 @@
 export function buildElementTree(desc, element) {
-    const el = element || document.createElement(desc.tagName);
+    const el = element || (() => {
+        if ('tagName' in desc && desc.tagName) {
+            return document.createElement(desc.tagName);
+        }
+        return null;
+    })();
+    if (!el)
+        return null;
     for (const [key, value] of Object.entries(desc)) {
         switch (key) {
             case 'tagName':
@@ -8,14 +15,19 @@ export function buildElementTree(desc, element) {
             case 'children':
                 if (Array.isArray(value)) {
                     for (const child of value) {
-                        el.appendChild(buildElementTree(child));
+                        const childNode = buildElementTree(child);
+                        if (childNode && 'appendChild' in el) {
+                            el.appendChild(childNode);
+                        }
                     }
                 }
                 break;
             case 'attributes':
                 if (value && typeof value === 'object') {
                     for (const [attrName, attrValue] of Object.entries(value)) {
-                        el.setAttribute(attrName, attrValue);
+                        if (attrValue && typeof attrValue === 'string') {
+                            el.setAttribute(attrName, attrValue);
+                        }
                     }
                 }
                 break;
@@ -24,43 +36,19 @@ export function buildElementTree(desc, element) {
                     Object.assign(el.style, value);
                 }
                 break;
-            default:
-                // Set all other properties directly on the element
-                el[key] = value;
-                break;
-        }
-    }
-    return el;
-}
-export function registerCustomElements(map) {
-    for (const [tag, def] of Object.entries(map)) {
-        class DeclarativeComponent extends HTMLElement {
-            constructor() {
-                super();
-                const el = buildElementTree(def);
-                this.appendChild(el);
-            }
-        }
-        if (!customElements.get(tag)) {
-            customElements.define(tag, DeclarativeComponent);
-        }
-    }
-}
-/**
- * Reference implementation of rendering a DeclarativeWindow object to a real DOM.
- * This is not part of the DeclarativeDOM spec itself—only a demonstration.
- */
-export function renderWindow(desc) {
-    for (const [key, value] of Object.entries(desc)) {
-        switch (key) {
             case 'document':
-                if (value) {
-                    if (value.body) {
-                        buildElementTree(value.body, document.body);
-                    }
-                    if (value.head) {
-                        buildElementTree(value.head, document.head);
-                    }
+                if (value && el === window) {
+                    buildElementTree(value, document);
+                }
+                break;
+            case 'body':
+                if (value && (el === document || 'documentElement' in el)) {
+                    buildElementTree(value, document.body);
+                }
+                break;
+            case 'head':
+                if (value && (el === document || 'documentElement' in el)) {
+                    buildElementTree(value, document.head);
                 }
                 break;
             case 'customElements':
@@ -69,12 +57,121 @@ export function renderWindow(desc) {
                 }
                 break;
             default:
-                // Set all other properties directly on the window object
-                // @ts-ignore
-                window[key] = value;
+                // Handle event listeners (properties starting with 'on')
+                if (key.startsWith('on') && typeof value === 'function') {
+                    const eventName = key.slice(2).toLowerCase();
+                    el.addEventListener(eventName, value);
+                }
+                else {
+                    // Set all other properties directly on the element
+                    el[key] = value;
+                }
                 break;
         }
     }
+    return el;
+}
+export function registerCustomElements(elements) {
+    const unregisteredElements = elements.filter(element => !customElements.get(element.tagName));
+    for (const def of unregisteredElements) {
+        console.log(`Registering custom element: ${def.tagName}`);
+        // Handle global document modifications from custom element
+        if (def.document) {
+            buildElementTree(def.document, document);
+        }
+        customElements.define(def.tagName, class extends HTMLElement {
+            constructor() {
+                super();
+            }
+            connectedCallback() {
+                // Check for existing shadow root (declarative or programmatic)
+                const supportsDeclarative = HTMLElement.prototype.hasOwnProperty("attachInternals");
+                const internals = supportsDeclarative ? this.attachInternals() : undefined;
+                // Check for a Declarative Shadow Root or existing shadow root
+                let container = internals?.shadowRoot || this.shadowRoot || this;
+                // Clear any existing content
+                container.innerHTML = '';
+                // Apply the definition to the container
+                for (const [key, value] of Object.entries(def)) {
+                    switch (key) {
+                        case 'tagName':
+                        case 'document':
+                        case 'connectedCallback':
+                        case 'disconnectedCallback':
+                        case 'attributeChangedCallback':
+                        case 'adoptedCallback':
+                        case 'observedAttributes':
+                            // Skip these - handled separately
+                            break;
+                        case 'children':
+                            if (Array.isArray(value)) {
+                                for (const child of value) {
+                                    const childNode = buildElementTree(child);
+                                    if (childNode && 'appendChild' in container) {
+                                        container.appendChild(childNode);
+                                    }
+                                }
+                            }
+                            break;
+                        case 'attributes':
+                            if (value && typeof value === 'object') {
+                                for (const [attrName, attrValue] of Object.entries(value)) {
+                                    if (attrValue && typeof attrValue === 'string') {
+                                        this.setAttribute(attrName, attrValue);
+                                    }
+                                }
+                            }
+                            break;
+                        case 'style':
+                            if (value && typeof value === 'object') {
+                                Object.assign(this.style, value);
+                            }
+                            break;
+                        default:
+                            // Handle event listeners (properties starting with 'on')
+                            if (key.startsWith('on') && typeof value === 'function') {
+                                const eventName = key.slice(2).toLowerCase();
+                                this.addEventListener(eventName, value);
+                            }
+                            else {
+                                // Set all other properties directly on this element
+                                this[key] = value;
+                            }
+                            break;
+                    }
+                }
+                // Call custom connectedCallback if defined
+                if (def.connectedCallback) {
+                    def.connectedCallback(this);
+                }
+            }
+            disconnectedCallback() {
+                if (def.disconnectedCallback) {
+                    def.disconnectedCallback(this);
+                }
+            }
+            attributeChangedCallback(name, oldValue, newValue) {
+                if (def.attributeChangedCallback) {
+                    def.attributeChangedCallback(this, name, oldValue, newValue);
+                }
+            }
+            adoptedCallback() {
+                if (def.adoptedCallback) {
+                    def.adoptedCallback(this);
+                }
+            }
+            static get observedAttributes() {
+                return def.observedAttributes || [];
+            }
+        });
+    }
+}
+/**
+ * Reference implementation of rendering a DeclarativeWindow object to a real DOM.
+ * This is not part of the DeclarativeDOM spec itself—only a demonstration.
+ */
+export function renderWindow(desc) {
+    buildElementTree(desc, window);
 }
 // Auto-expose DDOM namespace globally
 if (typeof window !== 'undefined') {

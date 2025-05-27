@@ -6,7 +6,43 @@ export default {
 		'dynamic-list': { name: 'Dynamic List', config: null }
 	},
 
-	loadExamples: async function () {
+	customElements: [
+		{
+			tagName: 'nav-button',
+			connectedCallback: function(element) {
+				// Get the label from the element's properties
+				const label = element.label || 'Button';
+				const button = element.querySelector('button');
+				if (button) {
+					button.textContent = label;
+				}
+			},
+			children: [{
+				tagName: 'button',
+				style: {
+					padding: '0.5em 1em',
+					border: '1px solid #007bff',
+					borderRadius: '4px',
+					backgroundColor: 'white',
+					color: '#007bff',
+					cursor: 'pointer',
+					fontSize: '0.9em',
+					transition: 'all 0.2s'
+				},
+				onclick: function() {
+					// Access the example property from the custom element
+					const customElement = this.parentElement;
+					const example = customElement.example;
+					console.log('Switching to example:', example);
+					if (example) {
+						window.switchExample(example);
+					}
+				}
+			}]
+		}
+	],
+
+	loadExamples: async function() {
 		const basicModule = await import('./basic.js');
 		const customElementsModule = await import('./custom-elements.js');
 		const interactiveFormModule = await import('./interactive-form.js');
@@ -19,13 +55,13 @@ export default {
 	},
 	currentExample: 'basic',
 
-	switchExample: function (exampleKey) {
+	switchExample: function(exampleKey) {
 		this.currentExample = exampleKey;
 		this.renderCurrentExample();
 		this.updateNavButtons();
 	},
 
-	renderCurrentExample: function () {
+	renderCurrentExample: function() {
 		const exampleContainer = document.getElementById('example-container');
 		if (exampleContainer) {
 			exampleContainer.innerHTML = '';
@@ -39,8 +75,19 @@ export default {
 
 				// Render the body content directly using buildElementTree
 				if (example.config.document && example.config.document.body) {
-					const bodyElement = DDOM.buildElementTree(example.config.document.body);
-					exampleContainer.appendChild(bodyElement);
+					// Create a container div and apply the body content to it
+					const bodyDescriptor = { 
+						tagName: 'div', 
+						...example.config.document.body 
+					};
+					console.log('Body descriptor:', bodyDescriptor);
+					const bodyElement = DDOM.buildElementTree(bodyDescriptor);
+					console.log('Body element:', bodyElement);
+					if (bodyElement && bodyElement instanceof Node) {
+						exampleContainer.appendChild(bodyElement);
+					} else {
+						console.error('buildElementTree did not return a valid Node:', bodyElement);
+					}
 				}
 
 				// Call onRender if it exists
@@ -51,7 +98,7 @@ export default {
 		}
 	},
 
-	updateNavButtons: function () {
+	updateNavButtons: function() {
 		Object.keys(this.examples).forEach(key => {
 			const button = document.getElementById(`nav-${key}`);
 			if (button) {
@@ -117,68 +164,28 @@ export default {
 							},
 							children: [
 								{
-									tagName: 'button',
+									tagName: 'nav-button',
 									id: 'nav-basic',
-									textContent: 'Basic Example',
-									style: {
-										padding: '0.5em 1em',
-										border: '1px solid #007bff',
-										borderRadius: '4px',
-										backgroundColor: '#007bff',
-										color: 'white',
-										cursor: 'pointer',
-										fontSize: '0.9em',
-										transition: 'all 0.2s'
-									},
-									onclick: function () { window.switchExample('basic'); }
+									label: 'Basic Example',
+									example: 'basic'
 								},
 								{
-									tagName: 'button',
+									tagName: 'nav-button',
 									id: 'nav-custom-elements',
-									textContent: 'Custom Elements',
-									style: {
-										padding: '0.5em 1em',
-										border: '1px solid #007bff',
-										borderRadius: '4px',
-										backgroundColor: 'white',
-										color: '#007bff',
-										cursor: 'pointer',
-										fontSize: '0.9em',
-										transition: 'all 0.2s'
-									},
-									onclick: function () { window.switchExample('custom-elements'); }
+									label: 'Custom Elements',
+									example: 'custom-elements'
 								},
 								{
-									tagName: 'button',
+									tagName: 'nav-button',
 									id: 'nav-interactive-form',
-									textContent: 'Interactive Form',
-									style: {
-										padding: '0.5em 1em',
-										border: '1px solid #007bff',
-										borderRadius: '4px',
-										backgroundColor: 'white',
-										color: '#007bff',
-										cursor: 'pointer',
-										fontSize: '0.9em',
-										transition: 'all 0.2s'
-									},
-									onclick: function () { window.switchExample('interactive-form'); }
+									label: 'Interactive Form',
+									example: 'interactive-form'
 								},
 								{
-									tagName: 'button',
+									tagName: 'nav-button',
 									id: 'nav-dynamic-list',
-									textContent: 'Dynamic List',
-									style: {
-										padding: '0.5em 1em',
-										border: '1px solid #007bff',
-										borderRadius: '4px',
-										backgroundColor: 'white',
-										color: '#007bff',
-										cursor: 'pointer',
-										fontSize: '0.9em',
-										transition: 'all 0.2s'
-									},
-									onclick: function () { window.switchExample('dynamic-list'); }
+									label: 'Dynamic List',
+									example: 'dynamic-list'
 								}
 							]
 						}
@@ -203,7 +210,7 @@ export default {
 		}
 	},
 
-	onRender: async function () {
+	onRender: async function() {
 		await this.loadExamples();
 		// Expose switchExample function globally for navigation buttons
 		window.switchExample = this.switchExample.bind(this);

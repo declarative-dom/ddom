@@ -1,7 +1,7 @@
 export default {
-  customElements: {
-    'user-card': {
-      tagName: 'div',
+  customElements: [
+    {
+      tagName: 'user-card',
       style: {
         border: '1px solid #ddd',
         borderRadius: '8px',
@@ -23,8 +23,8 @@ export default {
         }
       ]
     },
-    'todo-item': {
-      tagName: 'div',
+    {
+      tagName: 'todo-item',
       style: {
         display: 'flex',
         alignItems: 'center',
@@ -44,7 +44,7 @@ export default {
         }
       ]
     }
-  },
+  ],
   document: {
     body: {
       style: {

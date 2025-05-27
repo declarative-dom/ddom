@@ -4,7 +4,6 @@ export default {
 			style: {
 				fontFamily: 'Arial, sans-serif',
 				padding: '2em',
-				backgroundColor: '#f5f5f5'
 			},
 			children: [
 				{
@@ -28,7 +27,7 @@ export default {
 						borderRadius: '4px',
 						cursor: 'pointer'
 					},
-					onclick: function() { alert('Button clicked!'); }
+					onclick: () => { alert('Button clicked!'); }
 				}
 			]
 		}

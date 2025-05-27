@@ -5,28 +5,34 @@
  * necessary changes to support declarative definition.
  */
 
-type WritableHTMLElementOverrides = {
-	tagName: string;
+type WritableOverrides = {
+	tagName?: string;
 	attributes?: Record<string, string>;
 	children?: DeclarativeHTMLElement[];
+	document?: Partial<DeclarativeDocument>;
+	customElements?: DeclarativeCustomElement[];
 };
 
-export type DeclarativeHTMLBodyElement = Omit<HTMLBodyElement, keyof WritableHTMLElementOverrides> & WritableHTMLElementOverrides & {};
+export type DeclarativeCustomElement = WritableOverrides & {
+	tagName: string; // Required for custom elements
+	connectedCallback?: (element: HTMLElement) => void;
+	disconnectedCallback?: (element: HTMLElement) => void;
+	attributeChangedCallback?: (element: HTMLElement, name: string, oldValue: string | null, newValue: string | null) => void;
+	adoptedCallback?: (element: HTMLElement) => void;
+	observedAttributes?: string[];
+};
 
-export type DeclarativeHTMLElement = Omit<HTMLElement, keyof WritableHTMLElementOverrides> & WritableHTMLElementOverrides & {};
+export type DeclarativeHTMLBodyElement = Omit<HTMLBodyElement, keyof WritableOverrides> & WritableOverrides & {};
 
-export type DeclarativeHTMLHeadElement = Omit<HTMLHeadElement, keyof WritableHTMLElementOverrides> & WritableHTMLElementOverrides & {};
+export type DeclarativeHTMLElement = Omit<HTMLElement, keyof WritableOverrides> & WritableOverrides & {
+	tagName: string; // Required for elements
+};
 
-type WritableDocumentOverrides = {
+export type DeclarativeHTMLHeadElement = Omit<HTMLHeadElement, keyof WritableOverrides> & WritableOverrides & {};
+
+export type DeclarativeDocument = Omit<Document, keyof WritableOverrides> & WritableOverrides & {
 	body?: Partial<DeclarativeHTMLBodyElement>;
 	head?: Partial<DeclarativeHTMLHeadElement>;
 };
 
-export type DeclarativeDocument = Omit<Document, keyof WritableDocumentOverrides> & WritableDocumentOverrides & {};
-
-type WritableWindowOverrides = {
-	document?: Partial<DeclarativeDocument>;
-	customElements?: Record<string, DeclarativeHTMLElement>;
-};
-
-export type DeclarativeWindow = Omit<Window, keyof WritableWindowOverrides> & WritableWindowOverrides & {};
+export type DeclarativeWindow = Omit<Window, keyof WritableOverrides> & WritableOverrides & {};

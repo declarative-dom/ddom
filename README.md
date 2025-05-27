@@ -1,8 +1,8 @@
 # Declarative DOM
 
-**Declarative DOM** is a data format for expressing nearly 100% DOM-consistent structure using JavaScript object literals. Think of it as a subset and superset of the current DOM specifications, where certain readonly DOM properties become writable in a declarative manner.
+**Declarative DOM** is a working draft-state data format for expressing nearly 100% DOM-consistent structure using JavaScript object literals. Think of it as an object syntax supporting a subset and re-casting of the current DOM properties, where certain readonly DOM properties become writable in a declarative manner. 
 
-Just as JSON provides a syntax and grammar for describing arbitrary data, Declarative DOM defines a constrained structure for describing DOM nodes and documents.
+Just as JSON provides a syntax and grammar for describing arbitrary data, Declarative DOM defines a constrained structure for describing DOM nodes and documents. Special emphasis is placed on creating a standardized syntax to define the import and initiation of custom elements in a declarative way.
 
 Included are type specifications and a reference rendering library.
 
@@ -25,7 +25,7 @@ Declarative DOM is:
 
 - 🧠 Treat UI as data: no strings, no templates
 - 🎯 Align closely with native DOM types
-- 🛠️ Enable app builders and editor tooling
+- 🛠️ Designed for app builders and WYSIWYG editor tooling
 - 📦 JSON/JS-friendly for transport, storage, and analysis
 
 ## Example
@@ -34,16 +34,16 @@ Declarative DOM is:
 import { renderWindow } from 'declarative-dom';
 
 renderWindow({
-  customElements: {
-    'my-box': {
-      tagName: 'div',
+  customElements: [
+    {
+      tagName: 'my-box',
       style: { backgroundColor: 'skyblue', padding: '1em' },
       children: [
         { tagName: 'h2', textContent: 'Hello!' },
         { tagName: 'button', textContent: 'Click me', onclick: () => alert('Clicked!') }
       ]
     }
-  },
+  ],
   document: {
     body: {
       style: { margin: '2em', background: '#111', color: 'white' },

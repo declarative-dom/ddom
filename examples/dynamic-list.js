@@ -82,7 +82,17 @@ export default {
                 fontSize: '1em',
                 marginBottom: '1em'
               },
-              onclick: function() { window.addItem(); }
+              onclick: function() { 
+                const newItem = prompt('Enter a new item:');
+                if (newItem) {
+                  // Find the example config object and call its addItem method
+                  const exampleContainer = document.getElementById('example-container');
+                  if (exampleContainer && exampleContainer.exampleConfig) {
+                    exampleContainer.exampleConfig.items.push(newItem);
+                    exampleContainer.exampleConfig.renderList();
+                  }
+                }
+              }
             },
             {
               tagName: 'div',
@@ -94,6 +104,11 @@ export default {
     }
   },
   onRender: function() {
+    // Store reference to this config on the container for access by event handlers
+    const exampleContainer = document.getElementById('example-container');
+    if (exampleContainer) {
+      exampleContainer.exampleConfig = this;
+    }
     setTimeout(() => this.renderList(), 0);
   }
 }
