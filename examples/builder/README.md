@@ -31,7 +31,7 @@ This builder showcases several key aspects of Declarative DOM:
 The builder maintains a `DeclarativeWindow` object that represents the current state of the interface being built. When users interact with the builder:
 
 1. The declarative structure is modified
-2. The canvas is re-rendered using `DDOM.buildElementTree()`
+2. The canvas is re-rendered using `DDOM.createElementDOM()`
 3. The properties panel reflects the current selection
 4. The structure tree shows the hierarchical layout
 
