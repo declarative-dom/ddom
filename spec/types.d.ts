@@ -44,3 +44,9 @@ export type DeclarativeDocument = Omit<Document, keyof WritableOverrides> & Writ
 };
 
 export type DeclarativeWindow = Omit<Window, keyof WritableOverrides> & WritableOverrides & {};
+
+export type DeclarativeDOM = DeclarativeHTMLElement | DeclarativeHTMLBodyElement | DeclarativeHTMLHeadElement | DeclarativeDocument | DeclarativeWindow | DeclarativeCustomElement;
+
+export type DeclarativeDOMElement = DeclarativeHTMLElement | DeclarativeHTMLBodyElement | DeclarativeHTMLHeadElement | DeclarativeCustomElement;
+
+export type DOMNode = HTMLElement | HTMLBodyElement | HTMLHeadElement | Document | Window;

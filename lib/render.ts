@@ -5,51 +5,55 @@ import {
 	DeclarativeHTMLHeadElement,
 	DeclarativeWindow,
 	DeclarativeDocument,
+	DeclarativeDOM,
+	DeclarativeDOMElement,
+	DOMNode,
 	NestedCSSProperties,
 } from '../spec/types';
 
-import { generateElementSelector } from './utils';
-import { processElementStyles, clearDDOMStyles } from './css';
+import { getSelector } from './utils';
+import { addElementStyles, clearDDOMStyles, registerCustomElementStyles } from './css';
 
-export function render(desc: DeclarativeHTMLElement | DeclarativeWindow | DeclarativeDocument, element?: HTMLBodyElement | HTMLElement | HTMLHeadElement | Document | Window): HTMLBodyElement | HTMLElement | HTMLHeadElement | Document | Window | null {
+export function render(ddom: DeclarativeDOM, element?: DOMNode, parentSelector?: string, childIndex?: number, addStyles: boolean = true): DOMNode | null {
 	const el = element || (() => {
-		if ('tagName' in desc && desc.tagName) {
-			return document.createElement(desc.tagName);
+		if ('tagName' in ddom && ddom.tagName) {
+			return document.createElement(ddom.tagName) as HTMLElement;
 		}
 		return null;
 	})();
 
 	if (!el) return null;
 
-	for (const [key, value] of Object.entries(desc)) {
+	// Generate selector for the element
+	const selector = getSelector(el as HTMLElement, parentSelector, childIndex);
+
+	for (const [key, value] of Object.entries(ddom)) {
 		switch (key) {
 			case 'tagName':
 				// Skip - already used for createElement
 				break;
 			case 'children':
 				if (Array.isArray(value)) {
-					for (const child of value) {
-						const childNode = render(child);
+					value.forEach((child: DeclarativeHTMLElement, index: number) => {
+						const childNode = render(child, undefined, selector, index + 1);
 						if (childNode && 'appendChild' in el) {
-							(el as any).appendChild(childNode as Node);
+							el.appendChild(childNode as Node);
 						}
-					}
+					});
 				}
 				break;
 			case 'attributes':
 				if (value && typeof value === 'object') {
 					for (const [attrName, attrValue] of Object.entries(value)) {
-						if (attrValue && typeof attrValue === 'string') {
-							(el as any).setAttribute(attrName, attrValue);
+						if (attrValue && typeof attrValue === 'string' && el instanceof Element) {
+							el.setAttribute(attrName, attrValue);
 						}
 					}
 				}
 				break;
 			case 'style':
-				if (value && typeof value === 'object') {
-					// Generate selector for the element
-					const selector = generateElementSelector(el as HTMLElement);
-					processElementStyles(value as NestedCSSProperties, el as HTMLElement, selector);
+				if (addStyles && value && typeof value === 'object') {
+					addElementStyles(value as NestedCSSProperties, selector);
 				}
 				break;
 			case 'document':
@@ -76,7 +80,7 @@ export function render(desc: DeclarativeHTMLElement | DeclarativeWindow | Declar
 				// Handle event listeners (properties starting with 'on')
 				if (key.startsWith('on') && typeof value === 'function') {
 					const eventName = key.slice(2).toLowerCase();
-					(el as any).addEventListener(eventName, value as EventListener);
+					el.addEventListener(eventName, value as EventListener);
 				} else {
 					// Set all other properties directly on the element
 					(el as any)[key] = value;
@@ -89,23 +93,26 @@ export function render(desc: DeclarativeHTMLElement | DeclarativeWindow | Declar
 }
 
 export function registerCustomElements(elements: DeclarativeCustomElement[]) {
-	const unregisteredElements = elements.filter(element => !customElements.get(element.tagName));
+	const unregisteredDDOMElements = elements.filter(element => !customElements.get(element.tagName));
 
-	for (const def of unregisteredElements) {
-		console.log(`Registering custom element: ${def.tagName}`);
+	for (const ddom of unregisteredDDOMElements) {
+		console.log(`Registering custom element: ${ddom.tagName}`);
+
+		// Register styles once during element registration
+		registerCustomElementStyles(ddom, ddom.tagName);
 
 		// Handle global document modifications from custom element
-		if (def.document) {
-			render(def.document as DeclarativeDocument, document);
+		if (ddom.document) {
+			render(ddom.document as DeclarativeDocument, document);
 		}
 
-		customElements.define(def.tagName, class extends HTMLElement {
+		customElements.define(ddom.tagName, class extends HTMLElement {
 			constructor() {
 				super();
 
 				// Call custom constructor if defined
-				if (def.constructor) {
-					new def.constructor(this);
+				if (ddom.constructor) {
+					new ddom.constructor(this);
 				}
 			}
 
@@ -120,8 +127,10 @@ export function registerCustomElements(elements: DeclarativeCustomElement[]) {
 				// Clear any existing content
 				container.innerHTML = '';
 
+				const selector = ddom.tagName;
+
 				// Apply the definition to the container
-				for (const [key, value] of Object.entries(def)) {
+				for (const [key, value] of Object.entries(ddom)) {
 					switch (key) {
 						case 'tagName':
 						case 'document':
@@ -134,12 +143,12 @@ export function registerCustomElements(elements: DeclarativeCustomElement[]) {
 							break;
 						case 'children':
 							if (Array.isArray(value)) {
-								for (const child of value) {
-									const childNode = render(child as DeclarativeHTMLElement);
+								value.forEach((childDdom, index) => {
+									const childNode = render(childDdom as DeclarativeHTMLElement, undefined, selector, index + 1, false);
 									if (childNode && 'appendChild' in container) {
 										container.appendChild(childNode as Node);
 									}
-								}
+								});
 							}
 							break;
 						case 'attributes':
@@ -152,11 +161,7 @@ export function registerCustomElements(elements: DeclarativeCustomElement[]) {
 							}
 							break;
 						case 'style':
-							if (value && typeof value === 'object') {
-								// Generate selector for custom element
-								const selector = generateElementSelector(this);
-								processElementStyles(value as NestedCSSProperties, this, selector);
-							}
+							// Skip - styles already registered during element registration
 							break;
 						default:
 							// Handle event listeners (properties starting with 'on')
@@ -172,31 +177,31 @@ export function registerCustomElements(elements: DeclarativeCustomElement[]) {
 				}
 
 				// Call custom connectedCallback if defined
-				if (def.connectedCallback) {
-					def.connectedCallback(this);
+				if (ddom.connectedCallback) {
+					ddom.connectedCallback(this);
 				}
 			}
 
 			disconnectedCallback() {
-				if (def.disconnectedCallback) {
-					def.disconnectedCallback(this);
+				if (ddom.disconnectedCallback) {
+					ddom.disconnectedCallback(this);
 				}
 			}
 
 			attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
-				if (def.attributeChangedCallback) {
-					def.attributeChangedCallback(this, name, oldValue, newValue);
+				if (ddom.attributeChangedCallback) {
+					ddom.attributeChangedCallback(this, name, oldValue, newValue);
 				}
 			}
 
 			adoptedCallback() {
-				if (def.adoptedCallback) {
-					def.adoptedCallback(this);
+				if (ddom.adoptedCallback) {
+					ddom.adoptedCallback(this);
 				}
 			}
 
 			static get observedAttributes() {
-				return def.observedAttributes || [];
+				return ddom.observedAttributes || [];
 			}
 		});
 	}
@@ -206,28 +211,6 @@ export function registerCustomElements(elements: DeclarativeCustomElement[]) {
  * Reference implementation of rendering a DeclarativeWindow object to a real DOM.
  * This is not part of the DeclarativeDOM spec itself—only a demonstration.
  */
-export function renderWindow(desc: DeclarativeWindow) {
-	render(desc, window);
-}
-
-// Create global DDOM namespace when script loads
-declare global {
-	interface Window {
-		DDOM: {
-			renderWindow: typeof renderWindow;
-			render: typeof render;
-			registerCustomElements: typeof registerCustomElements;
-			clearDDOMStyles: typeof clearDDOMStyles;
-		};
-	}
-}
-
-// Auto-expose DDOM namespace globally
-if (typeof window !== 'undefined') {
-	window.DDOM = {
-		renderWindow,
-		render,
-		registerCustomElements,
-		clearDDOMStyles
-	};
+export function renderWindow(ddom: DeclarativeWindow) {
+	render(ddom, window);
 }

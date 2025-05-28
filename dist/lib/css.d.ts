@@ -12,6 +12,6 @@ export declare function clearDDOMStyles(): void;
  */
 export declare function addElementStyles(styles: NestedCSSProperties, selector: string): void;
 /**
- * Processes inline styles and nested styles for an element
+ * Recursively registers styles for a custom element and all its children
  */
-export declare function processElementStyles(styles: NestedCSSProperties, element: HTMLElement, selector: string): void;
+export declare function registerCustomElementStyles(ddom: any, selector: string): void;

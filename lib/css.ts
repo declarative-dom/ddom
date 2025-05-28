@@ -1,4 +1,9 @@
-import { NestedCSSProperties } from '../spec/types';
+import {
+	DeclarativeHTMLElement,
+	NestedCSSProperties,
+} from '../spec/types';
+import { getSelector } from './utils';
+
 
 // Global stylesheet reference for DDOM styles
 let ddomStyleSheet: CSSStyleSheet | null = null;
@@ -37,17 +42,17 @@ function isCSSProperty(key: string): boolean {
  */
 function flattenStyles(styles: NestedCSSProperties, baseSelector: string): Array<{ selector: string; properties: { [key: string]: string } }> {
 	const rules: Array<{ selector: string; properties: { [key: string]: string } }> = [];
-	
+
 	// Collect direct CSS properties
 	const directProperties: { [key: string]: string } = {};
-	
+
 	for (const [key, value] of Object.entries(styles)) {
 		if (isCSSProperty(key) && typeof value === 'string') {
 			directProperties[key] = value;
 		} else if (typeof value === 'object' && value !== null) {
 			// Handle nested selectors
 			let nestedSelector: string;
-			
+
 			if (key.startsWith(':') || key.startsWith('::')) {
 				// Pseudo-selectors
 				nestedSelector = `${baseSelector}${key}`;
@@ -58,18 +63,18 @@ function flattenStyles(styles: NestedCSSProperties, baseSelector: string): Array
 				// Element selectors
 				nestedSelector = `${baseSelector} ${key}`;
 			}
-			
+
 			// Recursively flatten nested styles
 			const nestedRules = flattenStyles(value as NestedCSSProperties, nestedSelector);
 			rules.push(...nestedRules);
 		}
 	}
-	
+
 	// Add rule for direct properties if any exist
 	if (Object.keys(directProperties).length > 0) {
 		rules.push({ selector: baseSelector, properties: directProperties });
 	}
-	
+
 	return rules;
 }
 
@@ -79,13 +84,13 @@ function flattenStyles(styles: NestedCSSProperties, baseSelector: string): Array
 export function addElementStyles(styles: NestedCSSProperties, selector: string): void {
 	const sheet = getDDOMStyleSheet();
 	const rules = flattenStyles(styles, selector);
-	
+
 	for (const rule of rules) {
 		try {
 			// Insert empty rule first
 			const ruleIndex = sheet.insertRule(`${rule.selector} {}`, sheet.cssRules.length);
 			const cssRule = sheet.cssRules[ruleIndex] as CSSStyleRule;
-			
+
 			// Apply properties using camelCase directly
 			for (const [property, value] of Object.entries(rule.properties)) {
 				cssRule.style[property as any] = value;
@@ -97,20 +102,21 @@ export function addElementStyles(styles: NestedCSSProperties, selector: string):
 }
 
 /**
- * Processes inline styles and nested styles for an element
+ * Recursively registers styles for a custom element and all its children
  */
-export function processElementStyles(
-	styles: NestedCSSProperties,
-	element: HTMLElement,
-	selector: string
-): void {
-	// Apply direct CSS properties to element.style using camelCase
-	for (const [key, value] of Object.entries(styles)) {
-		if (isCSSProperty(key) && typeof value === 'string') {
-			(element.style as any)[key] = value;
-		}
+export function registerCustomElementStyles(ddom: any, selector: string): void {
+	// Register styles for the element itself
+	if (ddom.style) {
+		addElementStyles(ddom.style, selector);
 	}
 
-	// Add all styles to the stylesheet for nested selectors
-	addElementStyles(styles, selector);
+	// Recursively register styles for children
+	if (ddom.children && Array.isArray(ddom.children)) {
+		ddom.children.forEach((child: DeclarativeHTMLElement, index: number) => {
+			if (child.style && typeof child.style === 'object') {
+				const childSelector = getSelector(child, ddom.tagName, index + 1);
+				registerCustomElementStyles(child, childSelector);
+			}
+		});
+	}
 }

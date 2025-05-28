@@ -81,13 +81,8 @@ export default {
 						...example.config.document.body 
 					};
 					console.log('Body descriptor:', bodyDescriptor);
-					const bodyElement = DDOM.render(bodyDescriptor);
+					const bodyElement = DDOM.render(bodyDescriptor, exampleContainer);
 					console.log('Body element:', bodyElement);
-					if (bodyElement && bodyElement instanceof Node) {
-						exampleContainer.appendChild(bodyElement);
-					} else {
-						console.error('render did not return a valid Node:', bodyElement);
-					}
 				}
 
 				// Call onRender if it exists
@@ -114,15 +109,6 @@ export default {
 	},
 
 	document: {
-		head: {
-			children: [
-				{
-					tagName: 'script',
-					type: 'module',
-					src: '../dist/index.js'
-				}
-			]
-		},
 		body: {
 			style: {
 				fontFamily: 'Arial, sans-serif',

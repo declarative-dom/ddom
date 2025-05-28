@@ -1,4 +1,37 @@
 // Utility to get a unique selector for a DOM element or DDOM object
+function getSelector(element, parentSelector, childIndex) {
+    // If the id is defined, use it directly with parent context
+    if (element.id) {
+        const idSelector = `#${element.id}`;
+        return parentSelector ? `${parentSelector} ${idSelector}` : idSelector;
+    }
+    // If the childIndex is defined, use nth-child directly
+    if (childIndex !== undefined && parentSelector) {
+        const tagName = 'tagName' in element ? element.tagName : element.nodeName;
+        return `${parentSelector}>${tagName.toLowerCase()}:nth-child(${childIndex})`;
+    }
+    // Only proceed if we have an actual DOM element
+    if (!(element instanceof Element)) {
+        const tagName = element.tagName?.toLowerCase() || '';
+        return parentSelector ? `${parentSelector} ${tagName}` : tagName;
+    }
+    // Build a selector based on the element's tag name and its position in the DOM tree
+    let path = [];
+    let currentElement = element;
+    while (currentElement && currentElement.nodeType === Node.ELEMENT_NODE) {
+        let selector = currentElement.nodeName.toLowerCase();
+        // Add nth-child if needed for uniqueness
+        let siblings = Array.from(currentElement.parentNode?.children || []);
+        let sameTagSiblings = siblings.filter(s => s.nodeName === currentElement.nodeName);
+        if (sameTagSiblings.length > 1) {
+            let index = sameTagSiblings.indexOf(currentElement) + 1;
+            selector += `:nth-child(${index})`;
+        }
+        path.unshift(selector);
+        currentElement = currentElement.parentNode;
+    }
+    return path.join('>');
+}
 /**
  * Generate a CSS selector for a rendered element based on its position in the document
  */
@@ -116,57 +149,62 @@ function addElementStyles(styles, selector) {
     }
 }
 /**
- * Processes inline styles and nested styles for an element
+ * Recursively registers styles for a custom element and all its children
  */
-function processElementStyles(styles, element, selector) {
-    // Apply direct CSS properties to element.style using camelCase
-    for (const [key, value] of Object.entries(styles)) {
-        if (isCSSProperty(key) && typeof value === 'string') {
-            element.style[key] = value;
-        }
+function registerCustomElementStyles(ddom, selector) {
+    // Register styles for the element itself
+    if (ddom.style) {
+        addElementStyles(ddom.style, selector);
     }
-    // Add all styles to the stylesheet for nested selectors
-    addElementStyles(styles, selector);
+    // Recursively register styles for children
+    if (ddom.children && Array.isArray(ddom.children)) {
+        ddom.children.forEach((child, index) => {
+            if (child.style && typeof child.style === 'object') {
+                const childSelector = getSelector(child, ddom.tagName, index + 1);
+                registerCustomElementStyles(child, childSelector);
+            }
+        });
+    }
 }
 
-function render(desc, element) {
+function render(ddom, element, parentSelector, childIndex, addStyles = true) {
     const el = element || (() => {
-        if ('tagName' in desc && desc.tagName) {
-            return document.createElement(desc.tagName);
+        if ('tagName' in ddom && ddom.tagName) {
+            return document.createElement(ddom.tagName);
         }
         return null;
     })();
     if (!el)
         return null;
-    for (const [key, value] of Object.entries(desc)) {
+    // Generate selector for the element
+    const selector = getSelector(el, parentSelector, childIndex);
+    for (const [key, value] of Object.entries(ddom)) {
         switch (key) {
             case 'tagName':
                 // Skip - already used for createElement
                 break;
             case 'children':
                 if (Array.isArray(value)) {
-                    for (const child of value) {
-                        const childNode = render(child);
+                    value.forEach((child, index) => {
+                        const childNode = render(child, undefined, selector, index + 1);
                         if (childNode && 'appendChild' in el) {
                             el.appendChild(childNode);
                         }
-                    }
+                    });
                 }
                 break;
             case 'attributes':
                 if (value && typeof value === 'object') {
                     for (const [attrName, attrValue] of Object.entries(value)) {
-                        if (attrValue && typeof attrValue === 'string') {
+                        if (attrValue && typeof attrValue === 'string' && el instanceof Element) {
                             el.setAttribute(attrName, attrValue);
                         }
                     }
                 }
                 break;
             case 'style':
-                if (value && typeof value === 'object') {
-                    // Generate selector for the element
-                    const selector = generateElementSelector(el);
-                    processElementStyles(value, el, selector);
+                if (addStyles && value && typeof value === 'object') {
+                    addElementStyles(value, selector);
                 }
                 break;
             case 'document':
@@ -205,19 +243,21 @@ function render(desc, element) {
     return el;
 }
 function registerCustomElements(elements) {
-    const unregisteredElements = elements.filter(element => !customElements.get(element.tagName));
-    for (const def of unregisteredElements) {
-        console.log(`Registering custom element: ${def.tagName}`);
+    const unregisteredDDOMElements = elements.filter(element => !customElements.get(element.tagName));
+    for (const ddom of unregisteredDDOMElements) {
+        console.log(`Registering custom element: ${ddom.tagName}`);
+        // Register styles once during element registration
+        registerCustomElementStyles(ddom, ddom.tagName);
         // Handle global document modifications from custom element
-        if (def.document) {
-            render(def.document, document);
+        if (ddom.document) {
+            render(ddom.document, document);
         }
-        customElements.define(def.tagName, class extends HTMLElement {
+        customElements.define(ddom.tagName, class extends HTMLElement {
             constructor() {
                 super();
                 // Call custom constructor if defined
-                if (def.constructor) {
-                    new def.constructor(this);
+                if (ddom.constructor) {
+                    new ddom.constructor(this);
                 }
             }
             connectedCallback() {
@@ -228,8 +268,9 @@ function registerCustomElements(elements) {
                 let container = internals?.shadowRoot || this.shadowRoot || this;
                 // Clear any existing content
                 container.innerHTML = '';
+                const selector = ddom.tagName;
                 // Apply the definition to the container
-                for (const [key, value] of Object.entries(def)) {
+                for (const [key, value] of Object.entries(ddom)) {
                     switch (key) {
                         case 'tagName':
                         case 'document':
@@ -242,12 +283,12 @@ function registerCustomElements(elements) {
                             break;
                         case 'children':
                             if (Array.isArray(value)) {
-                                for (const child of value) {
-                                    const childNode = render(child);
+                                value.forEach((childDdom, index) => {
+                                    const childNode = render(childDdom, undefined, selector, index + 1, false);
                                     if (childNode && 'appendChild' in container) {
                                         container.appendChild(childNode);
                                     }
-                                }
+                                });
                             }
                             break;
                         case 'attributes':
@@ -260,11 +301,7 @@ function registerCustomElements(elements) {
                             }
                             break;
                         case 'style':
-                            if (value && typeof value === 'object') {
-                                // Generate selector for custom element
-                                const selector = generateElementSelector(this);
-                                processElementStyles(value, this, selector);
-                            }
+                            // Skip - styles already registered during element registration
                             break;
                         default:
                             // Handle event listeners (properties starting with 'on')
@@ -280,27 +317,27 @@ function registerCustomElements(elements) {
                     }
                 }
                 // Call custom connectedCallback if defined
-                if (def.connectedCallback) {
-                    def.connectedCallback(this);
+                if (ddom.connectedCallback) {
+                    ddom.connectedCallback(this);
                 }
             }
             disconnectedCallback() {
-                if (def.disconnectedCallback) {
-                    def.disconnectedCallback(this);
+                if (ddom.disconnectedCallback) {
+                    ddom.disconnectedCallback(this);
                 }
             }
             attributeChangedCallback(name, oldValue, newValue) {
-                if (def.attributeChangedCallback) {
-                    def.attributeChangedCallback(this, name, oldValue, newValue);
+                if (ddom.attributeChangedCallback) {
+                    ddom.attributeChangedCallback(this, name, oldValue, newValue);
                 }
             }
             adoptedCallback() {
-                if (def.adoptedCallback) {
-                    def.adoptedCallback(this);
+                if (ddom.adoptedCallback) {
+                    ddom.adoptedCallback(this);
                 }
             }
             static get observedAttributes() {
-                return def.observedAttributes || [];
+                return ddom.observedAttributes || [];
             }
         });
     }
@@ -309,17 +346,19 @@ function registerCustomElements(elements) {
  * Reference implementation of rendering a DeclarativeWindow object to a real DOM.
  * This is not part of the DeclarativeDOM spec itself—only a demonstration.
  */
-function renderWindow(desc) {
-    render(desc, window);
+function renderWindow(ddom) {
+    render(ddom, window);
 }
+
 // Auto-expose DDOM namespace globally
 if (typeof window !== 'undefined') {
     window.DDOM = {
-        renderWindow,
-        render,
+        clearDDOMStyles,
+        getDDOMStyleSheet,
         registerCustomElements,
-        clearDDOMStyles
+        render,
+        renderWindow,
     };
 }
 
-export { clearDDOMStyles, generateElementSelector, processElementStyles, registerCustomElements, render, renderWindow };
+export { addElementStyles, clearDDOMStyles, generateElementSelector, registerCustomElements, render, renderWindow };
