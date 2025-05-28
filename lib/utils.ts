@@ -31,7 +31,7 @@ export function getSelector(element: Element | DeclarativeHTMLElement, parentSel
 	let path: string[] = [];
 	let currentElement: Element = element;
 
-	while (currentElement && currentElement.nodeType === Node.ELEMENT_NODE) {
+	while (currentElement && currentElement !== document.documentElement) {
 		let selector = currentElement.nodeName.toLowerCase();
 
 		// Add nth-child if needed for uniqueness
@@ -47,42 +47,5 @@ export function getSelector(element: Element | DeclarativeHTMLElement, parentSel
 		currentElement = currentElement.parentNode as Element;
 	}
 
-	return path.join('>');
-}
-
-/**
- * Generate a CSS selector for a rendered element based on its position in the document
- */
-export function generateElementSelector(element: HTMLElement): string {
-	if (element.id) {
-		return `#${element.id}`;
-	}
-
-	let path: string[] = [];
-	let currentElement: Element | null = element;
-
-	while (currentElement && currentElement !== document.body && currentElement !== document.documentElement) {
-		let selector = currentElement.nodeName.toLowerCase();
-
-		// Add nth-child for specificity
-		if (currentElement.parentElement) {
-			const siblings = Array.from(currentElement.parentElement.children);
-			const sameTagSiblings = siblings.filter(s => s.nodeName === currentElement!.nodeName);
-			
-			if (sameTagSiblings.length > 1) {
-				const index = sameTagSiblings.indexOf(currentElement) + 1;
-				selector += `:nth-child(${index})`;
-			}
-		}
-
-		path.unshift(selector);
-		currentElement = currentElement.parentElement;
-	}
-
-	// Prepend body if element is in body
-	if (element.closest('body')) {
-		path.unshift('body');
-	}
-
-	return path.join('>');
+	return path ? (path.join(' > ')) : element.tagName.toLowerCase();
 }

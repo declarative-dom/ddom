@@ -3,7 +3,6 @@ import { clearDDOMStyles, getDDOMStyleSheet } from './css'
 
 export { render, renderWindow, registerCustomElements } from './render'
 export { addElementStyles, clearDDOMStyles } from './css'
-export { generateElementSelector } from './utils'
 
 
 

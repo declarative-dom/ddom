@@ -1,12 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Declarative DOM Builder</title>
     <script type="module" src="../../dist/index.js"></script>
-</head>
-<body>
     <script type="module">
         import builderConfig from './index.js';
 
@@ -14,12 +13,16 @@
         window.addEventListener('load', () => {
             // Render the builder interface
             DDOM.renderWindow(builderConfig);
-            
+
             // Initialize the builder
             if (builderConfig.onRender) {
                 builderConfig.onRender.call(builderConfig);
             }
         });
     </script>
+</head>
+
+<body>
 </body>
+
 </html>

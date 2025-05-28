@@ -22,12 +22,14 @@ type WritableOverrides = {
 
 export type DeclarativeCustomElement = WritableOverrides & {
 	tagName: string; // Required for custom elements
-	constructor?: new (...args: any[]) => HTMLElement;
+	constructor?: (element: HTMLElement) => void;
 	connectedCallback?: (element: HTMLElement) => void;
 	disconnectedCallback?: (element: HTMLElement) => void;
 	attributeChangedCallback?: (element: HTMLElement, name: string, oldValue: string | null, newValue: string | null) => void;
 	adoptedCallback?: (element: HTMLElement) => void;
 	observedAttributes?: string[];
+} & {
+	[K in `#${string}`]?: any; // Support hashtag-prefixed private properties
 };
 
 export type DeclarativeHTMLBodyElement = Omit<HTMLBodyElement, keyof WritableOverrides> & WritableOverrides & {};
@@ -49,4 +51,4 @@ export type DeclarativeDOM = DeclarativeHTMLElement | DeclarativeHTMLBodyElement
 
 export type DeclarativeDOMElement = DeclarativeHTMLElement | DeclarativeHTMLBodyElement | DeclarativeHTMLHeadElement | DeclarativeCustomElement;
 
-export type DOMNode = HTMLElement | HTMLBodyElement | HTMLHeadElement | Document | Window;
+export type DOMNode = HTMLElement | HTMLBodyElement | HTMLHeadElement | Document | ShadowRoot | Window;
