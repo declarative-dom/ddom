@@ -23,10 +23,16 @@ type WritableOverrides = {
 export type DeclarativeCustomElement = WritableOverrides & {
 	tagName: string; // Required for custom elements
 	constructor?: (element: HTMLElement) => void;
-	connectedCallback?: (element: HTMLElement) => void;
-	disconnectedCallback?: (element: HTMLElement) => void;
-	attributeChangedCallback?: (element: HTMLElement, name: string, oldValue: string | null, newValue: string | null) => void;
 	adoptedCallback?: (element: HTMLElement) => void;
+	attributeChangedCallback?: (element: HTMLElement, name: string, oldValue: string | null, newValue: string | null) => void;
+	connectedCallback?: (element: HTMLElement) => void;
+	connectedMoveCallback?: (element: HTMLElement) => void;
+	connectedMoveCallback?: (element: HTMLElement) => void;
+	disconnectedCallback?: (element: HTMLElement) => void;
+	formAssociatedCallback?: (element: HTMLElement) => void;
+	formDisabledCallback?: (element: HTMLElement) => void;
+	formResetCallback?: (element: HTMLElement) => void;
+	formStateRestoreCallback?: (element: HTMLElement) => void;
 	observedAttributes?: string[];
 } & {
 	[K in `#${string}`]?: any; // Support hashtag-prefixed private properties

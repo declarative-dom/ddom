@@ -87,12 +87,6 @@ function applyDDOM(ddom: DeclarativeDOM, el: DOMNode, selector?: string, childIn
 
 
 export function render(ddom: DeclarativeDOM, element?: DOMNode, parentSelector?: string, childIndex?: number, addStyles: boolean = true): DOMNode | null {
-	// register custom elements first
-	if ('customElements' in ddom && Array.isArray(ddom.customElements)) {
-		// debug
-		console.log('Registering custom elements:', ddom.customElements.map(el => el.tagName));
-		registerCustomElements(ddom.customElements as DeclarativeCustomElement[]);
-	}
 	const el = element || (() => {
 		if ('tagName' in ddom && ddom.tagName) {
 			return document.createElement(ddom.tagName) as HTMLElement;
@@ -106,7 +100,7 @@ export function render(ddom: DeclarativeDOM, element?: DOMNode, parentSelector?:
 	const selector = getSelector(el as HTMLElement, parentSelector, childIndex);
 
 	// Apply all properties using the unified dispatch table
-	applyDDOM(ddom, el, selector, childIndex, addStyles, ['tagName', 'customElements']);
+	applyDDOM(ddom, el, selector, childIndex, addStyles, ['tagName']);
 
 	return el;
 }
@@ -115,8 +109,6 @@ export function registerCustomElements(elements: DeclarativeCustomElement[]) {
 	const unregisteredDDOMElements = elements.filter(element => !customElements.get(element.tagName));
 
 	unregisteredDDOMElements.forEach(ddom => {
-		console.log(`Registering custom element: ${ddom.tagName}`);
-
 		// Register styles once during element registration
 		registerCustomElementStyles(ddom, ddom.tagName);
 
@@ -135,6 +127,18 @@ export function registerCustomElements(elements: DeclarativeCustomElement[]) {
 				}
 			}
 
+			adoptedCallback() {
+				if (ddom.adoptedCallback && typeof ddom.adoptedCallback === 'function') {
+					ddom.adoptedCallback(this);
+				}
+			}
+
+			attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
+				if (ddom.attributeChangedCallback && typeof ddom.attributeChangedCallback === 'function') {
+					ddom.attributeChangedCallback(this, name, oldValue, newValue);
+				}
+			}
+
 			connectedCallback() {
 				// Check for existing shadow root (declarative or programmatic)
 				const supportsDeclarative = HTMLElement.prototype.hasOwnProperty("attachInternals");
@@ -150,34 +154,52 @@ export function registerCustomElements(elements: DeclarativeCustomElement[]) {
 
 				// Apply all properties using the unified dispatch table
 				const customElementIgnoreKeys = [
-					'tagName', 'document', 'connectedCallback', 'disconnectedCallback',
-					'attributeChangedCallback', 'adoptedCallback', 'observedAttributes',
-					'constructor', 'style'
+					'tagName', 'document', 'adoptedCallback', 'attributeChangedCallback',
+					'connectedCallback', 'connectedMoveCallback', 'disconnectedCallback',
+					'formAssociatedCallback', 'formDisabledCallback', 'formResetCallback',
+					'formStateRestoreCallback', 'observedAttributes', 'constructor', 'style'
 				];
 
 				applyDDOM(ddom, container, selector, undefined, false, customElementIgnoreKeys);
 
-				// Call custom connectedCallback if defined
-				if (ddom.connectedCallback) {
+				if (ddom.connectedCallback && typeof ddom.connectedCallback === 'function') {
 					ddom.connectedCallback(this);
 				}
 			}
 
+			connectedMoveCallback() {
+				if (ddom.connectedMoveCallback && typeof ddom.connectedMoveCallback === 'function') {
+					ddom.connectedMoveCallback(this);
+				}
+			}
+
 			disconnectedCallback() {
-				if (ddom.disconnectedCallback) {
+				if (ddom.disconnectedCallback && typeof ddom.disconnectedCallback === 'function') {
 					ddom.disconnectedCallback(this);
 				}
 			}
 
-			attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
-				if (ddom.attributeChangedCallback) {
-					ddom.attributeChangedCallback(this, name, oldValue, newValue);
+			formAssociatedCallback(form: HTMLFormElement | null) {
+				if (ddom.formAssociatedCallback && typeof ddom.formAssociatedCallback === 'function') {
+					ddom.formAssociatedCallback(this, form);
 				}
 			}
 
-			adoptedCallback() {
-				if (ddom.adoptedCallback) {
-					ddom.adoptedCallback(this);
+			formDisabledCallback(disabled: boolean) {
+				if (ddom.formDisabledCallback && typeof ddom.formDisabledCallback === 'function') {
+					ddom.formDisabledCallback(this, disabled);
+				}
+			}
+
+			formResetCallback() {
+				if (ddom.formResetCallback && typeof ddom.formResetCallback === 'function') {
+					ddom.formResetCallback(this);
+				}
+			}
+
+			formStateRestoreCallback(state: any, mode: 'restore' | 'autocomplete') {
+				if (ddom.formStateRestoreCallback && typeof ddom.formStateRestoreCallback === 'function') {
+					ddom.formStateRestoreCallback(this, state, mode);
 				}
 			}
 
