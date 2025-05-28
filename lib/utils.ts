@@ -5,7 +5,7 @@ import {
 	DeclarativeHTMLHeadElement,
 	DeclarativeWindow,
 	DeclarativeDocument,
-} from './../types';
+} from '../spec/types';
 
 // Utility to get a unique selector for a DOM element or DDOM object
 export function getSelector(element: Element | DeclarativeHTMLElement, parentSelector?: string, childIndex?: number): string {

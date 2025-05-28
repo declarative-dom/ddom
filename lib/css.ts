@@ -1,25 +1,15 @@
-import { NestedCSSProperties } from '../types';
+import { NestedCSSProperties } from '../spec/types';
 
 // Global stylesheet reference for DDOM styles
 let ddomStyleSheet: CSSStyleSheet | null = null;
-let styleCounter = 0;
 
 /**
  * Gets or creates the global DDOM stylesheet
  */
 export function getDDOMStyleSheet(): CSSStyleSheet {
 	if (!ddomStyleSheet) {
-		if ('CSSStyleSheet' in window && 'adoptedStyleSheets' in Document.prototype) {
-			// Use modern CSSStyleSheet API
-			ddomStyleSheet = new CSSStyleSheet();
-			document.adoptedStyleSheets = [...document.adoptedStyleSheets, ddomStyleSheet];
-		} else {
-			// Fallback to style element
-			const styleElement = document.createElement('style');
-			styleElement.id = 'ddom-styles';
-			document.head.appendChild(styleElement);
-			ddomStyleSheet = styleElement.sheet!;
-		}
+		ddomStyleSheet = new CSSStyleSheet();
+		document.adoptedStyleSheets = [...document.adoptedStyleSheets, ddomStyleSheet];
 	}
 	return ddomStyleSheet!;
 }
@@ -29,157 +19,58 @@ export function getDDOMStyleSheet(): CSSStyleSheet {
  */
 export function clearDDOMStyles(): void {
 	const sheet = getDDOMStyleSheet();
-	// Clear all rules
 	while (sheet.cssRules.length > 0) {
 		sheet.deleteRule(0);
 	}
-	styleCounter = 0;
-}
-
-/**
- * Converts camelCase CSS property names to kebab-case
- */
-function camelToKebab(str: string): string {
-	return str.replace(/([A-Z])/g, '-$1').toLowerCase();
 }
 
 /**
  * Checks if a key is a CSS property (not a nested selector)
  */
 function isCSSProperty(key: string): boolean {
-	// CSS properties don't start with special characters or contain spaces
-	return !key.startsWith(':') && !key.startsWith('@') && !key.includes(' ') && 
-		   !key.startsWith('.') && !key.startsWith('#') && !key.startsWith('[');
+	return !key.startsWith(':') && !key.startsWith('@') && !key.includes(' ') &&
+		!key.startsWith('.') && !key.startsWith('#') && !key.startsWith('[');
 }
 
 /**
- * Generates CSS text from nested CSS properties with proper nesting syntax
+ * Flattens nested CSS styles into individual rules with full selectors
  */
-function generateCSSText(styles: NestedCSSProperties, baseSelector: string): string {
-	let cssText = '';
+function flattenStyles(styles: NestedCSSProperties, baseSelector: string): Array<{ selector: string; properties: { [key: string]: string } }> {
+	const rules: Array<{ selector: string; properties: { [key: string]: string } }> = [];
 	
-	// Collect direct CSS properties and nested selectors
-	const directProperties: string[] = [];
-	const nestedSelectors: { [key: string]: NestedCSSProperties } = {};
-	const pseudoSelectors: { [key: string]: NestedCSSProperties } = {};
+	// Collect direct CSS properties
+	const directProperties: { [key: string]: string } = {};
 	
 	for (const [key, value] of Object.entries(styles)) {
 		if (isCSSProperty(key) && typeof value === 'string') {
-			const kebabKey = camelToKebab(key);
-			directProperties.push(`  ${kebabKey}: ${value};`);
+			directProperties[key] = value;
 		} else if (typeof value === 'object' && value !== null) {
+			// Handle nested selectors
+			let nestedSelector: string;
+			
 			if (key.startsWith(':') || key.startsWith('::')) {
-				pseudoSelectors[key] = value as NestedCSSProperties;
+				// Pseudo-selectors
+				nestedSelector = `${baseSelector}${key}`;
+			} else if (key.startsWith('.') || key.startsWith('#') || key.startsWith('[')) {
+				// Class, ID, or attribute selectors
+				nestedSelector = `${baseSelector} ${key}`;
 			} else {
-				nestedSelectors[key] = value as NestedCSSProperties;
+				// Element selectors
+				nestedSelector = `${baseSelector} ${key}`;
 			}
+			
+			// Recursively flatten nested styles
+			const nestedRules = flattenStyles(value as NestedCSSProperties, nestedSelector);
+			rules.push(...nestedRules);
 		}
 	}
 	
-	// Generate main rule with direct properties
-	if (directProperties.length > 0 || Object.keys(pseudoSelectors).length > 0) {
-		cssText += `${baseSelector} {\n`;
-		cssText += directProperties.join('\n');
-		
-		// Add pseudo-selectors using & syntax
-		for (const [pseudoSelector, pseudoStyles] of Object.entries(pseudoSelectors)) {
-			const pseudoProps: string[] = [];
-			const nestedPseudos: { [key: string]: NestedCSSProperties } = {};
-			
-			for (const [key, value] of Object.entries(pseudoStyles)) {
-				if (isCSSProperty(key) && typeof value === 'string') {
-					const kebabKey = camelToKebab(key);
-					pseudoProps.push(`    ${kebabKey}: ${value};`);
-				} else if (typeof value === 'object' && value !== null) {
-					nestedPseudos[key] = value as NestedCSSProperties;
-				}
-			}
-			
-			if (pseudoProps.length > 0) {
-				cssText += `\n\n  &${pseudoSelector} {\n`;
-				cssText += pseudoProps.join('\n') + '\n';
-				
-				// Handle nested pseudo-selectors within pseudo-selectors
-				for (const [nestedPseudo, nestedStyles] of Object.entries(nestedPseudos)) {
-					if (nestedPseudo.startsWith(':') || nestedPseudo.startsWith('::')) {
-						const nestedProps: string[] = [];
-						for (const [key, value] of Object.entries(nestedStyles)) {
-							if (isCSSProperty(key) && typeof value === 'string') {
-								const kebabKey = camelToKebab(key);
-								nestedProps.push(`      ${kebabKey}: ${value};`);
-							}
-						}
-						if (nestedProps.length > 0) {
-							cssText += `\n    &${nestedPseudo} {\n`;
-							cssText += nestedProps.join('\n') + '\n';
-							cssText += '    }\n';
-						}
-					}
-				}
-				
-				cssText += '  }\n';
-			}
-		}
-		
-		// Add nested class/element selectors
-		for (const [selector, nestedStyles] of Object.entries(nestedSelectors)) {
-			const nestedProps: string[] = [];
-			const deepNested: { [key: string]: NestedCSSProperties } = {};
-			
-			for (const [key, value] of Object.entries(nestedStyles)) {
-				if (isCSSProperty(key) && typeof value === 'string') {
-					const kebabKey = camelToKebab(key);
-					nestedProps.push(`    ${kebabKey}: ${value};`);
-				} else if (typeof value === 'object' && value !== null) {
-					deepNested[key] = value as NestedCSSProperties;
-				}
-			}
-			
-			if (nestedProps.length > 0 || Object.keys(deepNested).length > 0) {
-				cssText += `\n\n  ${selector} {\n`;
-				if (nestedProps.length > 0) {
-					cssText += nestedProps.join('\n') + '\n';
-				}
-				
-				// Handle nested selectors within class selectors
-				for (const [deepSelector, deepStyles] of Object.entries(deepNested)) {
-					if (deepSelector.startsWith(':') || deepSelector.startsWith('::')) {
-						const deepProps: string[] = [];
-						for (const [key, value] of Object.entries(deepStyles)) {
-							if (isCSSProperty(key) && typeof value === 'string') {
-								const kebabKey = camelToKebab(key);
-								deepProps.push(`      ${kebabKey}: ${value};`);
-							}
-						}
-						if (deepProps.length > 0) {
-							cssText += `\n    &${deepSelector} {\n`;
-							cssText += deepProps.join('\n') + '\n';
-							cssText += '    }\n';
-						}
-					}
-				}
-				
-				cssText += '  }\n';
-			}
-		}
-		
-		cssText += '}\n\n';
+	// Add rule for direct properties if any exist
+	if (Object.keys(directProperties).length > 0) {
+		rules.push({ selector: baseSelector, properties: directProperties });
 	}
 	
-	// Generate separate rules for descendant element selectors
-	for (const [selector, nestedStyles] of Object.entries(nestedSelectors)) {
-		if (!selector.startsWith('.') && !selector.startsWith('#') && !selector.startsWith('[') &&
-			!selector.startsWith(':') && !selector.startsWith('::')) {
-			// This is an element selector - create a descendant rule
-			const fullSelector = `${baseSelector} ${selector}`;
-			const descendantCss = generateCSSText(nestedStyles, fullSelector);
-			if (descendantCss.trim()) {
-				cssText += descendantCss;
-			}
-		}
-	}
-	
-	return cssText;
+	return rules;
 }
 
 /**
@@ -187,32 +78,20 @@ function generateCSSText(styles: NestedCSSProperties, baseSelector: string): str
  */
 export function addElementStyles(styles: NestedCSSProperties, selector: string): void {
 	const sheet = getDDOMStyleSheet();
-	const cssText = generateCSSText(styles, selector);
+	const rules = flattenStyles(styles, selector);
 	
-	if (cssText.trim()) {
+	for (const rule of rules) {
 		try {
-			// For modern browsers with constructable stylesheets
-			if ('replaceSync' in sheet && typeof sheet.replaceSync === 'function') {
-				const currentRules = Array.from(sheet.cssRules).map(rule => rule.cssText).join('\n');
-				sheet.replaceSync(currentRules + '\n' + cssText);
-			} else {
-				// Fallback: parse and insert rules manually
-				const ruleBlocks = cssText.split(/}\s*(?=[^}]*{|$)/).filter(block => block.trim());
-				for (const block of ruleBlocks) {
-					const trimmedBlock = block.trim();
-					if (trimmedBlock && trimmedBlock.includes('{')) {
-						try {
-							if ('insertRule' in sheet && typeof sheet.insertRule === 'function') {
-								sheet.insertRule(trimmedBlock + '}', sheet.cssRules.length);
-							}
-						} catch (e) {
-							console.warn('Failed to insert CSS rule:', trimmedBlock, e);
-						}
-					}
-				}
+			// Insert empty rule first
+			const ruleIndex = sheet.insertRule(`${rule.selector} {}`, sheet.cssRules.length);
+			const cssRule = sheet.cssRules[ruleIndex] as CSSStyleRule;
+			
+			// Apply properties using camelCase directly
+			for (const [property, value] of Object.entries(rule.properties)) {
+				cssRule.style[property as any] = value;
 			}
 		} catch (e) {
-			console.warn('Failed to add CSS styles:', e);
+			console.warn('Failed to add CSS rule:', rule.selector, e);
 		}
 	}
 }
@@ -221,27 +100,17 @@ export function addElementStyles(styles: NestedCSSProperties, selector: string):
  * Processes inline styles and nested styles for an element
  */
 export function processElementStyles(
-	styles: NestedCSSProperties, 
-	element: HTMLElement, 
+	styles: NestedCSSProperties,
+	element: HTMLElement,
 	selector: string
 ): void {
-	// Apply direct CSS properties to element.style
-	const directStyles: { [key: string]: string } = {};
-	const hasNestedStyles = Object.keys(styles).some(key => 
-		!isCSSProperty(key) && typeof styles[key] === 'object'
-	);
-	
+	// Apply direct CSS properties to element.style using camelCase
 	for (const [key, value] of Object.entries(styles)) {
 		if (isCSSProperty(key) && typeof value === 'string') {
-			directStyles[key] = value;
+			(element.style as any)[key] = value;
 		}
 	}
-	
-	// Apply direct styles to the element
-	Object.assign(element.style, directStyles);
-	
-	// Add all styles (including direct ones) to the stylesheet if there are nested styles
-	if (hasNestedStyles) {
-		addElementStyles(styles, selector);
-	}
+
+	// Add all styles to the stylesheet for nested selectors
+	addElementStyles(styles, selector);
 }

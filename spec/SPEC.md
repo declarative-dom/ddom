@@ -14,7 +14,6 @@ This specification defines Declarative DOM, a format for representing DOM struct
 - Enable programmatic construction of DOM trees without imperative APIs
 - Provide type-safe representations of HTML elements and their properties
 - Support serialization and deserialization of UI structures
-- Facilitate visual editing tools and component libraries
 
 #### 1.2 Design Principles
 

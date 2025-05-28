@@ -1,4 +1,4 @@
-import { NestedCSSProperties } from '../types';
+import { NestedCSSProperties } from '../spec/types';
 /**
  * Gets or creates the global DDOM stylesheet
  */

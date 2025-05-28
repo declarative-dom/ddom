@@ -1,6 +1,135 @@
-import { generateElementSelector } from './utils';
-import { processElementStyles, clearDDOMStyles } from './css';
-export function render(desc, element) {
+// Utility to get a unique selector for a DOM element or DDOM object
+/**
+ * Generate a CSS selector for a rendered element based on its position in the document
+ */
+function generateElementSelector(element) {
+    if (element.id) {
+        return `#${element.id}`;
+    }
+    let path = [];
+    let currentElement = element;
+    while (currentElement && currentElement !== document.body && currentElement !== document.documentElement) {
+        let selector = currentElement.nodeName.toLowerCase();
+        // Add nth-child for specificity
+        if (currentElement.parentElement) {
+            const siblings = Array.from(currentElement.parentElement.children);
+            const sameTagSiblings = siblings.filter(s => s.nodeName === currentElement.nodeName);
+            if (sameTagSiblings.length > 1) {
+                const index = sameTagSiblings.indexOf(currentElement) + 1;
+                selector += `:nth-child(${index})`;
+            }
+        }
+        path.unshift(selector);
+        currentElement = currentElement.parentElement;
+    }
+    // Prepend body if element is in body
+    if (element.closest('body')) {
+        path.unshift('body');
+    }
+    return path.join('>');
+}
+
+// Global stylesheet reference for DDOM styles
+let ddomStyleSheet = null;
+/**
+ * Gets or creates the global DDOM stylesheet
+ */
+function getDDOMStyleSheet() {
+    if (!ddomStyleSheet) {
+        ddomStyleSheet = new CSSStyleSheet();
+        document.adoptedStyleSheets = [...document.adoptedStyleSheets, ddomStyleSheet];
+    }
+    return ddomStyleSheet;
+}
+/**
+ * Clears all DDOM styles from the stylesheet
+ */
+function clearDDOMStyles() {
+    const sheet = getDDOMStyleSheet();
+    while (sheet.cssRules.length > 0) {
+        sheet.deleteRule(0);
+    }
+}
+/**
+ * Checks if a key is a CSS property (not a nested selector)
+ */
+function isCSSProperty(key) {
+    return !key.startsWith(':') && !key.startsWith('@') && !key.includes(' ') &&
+        !key.startsWith('.') && !key.startsWith('#') && !key.startsWith('[');
+}
+/**
+ * Flattens nested CSS styles into individual rules with full selectors
+ */
+function flattenStyles(styles, baseSelector) {
+    const rules = [];
+    // Collect direct CSS properties
+    const directProperties = {};
+    for (const [key, value] of Object.entries(styles)) {
+        if (isCSSProperty(key) && typeof value === 'string') {
+            directProperties[key] = value;
+        }
+        else if (typeof value === 'object' && value !== null) {
+            // Handle nested selectors
+            let nestedSelector;
+            if (key.startsWith(':') || key.startsWith('::')) {
+                // Pseudo-selectors
+                nestedSelector = `${baseSelector}${key}`;
+            }
+            else if (key.startsWith('.') || key.startsWith('#') || key.startsWith('[')) {
+                // Class, ID, or attribute selectors
+                nestedSelector = `${baseSelector} ${key}`;
+            }
+            else {
+                // Element selectors
+                nestedSelector = `${baseSelector} ${key}`;
+            }
+            // Recursively flatten nested styles
+            const nestedRules = flattenStyles(value, nestedSelector);
+            rules.push(...nestedRules);
+        }
+    }
+    // Add rule for direct properties if any exist
+    if (Object.keys(directProperties).length > 0) {
+        rules.push({ selector: baseSelector, properties: directProperties });
+    }
+    return rules;
+}
+/**
+ * Adds styles to the DDOM stylesheet for an element
+ */
+function addElementStyles(styles, selector) {
+    const sheet = getDDOMStyleSheet();
+    const rules = flattenStyles(styles, selector);
+    for (const rule of rules) {
+        try {
+            // Insert empty rule first
+            const ruleIndex = sheet.insertRule(`${rule.selector} {}`, sheet.cssRules.length);
+            const cssRule = sheet.cssRules[ruleIndex];
+            // Apply properties using camelCase directly
+            for (const [property, value] of Object.entries(rule.properties)) {
+                cssRule.style[property] = value;
+            }
+        }
+        catch (e) {
+            console.warn('Failed to add CSS rule:', rule.selector, e);
+        }
+    }
+}
+/**
+ * Processes inline styles and nested styles for an element
+ */
+function processElementStyles(styles, element, selector) {
+    // Apply direct CSS properties to element.style using camelCase
+    for (const [key, value] of Object.entries(styles)) {
+        if (isCSSProperty(key) && typeof value === 'string') {
+            element.style[key] = value;
+        }
+    }
+    // Add all styles to the stylesheet for nested selectors
+    addElementStyles(styles, selector);
+}
+
+function render(desc, element) {
     const el = element || (() => {
         if ('tagName' in desc && desc.tagName) {
             return document.createElement(desc.tagName);
@@ -75,7 +204,7 @@ export function render(desc, element) {
     }
     return el;
 }
-export function registerCustomElements(elements) {
+function registerCustomElements(elements) {
     const unregisteredElements = elements.filter(element => !customElements.get(element.tagName));
     for (const def of unregisteredElements) {
         console.log(`Registering custom element: ${def.tagName}`);
@@ -180,7 +309,7 @@ export function registerCustomElements(elements) {
  * Reference implementation of rendering a DeclarativeWindow object to a real DOM.
  * This is not part of the DeclarativeDOM spec itself—only a demonstration.
  */
-export function renderWindow(desc) {
+function renderWindow(desc) {
     render(desc, window);
 }
 // Auto-expose DDOM namespace globally
@@ -192,3 +321,5 @@ if (typeof window !== 'undefined') {
         clearDDOMStyles
     };
 }
+
+export { clearDDOMStyles, generateElementSelector, processElementStyles, registerCustomElements, render, renderWindow };

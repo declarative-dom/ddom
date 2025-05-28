@@ -28,6 +28,36 @@ Declarative DOM is:
 - 🛠️ Designed for app builders and WYSIWYG editor tooling
 - 📦 JSON/JS-friendly for transport, storage, and analysis
 
+## Philosophy
+
+The Declarative DOM specification follows strict guidelines to maintain consistency and predictability:
+
+### Primary Principle: DOM Fidelity
+DDOM should mirror and support valid DOM properties, keys, and value types as closely as possible. The specification aims for 1:1 correspondence with native DOM APIs wherever feasible.
+
+### Exception 1: Read-Only Properties
+When DOM properties are read-only but should be settable declaratively, DDOM defines syntax that aligns as closely as possible with the final intended DOM outcome. Examples include:
+- `tagName` - normally read-only, but essential for declarative element creation
+- `children` - allows declarative specification of child elements
+- `document` and `customElements` - enable declarative document and component structure
+
+### Exception 2: DOM Functionality Gaps
+When no equivalent DOM syntax exists for functionality essential to a declarative UI, DDOM extends the DOM syntax, but only in alignment with existing (albeit non-DOM) web standards. This ensures that the syntax remains familiar to web developers while extending capabilities.
+
+The most notable example:
+
+**CSS Nesting**: The [CSSOM](https://developer.mozilla.org/en-US/docs/Web/API/CSS_Object_Model) only exposes flattened CSS rules and doesn't allow selector-based targeting on DOM styles. DDOM adopts [CSS Nesting](CSS nesting) syntax because:
+- It can be implemented using CSSOM-like APIs
+- It provides a familiar, standardized syntax for nested selectors
+- It aligns with DDOM's objective of treating UI structure as data
+- It maintains the declarative nature while extending beyond basic DOM capabilities
+
+### Design Constraints
+1. **No Proprietary Syntax**: Avoid inventing new patterns when established web standards exist
+2. **Predictable Mapping**: Developers should be able to predict DDOM syntax from their DOM knowledge
+3. **Future-Proof**: Syntax should align with emerging web standards when possible
+4. **Minimal Exceptions**: Only deviate from DOM APIs when absolutely necessary for declarative completeness
+
 ## Example
 
 ```js

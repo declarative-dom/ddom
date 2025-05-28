@@ -119,7 +119,7 @@ export default {
 				{
 					tagName: 'script',
 					type: 'module',
-					src: '../dist/lib/render.js'
+					src: '../dist/index.js'
 				}
 			]
 		},

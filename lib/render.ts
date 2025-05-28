@@ -6,7 +6,7 @@ import {
 	DeclarativeWindow,
 	DeclarativeDocument,
 	NestedCSSProperties,
-} from './../types';
+} from '../spec/types';
 
 import { generateElementSelector } from './utils';
 import { processElementStyles, clearDDOMStyles } from './css';

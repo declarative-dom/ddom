@@ -1,4 +1,4 @@
-import { DeclarativeCustomElement, DeclarativeHTMLElement, DeclarativeWindow, DeclarativeDocument } from './../types';
+import { DeclarativeCustomElement, DeclarativeHTMLElement, DeclarativeWindow, DeclarativeDocument } from '../spec/types';
 import { clearDDOMStyles } from './css';
 export declare function render(desc: DeclarativeHTMLElement | DeclarativeWindow | DeclarativeDocument, element?: HTMLBodyElement | HTMLElement | HTMLHeadElement | Document | Window): HTMLBodyElement | HTMLElement | HTMLHeadElement | Document | Window | null;
 export declare function registerCustomElements(elements: DeclarativeCustomElement[]): void;
