@@ -11,8 +11,7 @@ import {
 export function getSelector(element: Element | DeclarativeHTMLElement, parentSelector?: string, childIndex?: number): string {
 	// If the id is defined, use it directly with parent context
 	if (element.id) {
-		const idSelector = `#${element.id}`;
-		return parentSelector ? `${parentSelector} ${idSelector}` : idSelector;
+		return `#${element.id}`;
 	}
 	
 	// If the childIndex is defined, use nth-child directly

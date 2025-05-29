@@ -44,13 +44,19 @@ When DOM properties are read-only but should be settable declaratively, DDOM def
 ### Exception 2: DOM Functionality Gaps
 When no equivalent DOM syntax exists for functionality essential to a declarative UI, DDOM extends the DOM syntax, but only in alignment with existing (albeit non-DOM) web standards. This ensures that the syntax remains familiar to web developers while extending capabilities.
 
-The most notable example:
+The most notable examples:
 
 **CSS Nesting**: The [CSSOM](https://developer.mozilla.org/en-US/docs/Web/API/CSS_Object_Model) only exposes flattened CSS rules and doesn't allow selector-based targeting on DOM styles. DDOM adopts [CSS Nesting](CSS nesting) syntax because:
 - It can be implemented using CSSOM-like APIs
 - It provides a familiar, standardized syntax for nested selectors
 - It aligns with DDOM's objective of treating UI structure as data
 - It maintains the declarative nature while extending beyond basic DOM capabilities
+
+**Reactive Properties**: Native DOM doesn't provide built-in reactivity for custom element properties. DDOM adopts a `$`-prefixed syntax for reactive properties in custom elements because:
+- It follows the established JavaScript convention of using `$` for special/reactive variables (popularized by frameworks like Svelte)
+- It enables declarative specification of reactive state that automatically triggers re-renders
+- It provides a clear visual distinction between static and reactive properties
+- It aligns with modern web development patterns while maintaining declarative consistency
 
 ### Design Constraints
 1. **No Proprietary Syntax**: Avoid inventing new patterns when established web standards exist

@@ -1,43 +1,83 @@
 export default {
   items: ['Apple', 'Banana', 'Cherry'],
-  addItem: function() {
+  addItem: function () {
     const newItem = prompt('Enter a new item:');
     if (newItem) {
       this.items.push(newItem);
       this.renderList();
     }
   },
-  removeItem: function(index) {
+  removeItem: function (index) {
     this.items.splice(index, 1);
     this.renderList();
   },
-  renderList: function() {
+  renderList: function () {
     const listContainer = document.getElementById('list-container');
     if (listContainer) {
       listContainer.innerHTML = '';
-      
-      const ul = document.createElement('ul');
-      ul.style.cssText = 'list-style: none; padding: 0; margin: 1em 0;';
-      
-      this.items.forEach((item, index) => {
-        const li = document.createElement('li');
-        li.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 0.75em; margin: 0.5em 0; background-color: #f8f9fa; border-radius: 4px; border: 1px solid #dee2e6;';
-        
-        const span = document.createElement('span');
-        span.textContent = item;
-        span.style.flex = '1';
-        
-        const button = document.createElement('button');
-        button.textContent = 'Remove';
-        button.style.cssText = 'padding: 0.25em 0.5em; background-color: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.875em;';
-        button.onclick = () => this.removeItem(index);
-        
-        li.appendChild(span);
-        li.appendChild(button);
-        ul.appendChild(li);
-      });
-      
-      listContainer.appendChild(ul);
+
+      const listDescriptor = {
+        tagName: 'ul',
+        style: {
+          listStyle: 'none',
+          padding: '0',
+          margin: '1em 0'
+        },
+        children: this.items.map((item, index) => ({
+          tagName: 'li',
+          style: {
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '0.75em',
+            margin: '0.5em 0',
+            backgroundColor: '#f8f9fa',
+            borderRadius: '4px',
+            border: '1px solid #dee2e6'
+          },
+          children: [
+            {
+              tagName: 'span',
+              textContent: item,
+              contentEditable: true,
+              style: {
+                flex: '1',
+                padding: '0.25em',
+                borderRadius: '2px',
+                ':focus': {
+                  outline: '2px solid #007bff',
+                  backgroundColor: '#fff'
+                }
+              },
+              onblur: (event) => {
+                const newText = event.target.textContent.trim();
+                if (newText && newText !== item) {
+                  this.items[index] = newText;
+                } else if (!newText) {
+                  event.target.textContent = item; // Restore original if empty
+                }
+              }
+            },
+            {
+              tagName: 'button',
+              id: `remove-button-${index}`,
+              textContent: 'Remove',
+              style: {
+                padding: '0.25em 0.5em',
+                backgroundColor: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '3px',
+                cursor: 'pointer',
+                fontSize: '0.875em'
+              },
+              onclick: () => this.removeItem(index)
+            }
+          ]
+        }))
+      };
+
+      DDOM.render(listDescriptor, listContainer);
     }
   },
   document: {
@@ -52,7 +92,7 @@ export default {
         {
           tagName: 'h1',
           textContent: 'Dynamic List Example',
-          style: { 
+          style: {
             color: '#333',
             textAlign: 'center',
             marginBottom: '1em'
@@ -82,7 +122,7 @@ export default {
                 fontSize: '1em',
                 marginBottom: '1em'
               },
-              onclick: function() { 
+              onclick: function () {
                 const newItem = prompt('Enter a new item:');
                 if (newItem) {
                   // Find the example config object and call its addItem method
@@ -103,7 +143,7 @@ export default {
       ]
     }
   },
-  onRender: function() {
+  onRender: function () {
     // Store reference to this config on the container for access by event handlers
     const exampleContainer = document.getElementById('example-container');
     if (exampleContainer) {

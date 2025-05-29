@@ -96,6 +96,11 @@ export function render(ddom: DeclarativeDOM, element?: DOMNode, parentSelector?:
 
 	if (!el) return null;
 
+	// if the id is defined, set it on the element
+	if ('id' in ddom && ddom.id) {
+		(el as HTMLElement).id = ddom.id;
+	}
+
 	// Generate selector for the element
 	const selector = getSelector(el as HTMLElement, parentSelector, childIndex);
 
@@ -103,6 +108,31 @@ export function render(ddom: DeclarativeDOM, element?: DOMNode, parentSelector?:
 	applyDDOM(ddom, el, selector, childIndex, addStyles, ['tagName']);
 
 	return el;
+}
+
+class Signal<T> {
+	#value: T;
+	#subscribers = new Set<(value: T) => void>();
+
+	constructor(initialValue: T) {
+		this.#value = initialValue;
+	}
+
+	get value(): T {
+		return this.#value;
+	}
+
+	set value(newValue: T) {
+		if (!Object.is(this.#value, newValue)) {
+			this.#value = newValue;
+			this.#subscribers.forEach(fn => fn(newValue));
+		}
+	}
+
+	subscribe(fn: (value: T) => void): () => boolean {
+		this.#subscribers.add(fn);
+		return () => this.#subscribers.delete(fn);
+	}
 }
 
 export function registerCustomElements(elements: DeclarativeCustomElement[]) {
@@ -117,9 +147,36 @@ export function registerCustomElements(elements: DeclarativeCustomElement[]) {
 			render(ddom.document as DeclarativeDocument, document);
 		}
 
+		// Apply all properties using the unified dispatch table
+		const customElementIgnoreKeys = [
+			'tagName', 'document', 'adoptedCallback', 'attributeChangedCallback',
+			'connectedCallback', 'connectedMoveCallback', 'disconnectedCallback',
+			'formAssociatedCallback', 'formDisabledCallback', 'formResetCallback',
+			'formStateRestoreCallback', 'observedAttributes', 'constructor', 'style'
+		];
+
+		const reactiveFields = Object.keys(ddom).filter(key => key.startsWith('$'));
+
+		const allIgnoreKeys = [...customElementIgnoreKeys, ...reactiveFields];
+
 		customElements.define(ddom.tagName, class extends HTMLElement {
+			#abortController = new AbortController();
+			#container!: HTMLElement | ShadowRoot | DocumentFragment;
+
 			constructor() {
 				super();
+
+				// create signals for reactive fields
+				reactiveFields.forEach(field => {
+					const initialValue = (ddom as any)[field];
+					const signal = new Signal(initialValue);
+					const propertyName = field.slice(1); // Remove the $ prefix for the actual property
+					Object.defineProperty(this, propertyName, {
+						get: () => signal.value,
+						set: (value: any) => signal.value = value,
+					});
+					signal.subscribe(() => this.#triggerRender());
+				});
 
 				// Call custom constructor if defined
 				if (ddom.constructor && typeof ddom.constructor === 'function') {
@@ -145,26 +202,16 @@ export function registerCustomElements(elements: DeclarativeCustomElement[]) {
 				const internals = supportsDeclarative ? this.attachInternals() : undefined;
 
 				// Check for a Declarative Shadow Root or existing shadow root
-				let container = internals?.shadowRoot || this.shadowRoot || this;
-
-				// Clear any existing content
-				container.innerHTML = '';
-
-				const selector = ddom.tagName;
-
-				// Apply all properties using the unified dispatch table
-				const customElementIgnoreKeys = [
-					'tagName', 'document', 'adoptedCallback', 'attributeChangedCallback',
-					'connectedCallback', 'connectedMoveCallback', 'disconnectedCallback',
-					'formAssociatedCallback', 'formDisabledCallback', 'formResetCallback',
-					'formStateRestoreCallback', 'observedAttributes', 'constructor', 'style'
-				];
-
-				applyDDOM(ddom, container, selector, undefined, false, customElementIgnoreKeys);
+				this.#container = internals?.shadowRoot || this.shadowRoot || this;
 
 				if (ddom.connectedCallback && typeof ddom.connectedCallback === 'function') {
 					ddom.connectedCallback(this);
 				}
+
+				// debug
+				console.debug('Connected custom element:', ddom.tagName, 'to container:', this.#container);
+
+				this.#render();
 			}
 
 			connectedMoveCallback() {
@@ -174,6 +221,7 @@ export function registerCustomElements(elements: DeclarativeCustomElement[]) {
 			}
 
 			disconnectedCallback() {
+				this.#abortController.abort();
 				if (ddom.disconnectedCallback && typeof ddom.disconnectedCallback === 'function') {
 					ddom.disconnectedCallback(this);
 				}
@@ -206,9 +254,36 @@ export function registerCustomElements(elements: DeclarativeCustomElement[]) {
 			static get observedAttributes() {
 				return ddom.observedAttributes || [];
 			}
+
+			#render() {
+				// Clear any existing content
+				if ('innerHTML' in this.#container) {
+					this.#container.innerHTML = '';
+				} else if (this.#container instanceof DocumentFragment) {
+					// For DocumentFragment, remove all children
+					while (this.#container.firstChild) {
+						this.#container.removeChild(this.#container.firstChild);
+					}
+				}
+
+				// debug
+				console.debug('Rendering custom element:', ddom.tagName, 'to container:', this.#container);
+
+				// Apply all properties to the container
+				applyDDOM(ddom, this.#container, ddom.tagName, undefined, false, customElementIgnoreKeys);
+			}
+
+			#triggerRender() {
+				queueMicrotask(() => {
+					if (this.#abortController.signal.aborted) return;
+					// Render the custom element
+					this.#render();
+				});
+			}
 		});
 	});
 }
+
 
 /**
  * Reference implementation of rendering a DeclarativeWindow object to a real DOM.

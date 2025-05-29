@@ -2,8 +2,7 @@
 function getSelector(element, parentSelector, childIndex) {
     // If the id is defined, use it directly with parent context
     if (element.id) {
-        const idSelector = `#${element.id}`;
-        return parentSelector ? `${parentSelector} ${idSelector}` : idSelector;
+        return `#${element.id}`;
     }
     // If the childIndex is defined, use nth-child directly
     if (childIndex !== undefined && parentSelector) {
@@ -206,12 +205,6 @@ function applyDDOM(ddom, el, selector, childIndex, addStyles = true, ignoreKeys 
     }
 }
 function render(ddom, element, parentSelector, childIndex, addStyles = true) {
-    // register custom elements first
-    if ('customElements' in ddom && Array.isArray(ddom.customElements)) {
-        // debug
-        console.log('Registering custom elements:', ddom.customElements.map(el => el.tagName));
-        registerCustomElements(ddom.customElements);
-    }
     const el = element || (() => {
         if ('tagName' in ddom && ddom.tagName) {
             return document.createElement(ddom.tagName);
@@ -220,28 +213,83 @@ function render(ddom, element, parentSelector, childIndex, addStyles = true) {
     })();
     if (!el)
         return null;
+    // if the id is defined, set it on the element
+    if ('id' in ddom && ddom.id) {
+        el.id = ddom.id;
+    }
     // Generate selector for the element
     const selector = getSelector(el, parentSelector, childIndex);
     // Apply all properties using the unified dispatch table
-    applyDDOM(ddom, el, selector, childIndex, addStyles, ['tagName', 'customElements']);
+    applyDDOM(ddom, el, selector, childIndex, addStyles, ['tagName']);
     return el;
+}
+class Signal {
+    #value;
+    #subscribers = new Set();
+    constructor(initialValue) {
+        this.#value = initialValue;
+    }
+    get value() {
+        return this.#value;
+    }
+    set value(newValue) {
+        if (!Object.is(this.#value, newValue)) {
+            this.#value = newValue;
+            this.#subscribers.forEach(fn => fn(newValue));
+        }
+    }
+    subscribe(fn) {
+        this.#subscribers.add(fn);
+        return () => this.#subscribers.delete(fn);
+    }
 }
 function registerCustomElements(elements) {
     const unregisteredDDOMElements = elements.filter(element => !customElements.get(element.tagName));
     unregisteredDDOMElements.forEach(ddom => {
-        console.log(`Registering custom element: ${ddom.tagName}`);
         // Register styles once during element registration
         registerCustomElementStyles(ddom, ddom.tagName);
         // Handle global document modifications from custom element
         if (ddom.document) {
             render(ddom.document, document);
         }
+        // Apply all properties using the unified dispatch table
+        const customElementIgnoreKeys = [
+            'tagName', 'document', 'adoptedCallback', 'attributeChangedCallback',
+            'connectedCallback', 'connectedMoveCallback', 'disconnectedCallback',
+            'formAssociatedCallback', 'formDisabledCallback', 'formResetCallback',
+            'formStateRestoreCallback', 'observedAttributes', 'constructor', 'style'
+        ];
+        const reactiveFields = Object.keys(ddom).filter(key => key.startsWith('$'));
+        [...customElementIgnoreKeys, ...reactiveFields];
         customElements.define(ddom.tagName, class extends HTMLElement {
+            #abortController = new AbortController();
+            #container;
             constructor() {
                 super();
+                // create signals for reactive fields
+                reactiveFields.forEach(field => {
+                    const initialValue = ddom[field];
+                    const signal = new Signal(initialValue);
+                    const propertyName = field.slice(1); // Remove the $ prefix for the actual property
+                    Object.defineProperty(this, propertyName, {
+                        get: () => signal.value,
+                        set: (value) => signal.value = value,
+                    });
+                    signal.subscribe(() => this.#triggerRender());
+                });
                 // Call custom constructor if defined
                 if (ddom.constructor && typeof ddom.constructor === 'function') {
                     ddom.constructor(this);
+                }
+            }
+            adoptedCallback() {
+                if (ddom.adoptedCallback && typeof ddom.adoptedCallback === 'function') {
+                    ddom.adoptedCallback(this);
+                }
+            }
+            attributeChangedCallback(name, oldValue, newValue) {
+                if (ddom.attributeChangedCallback && typeof ddom.attributeChangedCallback === 'function') {
+                    ddom.attributeChangedCallback(this, name, oldValue, newValue);
                 }
             }
             connectedCallback() {
@@ -249,39 +297,71 @@ function registerCustomElements(elements) {
                 const supportsDeclarative = HTMLElement.prototype.hasOwnProperty("attachInternals");
                 const internals = supportsDeclarative ? this.attachInternals() : undefined;
                 // Check for a Declarative Shadow Root or existing shadow root
-                let container = internals?.shadowRoot || this.shadowRoot || this;
-                // Clear any existing content
-                container.innerHTML = '';
-                const selector = ddom.tagName;
-                // Apply all properties using the unified dispatch table
-                const customElementIgnoreKeys = [
-                    'tagName', 'document', 'connectedCallback', 'disconnectedCallback',
-                    'attributeChangedCallback', 'adoptedCallback', 'observedAttributes',
-                    'constructor', 'style'
-                ];
-                applyDDOM(ddom, container, selector, undefined, false, customElementIgnoreKeys);
-                // Call custom connectedCallback if defined
-                if (ddom.connectedCallback) {
+                this.#container = internals?.shadowRoot || this.shadowRoot || this;
+                if (ddom.connectedCallback && typeof ddom.connectedCallback === 'function') {
                     ddom.connectedCallback(this);
+                }
+                // debug
+                console.debug('Connected custom element:', ddom.tagName, 'to container:', this.#container);
+                this.#render();
+            }
+            connectedMoveCallback() {
+                if (ddom.connectedMoveCallback && typeof ddom.connectedMoveCallback === 'function') {
+                    ddom.connectedMoveCallback(this);
                 }
             }
             disconnectedCallback() {
-                if (ddom.disconnectedCallback) {
+                this.#abortController.abort();
+                if (ddom.disconnectedCallback && typeof ddom.disconnectedCallback === 'function') {
                     ddom.disconnectedCallback(this);
                 }
             }
-            attributeChangedCallback(name, oldValue, newValue) {
-                if (ddom.attributeChangedCallback) {
-                    ddom.attributeChangedCallback(this, name, oldValue, newValue);
+            formAssociatedCallback(form) {
+                if (ddom.formAssociatedCallback && typeof ddom.formAssociatedCallback === 'function') {
+                    ddom.formAssociatedCallback(this, form);
                 }
             }
-            adoptedCallback() {
-                if (ddom.adoptedCallback) {
-                    ddom.adoptedCallback(this);
+            formDisabledCallback(disabled) {
+                if (ddom.formDisabledCallback && typeof ddom.formDisabledCallback === 'function') {
+                    ddom.formDisabledCallback(this, disabled);
+                }
+            }
+            formResetCallback() {
+                if (ddom.formResetCallback && typeof ddom.formResetCallback === 'function') {
+                    ddom.formResetCallback(this);
+                }
+            }
+            formStateRestoreCallback(state, mode) {
+                if (ddom.formStateRestoreCallback && typeof ddom.formStateRestoreCallback === 'function') {
+                    ddom.formStateRestoreCallback(this, state, mode);
                 }
             }
             static get observedAttributes() {
                 return ddom.observedAttributes || [];
+            }
+            #render() {
+                // Clear any existing content
+                if ('innerHTML' in this.#container) {
+                    this.#container.innerHTML = '';
+                }
+                else if (this.#container instanceof DocumentFragment) {
+                    // For DocumentFragment, remove all children
+                    while (this.#container.firstChild) {
+                        this.#container.removeChild(this.#container.firstChild);
+                    }
+                }
+                // debug
+                console.debug('Rendering custom element:', ddom.tagName, 'to container:', this.#container);
+                // Apply all properties to the container
+                applyDDOM(ddom, this.#container, ddom.tagName, undefined, false, customElementIgnoreKeys);
+            }
+            #triggerRender() {
+                queueMicrotask(() => {
+                    if (this.#abortController.signal.aborted)
+                        return;
+                    // Render the custom element
+                    this.#render();
+                });
             }
         });
     });

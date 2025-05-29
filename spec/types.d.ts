@@ -27,15 +27,14 @@ export type DeclarativeCustomElement = WritableOverrides & {
 	attributeChangedCallback?: (element: HTMLElement, name: string, oldValue: string | null, newValue: string | null) => void;
 	connectedCallback?: (element: HTMLElement) => void;
 	connectedMoveCallback?: (element: HTMLElement) => void;
-	connectedMoveCallback?: (element: HTMLElement) => void;
 	disconnectedCallback?: (element: HTMLElement) => void;
-	formAssociatedCallback?: (element: HTMLElement) => void;
-	formDisabledCallback?: (element: HTMLElement) => void;
+	formAssociatedCallback?: (element: HTMLElement, form: HTMLFormElement | null) => void;
+	formDisabledCallback?: (element: HTMLElement, disabled: boolean) => void;
 	formResetCallback?: (element: HTMLElement) => void;
-	formStateRestoreCallback?: (element: HTMLElement) => void;
+	formStateRestoreCallback?: (element: HTMLElement, state: any, mode: 'restore' | 'autocomplete') => void;
 	observedAttributes?: string[];
 } & {
-	[K in `#${string}`]?: any; // Support hashtag-prefixed private properties
+	[K in `$${string}`]?: any; // Support $-prefixed reactive properties
 };
 
 export type DeclarativeHTMLBodyElement = Omit<HTMLBodyElement, keyof WritableOverrides> & WritableOverrides & {};
@@ -57,4 +56,4 @@ export type DeclarativeDOM = DeclarativeHTMLElement | DeclarativeHTMLBodyElement
 
 export type DeclarativeDOMElement = DeclarativeHTMLElement | DeclarativeHTMLBodyElement | DeclarativeHTMLHeadElement | DeclarativeCustomElement;
 
-export type DOMNode = HTMLElement | HTMLBodyElement | HTMLHeadElement | Document | ShadowRoot | Window;
+export type DOMNode = HTMLElement | HTMLBodyElement | HTMLHeadElement | Document | ShadowRoot | DocumentFragment | Window;
