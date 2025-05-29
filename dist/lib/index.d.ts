@@ -1,15 +1,16 @@
-import { render, renderWindow, registerCustomElements } from './render';
-import { clearDDOMStyles, getDDOMStyleSheet } from './css';
-export { render, renderWindow, registerCustomElements } from './render';
-export { addElementStyles, clearDDOMStyles } from './css';
+import { adoptDocument, adoptNode, adoptWindow, createElement } from './elements';
+import { clearStyleSheet, adoptStyleSheet } from './styleSheets';
+export { adoptDocument, adoptNode, adoptWindow, createElement } from './elements';
+export { clearStyleSheet, adoptStyleSheet } from './styleSheets';
 declare global {
     interface Window {
         DDOM: {
-            clearDDOMStyles: typeof clearDDOMStyles;
-            getDDOMStyleSheet: typeof getDDOMStyleSheet;
-            registerCustomElements: typeof registerCustomElements;
-            render: typeof render;
-            renderWindow: typeof renderWindow;
+            adoptDocument: typeof adoptDocument;
+            adoptNode: typeof adoptNode;
+            adoptStyleSheet: typeof adoptStyleSheet;
+            adoptWindow: typeof adoptWindow;
+            clearStyleSheet: typeof clearStyleSheet;
+            createElement: typeof createElement;
         };
     }
 }

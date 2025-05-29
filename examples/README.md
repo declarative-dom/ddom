@@ -37,7 +37,7 @@ Shows form handling and interactivity:
 Advanced example with dynamic content:
 - Adding and removing items
 - Dynamic DOM updates
-- List rendering patterns
+- List createElementing patterns
 - Interactive user interface
 
 ## Running the Examples
@@ -71,7 +71,7 @@ python -m http.server 8000
 Each example follows a similar pattern:
 1. Export a default object with declarative DOM configuration
 2. Include any necessary helper functions and state
-3. Use the `onRender` callback for post-render setup if needed
+3. Use the `oncreateElement` callback for post-createElement setup if needed
 
 Example structure:
 ```js
@@ -84,8 +84,8 @@ export default {
       ]
     }
   },
-  onRender: () => {
-    // Optional post-render logic
+  oncreateElement: () => {
+    // Optional post-createElement logic
   }
 }
 ```

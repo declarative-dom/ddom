@@ -21,7 +21,7 @@ A visual interface builder that demonstrates the Declarative DOM format by provi
 
 This builder showcases several key aspects of Declarative DOM:
 
-- **Reactive Rendering**: Changes to the declarative structure immediately update the visual output
+- **Reactive createElementing**: Changes to the declarative structure immediately update the visual output
 - **Type Safety**: The structure maintains proper typing throughout the editing process
 - **Serialization**: The entire interface can be exported as JSON for storage or transport
 - **Self-Contained**: Each example is a complete, working application using only Declarative DOM
@@ -31,7 +31,7 @@ This builder showcases several key aspects of Declarative DOM:
 The builder maintains a `DeclarativeWindow` object that represents the current state of the interface being built. When users interact with the builder:
 
 1. The declarative structure is modified
-2. The canvas is re-rendered using `DDOM.render()`
+2. The canvas is re-createElemented using `DDOM.createElement()`
 3. The properties panel reflects the current selection
 4. The structure tree shows the hierarchical layout
 
@@ -68,4 +68,4 @@ When you export from the builder, you get a JSON file like this:
 }
 ```
 
-This JSON can then be loaded back into any Declarative DOM renderer to recreate the exact same interface.
+This JSON can then be loaded back into any Declarative DOM createElementer to recreate the exact same interface.

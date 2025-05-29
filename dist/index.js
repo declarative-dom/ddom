@@ -1,43 +1,9 @@
-// Utility to get a unique selector for a DOM element or DDOM object
-function getSelector(element, parentSelector, childIndex) {
-    // If the id is defined, use it directly with parent context
-    if (element.id) {
-        return `#${element.id}`;
-    }
-    // If the childIndex is defined, use nth-child directly
-    if (childIndex !== undefined && parentSelector) {
-        const tagName = 'tagName' in element ? element.tagName : element.nodeName;
-        return `${parentSelector}>${tagName.toLowerCase()}:nth-child(${childIndex})`;
-    }
-    // Only proceed if we have an actual DOM element
-    if (!(element instanceof Element)) {
-        const tagName = element.tagName?.toLowerCase() || '';
-        return parentSelector ? `${parentSelector} ${tagName}` : tagName;
-    }
-    // Build a selector based on the element's tag name and its position in the DOM tree
-    let path = [];
-    let currentElement = element;
-    while (currentElement && currentElement !== document.documentElement) {
-        let selector = currentElement.nodeName.toLowerCase();
-        // Add nth-child if needed for uniqueness
-        let siblings = Array.from(currentElement.parentNode?.children || []);
-        let sameTagSiblings = siblings.filter(s => s.nodeName === currentElement.nodeName);
-        if (sameTagSiblings.length > 1) {
-            let index = sameTagSiblings.indexOf(currentElement) + 1;
-            selector += `:nth-child(${index})`;
-        }
-        path.unshift(selector);
-        currentElement = currentElement.parentNode;
-    }
-    return path ? (path.join(' > ')) : element.tagName.toLowerCase();
-}
-
 // Global stylesheet reference for DDOM styles
 let ddomStyleSheet = null;
 /**
- * Gets or creates the global DDOM stylesheet
+ * Adopts or creates the global DDOM stylesheet
  */
-function getDDOMStyleSheet() {
+function adoptStyleSheet() {
     if (!ddomStyleSheet) {
         ddomStyleSheet = new CSSStyleSheet();
         document.adoptedStyleSheets = [...document.adoptedStyleSheets, ddomStyleSheet];
@@ -47,8 +13,8 @@ function getDDOMStyleSheet() {
 /**
  * Clears all DDOM styles from the stylesheet
  */
-function clearDDOMStyles() {
-    const sheet = getDDOMStyleSheet();
+function clearStyleSheet() {
+    const sheet = adoptStyleSheet();
     while (sheet.cssRules.length > 0) {
         sheet.deleteRule(0);
     }
@@ -63,7 +29,7 @@ function isCSSProperty(key) {
 /**
  * Flattens nested CSS styles into individual rules with full selectors
  */
-function flattenStyles(styles, baseSelector) {
+function flattenRules(styles, baseSelector) {
     const rules = [];
     // Collect direct CSS properties
     const directProperties = {};
@@ -74,20 +40,16 @@ function flattenStyles(styles, baseSelector) {
         else if (typeof value === 'object' && value !== null) {
             // Handle nested selectors
             let nestedSelector;
-            if (key.startsWith(':') || key.startsWith('::')) {
+            if (key.startsWith(':')) {
                 // Pseudo-selectors
                 nestedSelector = `${baseSelector}${key}`;
             }
-            else if (key.startsWith('.') || key.startsWith('#') || key.startsWith('[')) {
-                // Class, ID, or attribute selectors
-                nestedSelector = `${baseSelector} ${key}`;
-            }
             else {
-                // Element selectors
+                // Element, Class, ID, or attribute selectors
                 nestedSelector = `${baseSelector} ${key}`;
             }
             // Recursively flatten nested styles
-            const nestedRules = flattenStyles(value, nestedSelector);
+            const nestedRules = flattenRules(value, nestedSelector);
             rules.push(...nestedRules);
         }
     }
@@ -98,11 +60,11 @@ function flattenStyles(styles, baseSelector) {
     return rules;
 }
 /**
- * Adds styles to the DDOM stylesheet for an element
+ * Inserts CSS rules into the DDOM stylesheet for an element
  */
-function addElementStyles(styles, selector) {
-    const sheet = getDDOMStyleSheet();
-    const rules = flattenStyles(styles, selector);
+function insertRules(styles, selector) {
+    const sheet = adoptStyleSheet();
+    const rules = flattenRules(styles, selector);
     for (const rule of rules) {
         try {
             // Insert empty rule first
@@ -118,139 +80,15 @@ function addElementStyles(styles, selector) {
         }
     }
 }
-/**
- * Recursively registers styles for a custom element and all its children
- */
-function registerCustomElementStyles(ddom, selector) {
-    // Register styles for the element itself
-    if (ddom.style) {
-        addElementStyles(ddom.style, selector);
-    }
-    // Recursively register styles for children
-    if (ddom.children && Array.isArray(ddom.children)) {
-        ddom.children.forEach((child, index) => {
-            if (child.style && typeof child.style === 'object') {
-                const childSelector = getSelector(child, ddom.tagName, index + 1);
-                registerCustomElementStyles(child, childSelector);
-            }
-        });
-    }
-}
 
-const ddomHandlers = {
-    children: (ddom, el, key, value, selector, childIndex) => {
-        if (Array.isArray(value)) {
-            value.forEach((child, index) => {
-                const childNode = render(child, undefined, selector, index + 1);
-                if (childNode && 'appendChild' in el) {
-                    el.appendChild(childNode);
-                }
-            });
-        }
-    },
-    attributes: (ddom, el, key, value) => {
-        if (value && typeof value === 'object') {
-            for (const [attrName, attrValue] of Object.entries(value)) {
-                if (attrValue && typeof attrValue === 'string' && el instanceof Element) {
-                    el.setAttribute(attrName, attrValue);
-                }
-            }
-        }
-    },
-    style: (ddom, el, key, value, selector, childIndex, addStyles) => {
-        if (addStyles && selector && value && typeof value === 'object') {
-            addElementStyles(value, selector);
-        }
-    },
-    document: (ddom, el, key, value) => {
-        if (value && el === window) {
-            render(value, document);
-        }
-    },
-    body: (ddom, el, key, value) => {
-        if (value && (el === document || 'documentElement' in el)) {
-            render(value, document.body);
-        }
-    },
-    head: (ddom, el, key, value) => {
-        if (value && (el === document || 'documentElement' in el)) {
-            render(value, document.head);
-        }
-    },
-    customElements: (ddom, el, key, value) => {
-        if (value) {
-            registerCustomElements(value);
-        }
-    },
-    default: (ddom, el, key, value) => {
-        // Handle event listeners (properties starting with 'on')
-        if (key.startsWith('on') && typeof value === 'function') {
-            const eventName = key.slice(2).toLowerCase();
-            el.addEventListener(eventName, value);
-        }
-        else {
-            // Set all other properties directly on the element
-            el[key] = value;
-        }
-    }
-};
-function applyDDOM(ddom, el, selector, childIndex, addStyles = true, ignoreKeys = []) {
-    // Second pass: apply all other properties
-    for (const [key, value] of Object.entries(ddom)) {
-        if (ignoreKeys.includes(key)) {
-            continue;
-        }
-        const handler = ddomHandlers[key] || ddomHandlers.default;
-        handler(ddom, el, key, value, selector, childIndex, addStyles);
-    }
-}
-function render(ddom, element, parentSelector, childIndex, addStyles = true) {
-    const el = element || (() => {
-        if ('tagName' in ddom && ddom.tagName) {
-            return document.createElement(ddom.tagName);
-        }
-        return null;
-    })();
-    if (!el)
-        return null;
-    // if the id is defined, set it on the element
-    if ('id' in ddom && ddom.id) {
-        el.id = ddom.id;
-    }
-    // Generate selector for the element
-    const selector = getSelector(el, parentSelector, childIndex);
-    // Apply all properties using the unified dispatch table
-    applyDDOM(ddom, el, selector, childIndex, addStyles, ['tagName']);
-    return el;
-}
-class Signal {
-    #value;
-    #subscribers = new Set();
-    constructor(initialValue) {
-        this.#value = initialValue;
-    }
-    get value() {
-        return this.#value;
-    }
-    set value(newValue) {
-        if (!Object.is(this.#value, newValue)) {
-            this.#value = newValue;
-            this.#subscribers.forEach(fn => fn(newValue));
-        }
-    }
-    subscribe(fn) {
-        this.#subscribers.add(fn);
-        return () => this.#subscribers.delete(fn);
-    }
-}
-function registerCustomElements(elements) {
+function define(elements) {
     const unregisteredDDOMElements = elements.filter(element => !customElements.get(element.tagName));
     unregisteredDDOMElements.forEach(ddom => {
         // Register styles once during element registration
-        registerCustomElementStyles(ddom, ddom.tagName);
+        adoptStyles$1(ddom, ddom.tagName);
         // Handle global document modifications from custom element
         if (ddom.document) {
-            render(ddom.document, document);
+            adoptNode(ddom.document, document);
         }
         // Apply all properties using the unified dispatch table
         const customElementIgnoreKeys = [
@@ -260,27 +98,27 @@ function registerCustomElements(elements) {
             'formStateRestoreCallback', 'observedAttributes', 'constructor', 'style'
         ];
         const reactiveFields = Object.keys(ddom).filter(key => key.startsWith('$'));
-        [...customElementIgnoreKeys, ...reactiveFields];
+        const allIgnoreKeys = [...customElementIgnoreKeys, ...reactiveFields];
         customElements.define(ddom.tagName, class extends HTMLElement {
             #abortController = new AbortController();
             #container;
             constructor() {
                 super();
-                // create signals for reactive fields
-                reactiveFields.forEach(field => {
-                    const initialValue = ddom[field];
-                    const signal = new Signal(initialValue);
-                    const propertyName = field.slice(1); // Remove the $ prefix for the actual property
-                    Object.defineProperty(this, propertyName, {
-                        get: () => signal.value,
-                        set: (value) => signal.value = value,
-                    });
-                    signal.subscribe(() => this.#triggerRender());
-                });
-                // Call custom constructor if defined
-                if (ddom.constructor && typeof ddom.constructor === 'function') {
-                    ddom.constructor(this);
-                }
+                // // create signals for reactive fields
+                // reactiveFields.forEach(field => {
+                // 	const initialValue = (ddom as any)[field];
+                // 	const signal = new Signal(initialValue);
+                // 	const propertyName = field.slice(1); // Remove the $ prefix for the actual property
+                // 	Object.defineProperty(this, propertyName, {
+                // 		get: () => signal.value,
+                // 		set: (value: any) => signal.value = value,
+                // 	});
+                // 	signal.subscribe(() => this.#triggerCreateElement());
+                // });
+                // // Call custom constructor if defined
+                // if (ddom.constructor && typeof ddom.constructor === 'function') {
+                // 	ddom.constructor(this);
+                // }
             }
             adoptedCallback() {
                 if (ddom.adoptedCallback && typeof ddom.adoptedCallback === 'function') {
@@ -301,9 +139,7 @@ function registerCustomElements(elements) {
                 if (ddom.connectedCallback && typeof ddom.connectedCallback === 'function') {
                     ddom.connectedCallback(this);
                 }
-                // debug
-                console.debug('Connected custom element:', ddom.tagName, 'to container:', this.#container);
-                this.#render();
+                this.#createElement();
             }
             connectedMoveCallback() {
                 if (ddom.connectedMoveCallback && typeof ddom.connectedMoveCallback === 'function') {
@@ -339,7 +175,11 @@ function registerCustomElements(elements) {
             static get observedAttributes() {
                 return ddom.observedAttributes || [];
             }
-            #render() {
+            #createElement() {
+                // Ensure container is initialized
+                if (!this.#container) {
+                    this.#container = this;
+                }
                 // Clear any existing content
                 if ('innerHTML' in this.#container) {
                     this.#container.innerHTML = '';
@@ -350,39 +190,154 @@ function registerCustomElements(elements) {
                         this.#container.removeChild(this.#container.firstChild);
                     }
                 }
-                // debug
-                console.debug('Rendering custom element:', ddom.tagName, 'to container:', this.#container);
                 // Apply all properties to the container
-                applyDDOM(ddom, this.#container, ddom.tagName, undefined, false, customElementIgnoreKeys);
+                adoptNode(ddom, this.#container, false, allIgnoreKeys);
             }
-            #triggerRender() {
+            #triggerCreateElement() {
                 queueMicrotask(() => {
                     if (this.#abortController.signal.aborted)
                         return;
-                    // Render the custom element
-                    this.#render();
+                    // createElement the custom element
+                    this.#createElement();
                 });
             }
         });
     });
 }
 /**
- * Reference implementation of rendering a DeclarativeWindow object to a real DOM.
- * This is not part of the DeclarativeDOM spec itself—only a demonstration.
+ * Recursively registers styles for a custom element and all its children
  */
-function renderWindow(ddom) {
-    render(ddom, window);
+function adoptStyles$1(ddom, selector) {
+    // Register styles for the element itself
+    if (ddom.style) {
+        insertRules(ddom.style, selector);
+    }
+    // Recursively register styles for children
+    if (ddom.children && Array.isArray(ddom.children)) {
+        ddom.children.forEach((child) => {
+            if (child.style && typeof child.style === 'object') {
+                // For custom element registration, we'll use a simple descendant selector
+                const childSelector = `${selector} ${child.tagName?.toLowerCase() || '*'}`;
+                adoptStyles$1(child, childSelector);
+            }
+        });
+    }
+}
+
+const ddomHandlers = {
+    children: (ddom, el, key, value) => {
+        if (Array.isArray(value)) {
+            value.forEach((child, index) => {
+                child.parentNode = el;
+                const childNode = createElement(child);
+                if (childNode && 'appendChild' in el) {
+                    el.appendChild(childNode);
+                }
+            });
+        }
+    },
+    attributes: (ddom, el, key, value) => {
+        if (value && typeof value === 'object') {
+            for (const [attrName, attrValue] of Object.entries(value)) {
+                if (attrValue && typeof attrValue === 'string' && el instanceof Element) {
+                    el.setAttribute(attrName, attrValue);
+                }
+            }
+        }
+    },
+    style: (ddom, el, key, value, css) => {
+        if (css && value && typeof value === 'object') {
+            adoptStyles(el, value);
+        }
+    },
+    document: (ddom, el, key, value) => {
+        if (value && el === window) {
+            adoptNode(value, document);
+        }
+    },
+    body: (ddom, el, key, value) => {
+        if (value && (el === document || 'documentElement' in el)) {
+            adoptNode(value, document.body);
+        }
+    },
+    head: (ddom, el, key, value) => {
+        if (value && (el === document || 'documentElement' in el)) {
+            adoptNode(value, document.head);
+        }
+    },
+    customElements: (ddom, el, key, value) => {
+        if (value) {
+            define(value);
+        }
+    },
+    default: (ddom, el, key, value) => {
+        // Handle event listeners (properties starting with 'on')
+        if (key.startsWith('on') && typeof value === 'function') {
+            const eventName = key.slice(2).toLowerCase();
+            el.addEventListener(eventName, value);
+        }
+        else {
+            // Set all other properties directly on the element
+            el[key] = value;
+        }
+    }
+};
+/**
+ * Adopts a DeclarativeWindow into the current document context.
+ */
+function adoptDocument(ddom) {
+    adoptNode(ddom, document);
+}
+function adoptNode(ddom, el, css = true, ignoreKeys = []) {
+    // Apply all properties
+    for (const [key, value] of Object.entries(ddom)) {
+        if (ignoreKeys.includes(key)) {
+            continue;
+        }
+        const handler = ddomHandlers[key] || ddomHandlers.default;
+        handler(ddom, el, key, value, css);
+    }
+}
+/**
+ * Adopts a DeclarativeWindow into the current window context.
+ */
+function adoptWindow(ddom) {
+    adoptNode(ddom, window);
+}
+function createElement(ddom, css = true) {
+    const el = document.createElement(ddom.tagName);
+    // if the id is defined, set it on the element
+    el.id = ddom.id;
+    // Apply all properties using the unified dispatch table
+    adoptNode(ddom, el, css, ['id', 'tagName']);
+    return el;
+}
+/**
+ * Inserts CSS rules for a given element based on its declarative styles
+ */
+function adoptStyles(el, styles) {
+    // define the selector
+    let path = [], parent;
+    while (parent = el.parentNode) {
+        let tag = el.tagName;
+        path.unshift(el.id ? `#${el.id}` : (parent.querySelectorAll(tag).length === 1 ? tag :
+            `${tag}:nth-child(${Array.from(parent.children).indexOf(el) + 1})`));
+        el = parent;
+    }
+    const selector = `${path.join(' > ')}`.toLowerCase();
+    insertRules(styles, selector);
 }
 
 // Auto-expose DDOM namespace globally
 if (typeof window !== 'undefined') {
     window.DDOM = {
-        clearDDOMStyles,
-        getDDOMStyleSheet,
-        registerCustomElements,
-        render,
-        renderWindow,
+        adoptDocument,
+        adoptNode,
+        adoptStyleSheet,
+        adoptWindow,
+        clearStyleSheet,
+        createElement,
     };
 }
 
-export { addElementStyles, clearDDOMStyles, registerCustomElements, render, renderWindow };
+export { adoptDocument, adoptNode, adoptStyleSheet, adoptWindow, clearStyleSheet, createElement };

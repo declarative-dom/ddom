@@ -5,10 +5,10 @@
  * necessary changes to support declarative definition.
  */
 
-export type NestedCSSProperties = {
+export type DeclarativeCSSProperties = {
 	[K in keyof CSSStyleDeclaration]?: CSSStyleDeclaration[K];
 } & {
-	[selector: string]: NestedCSSProperties;
+	[selector: string]: DeclarativeCSSProperties;
 };
 
 type WritableOverrides = {
@@ -17,7 +17,7 @@ type WritableOverrides = {
 	children?: DeclarativeHTMLElement[];
 	document?: Partial<DeclarativeDocument>;
 	customElements?: DeclarativeCustomElement[];
-	style?: NestedCSSProperties;
+	style?: DeclarativeCSSProperties;
 };
 
 export type DeclarativeCustomElement = WritableOverrides & {
@@ -39,9 +39,10 @@ export type DeclarativeCustomElement = WritableOverrides & {
 
 export type DeclarativeHTMLBodyElement = Omit<HTMLBodyElement, keyof WritableOverrides> & WritableOverrides & {};
 
-export type DeclarativeHTMLElement = Omit<HTMLElement, keyof WritableOverrides> & WritableOverrides & {
+export type DeclarativeHTMLElement = Omit<HTMLElement, keyof WritableOverrides | 'parentNode'> & WritableOverrides & {
 	tagName: string; // Required for elements
-};
+	parentNode?: DOMNode | DeclarativeDOMElement; // Allow parentNode to be declared during processing
+}
 
 export type DeclarativeHTMLHeadElement = Omit<HTMLHeadElement, keyof WritableOverrides> & WritableOverrides & {};
 

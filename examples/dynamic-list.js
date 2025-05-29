@@ -4,14 +4,14 @@ export default {
     const newItem = prompt('Enter a new item:');
     if (newItem) {
       this.items.push(newItem);
-      this.renderList();
+      this.createElementList();
     }
   },
   removeItem: function (index) {
     this.items.splice(index, 1);
-    this.renderList();
+    this.createElementList();
   },
-  renderList: function () {
+  createElementList: function () {
     const listContainer = document.getElementById('list-container');
     if (listContainer) {
       listContainer.innerHTML = '';
@@ -77,7 +77,7 @@ export default {
         }))
       };
 
-      DDOM.render(listDescriptor, listContainer);
+      DDOM.createElement(listDescriptor, listContainer);
     }
   },
   document: {
@@ -129,7 +129,7 @@ export default {
                   const exampleContainer = document.getElementById('example-container');
                   if (exampleContainer && exampleContainer.exampleConfig) {
                     exampleContainer.exampleConfig.items.push(newItem);
-                    exampleContainer.exampleConfig.renderList();
+                    exampleContainer.exampleConfig.createElementList();
                   }
                 }
               }
@@ -143,12 +143,12 @@ export default {
       ]
     }
   },
-  onRender: function () {
+  oncreateElement: function () {
     // Store reference to this config on the container for access by event handlers
     const exampleContainer = document.getElementById('example-container');
     if (exampleContainer) {
       exampleContainer.exampleConfig = this;
     }
-    setTimeout(() => this.renderList(), 0);
+    setTimeout(() => this.createElementList(), 0);
   }
 }

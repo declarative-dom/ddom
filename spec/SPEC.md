@@ -336,7 +336,7 @@ Declarative DOM maintains a dedicated stylesheet for all nested CSS rules using 
 #### 8.2 CSS Rule Generation
 
 The system automatically:
-1. Generates unique selectors for each rendered element based on DOM position
+1. Generates unique selectors for each createElemented element based on DOM position
 2. Converts camelCase CSS properties to kebab-case
 3. Creates properly nested CSS rules using modern CSS nesting syntax
 4. Separates pseudo-selectors (`:hover`, `::before`) from descendant selectors
@@ -355,7 +355,7 @@ For each element with styles:
 // Clear all DDOM styles
 window.DDOM.clearDDOMStyles();
 
-// Styles are automatically managed during rendering
+// Styles are automatically managed during createElementing
 ```
 
 ### 9. Document Structure
@@ -446,7 +446,7 @@ When serializing structures with event handlers:
 
 ### 12. Implementation Requirements
 
-#### 12.1 Rendering
+#### 12.1 createElementing
 
 Implementations must:
 - Create actual DOM elements from declarative descriptions
@@ -569,13 +569,13 @@ When accepting declarative DOM from untrusted sources:
 
 Future versions may consider:
 - Template variable substitution
-- Conditional rendering directives
+- Conditional createElementing directives
 - Loop constructs for dynamic content
 
 #### 15.2 Performance
 
 Potential optimizations:
-- Incremental rendering for large structures
+- Incremental createElementing for large structures
 - Virtual DOM diffing capabilities
 - Lazy loading of custom element definitions
 

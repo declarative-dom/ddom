@@ -11,12 +11,12 @@
 
         // Wait for DDOM to be available
         window.addEventListener('load', () => {
-            // Render the builder interface
-            DDOM.renderWindow(builderConfig);
+            // createElement the builder interface
+            DDOM.adoptWindow(builderConfig);
 
             // Initialize the builder
-            if (builderConfig.onRender) {
-                builderConfig.onRender.call(builderConfig);
+            if (builderConfig.oncreateElement) {
+                builderConfig.oncreateElement.call(builderConfig);
             }
         });
     </script>

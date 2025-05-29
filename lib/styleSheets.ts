@@ -1,17 +1,16 @@
 import {
 	DeclarativeHTMLElement,
-	NestedCSSProperties,
+	DeclarativeCSSProperties,
 } from '../spec/types';
-import { getSelector } from './utils';
 
 
 // Global stylesheet reference for DDOM styles
 let ddomStyleSheet: CSSStyleSheet | null = null;
 
 /**
- * Gets or creates the global DDOM stylesheet
+ * Adopts or creates the global DDOM stylesheet
  */
-export function getDDOMStyleSheet(): CSSStyleSheet {
+export function adoptStyleSheet(): CSSStyleSheet {
 	if (!ddomStyleSheet) {
 		ddomStyleSheet = new CSSStyleSheet();
 		document.adoptedStyleSheets = [...document.adoptedStyleSheets, ddomStyleSheet];
@@ -22,8 +21,8 @@ export function getDDOMStyleSheet(): CSSStyleSheet {
 /**
  * Clears all DDOM styles from the stylesheet
  */
-export function clearDDOMStyles(): void {
-	const sheet = getDDOMStyleSheet();
+export function clearStyleSheet(): void {
+	const sheet = adoptStyleSheet();
 	while (sheet.cssRules.length > 0) {
 		sheet.deleteRule(0);
 	}
@@ -40,7 +39,7 @@ function isCSSProperty(key: string): boolean {
 /**
  * Flattens nested CSS styles into individual rules with full selectors
  */
-function flattenStyles(styles: NestedCSSProperties, baseSelector: string): Array<{ selector: string; properties: { [key: string]: string } }> {
+function flattenRules(styles: DeclarativeCSSProperties, baseSelector: string): Array<{ selector: string; properties: { [key: string]: string } }> {
 	const rules: Array<{ selector: string; properties: { [key: string]: string } }> = [];
 
 	// Collect direct CSS properties
@@ -53,19 +52,16 @@ function flattenStyles(styles: NestedCSSProperties, baseSelector: string): Array
 			// Handle nested selectors
 			let nestedSelector: string;
 
-			if (key.startsWith(':') || key.startsWith('::')) {
+			if (key.startsWith(':')) {
 				// Pseudo-selectors
 				nestedSelector = `${baseSelector}${key}`;
-			} else if (key.startsWith('.') || key.startsWith('#') || key.startsWith('[')) {
-				// Class, ID, or attribute selectors
-				nestedSelector = `${baseSelector} ${key}`;
 			} else {
-				// Element selectors
+				// Element, Class, ID, or attribute selectors
 				nestedSelector = `${baseSelector} ${key}`;
 			}
 
 			// Recursively flatten nested styles
-			const nestedRules = flattenStyles(value as NestedCSSProperties, nestedSelector);
+			const nestedRules = flattenRules(value as DeclarativeCSSProperties, nestedSelector);
 			rules.push(...nestedRules);
 		}
 	}
@@ -79,11 +75,11 @@ function flattenStyles(styles: NestedCSSProperties, baseSelector: string): Array
 }
 
 /**
- * Adds styles to the DDOM stylesheet for an element
+ * Inserts CSS rules into the DDOM stylesheet for an element
  */
-export function addElementStyles(styles: NestedCSSProperties, selector: string): void {
-	const sheet = getDDOMStyleSheet();
-	const rules = flattenStyles(styles, selector);
+export function insertRules(styles: DeclarativeCSSProperties, selector: string): void {
+	const sheet = adoptStyleSheet();
+	const rules = flattenRules(styles, selector);
 
 	for (const rule of rules) {
 		try {
@@ -98,25 +94,5 @@ export function addElementStyles(styles: NestedCSSProperties, selector: string):
 		} catch (e) {
 			console.warn('Failed to add CSS rule:', rule.selector, e);
 		}
-	}
-}
-
-/**
- * Recursively registers styles for a custom element and all its children
- */
-export function registerCustomElementStyles(ddom: any, selector: string): void {
-	// Register styles for the element itself
-	if (ddom.style) {
-		addElementStyles(ddom.style, selector);
-	}
-
-	// Recursively register styles for children
-	if (ddom.children && Array.isArray(ddom.children)) {
-		ddom.children.forEach((child: DeclarativeHTMLElement, index: number) => {
-			if (child.style && typeof child.style === 'object') {
-				const childSelector = getSelector(child, ddom.tagName, index + 1);
-				registerCustomElementStyles(child, childSelector);
-			}
-		});
 	}
 }

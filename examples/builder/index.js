@@ -109,6 +109,7 @@ export default {
 				element.draggable = true;
 				element.ondragstart = (e) => {
 					e.dataTransfer.setData('application/element-type', JSON.stringify(elementType));
+					e.dataTransfer.setData('text/plain', 'new-element');
 					e.dataTransfer.effectAllowed = 'copy';
 					element.style.opacity = '0.5';
 				};
@@ -302,6 +303,7 @@ export default {
 		{ name: 'Paragraph', tagName: 'p', icon: 'P' },
 		{ name: 'Button', tagName: 'button', icon: 'BTN' },
 		{ name: 'Div Container', tagName: 'div', icon: 'DIV' },
+		{ name: 'Section', tagName: 'section', icon: 'SEC' },
 		{ name: 'Input', tagName: 'input', icon: 'IN' },
 		{ name: 'Image', tagName: 'img', icon: 'IMG' },
 		{ name: 'Link', tagName: 'a', icon: 'A' }
@@ -311,7 +313,7 @@ export default {
 	addElement: function (elementType) {
 		const newElement = this.createDefaultElement(elementType);
 		this.currentStructure.document.body.children.push(newElement);
-		this.renderCanvas();
+		this.createElementCanvas();
 		this.updateElementList();
 	},
 
@@ -321,7 +323,8 @@ export default {
 			h2: { textContent: 'Heading 2', style: { color: '#555', fontSize: '1.5em', margin: '0.5em 0' } },
 			p: { textContent: 'This is a paragraph.', style: { margin: '1em 0', lineHeight: '1.5' } },
 			button: { textContent: 'Click Me', style: { padding: '10px 20px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' } },
-			div: { style: { padding: '20px', border: '2px dashed #ccc', margin: '10px 0', minHeight: '50px' }, children: [] },
+			div: { textContent: 'Container', style: { padding: '20px', border: '2px dashed #ccc', margin: '10px 0', minHeight: '50px', position: 'relative' }, children: [] },
+			section: { textContent: 'Section', style: { padding: '20px', border: '1px solid #ddd', margin: '10px 0', minHeight: '60px', position: 'relative' }, children: [] },
 			input: { attributes: { type: 'text', placeholder: 'Enter text...' }, style: { padding: '8px', border: '1px solid #ccc', borderRadius: '4px' } },
 			img: { attributes: { src: 'https://via.placeholder.com/150x100', alt: 'Placeholder' }, style: { maxWidth: '100%', height: 'auto' } },
 			a: { textContent: 'Link Text', attributes: { href: '#' }, style: { color: '#007bff', textDecoration: 'underline' } }
@@ -331,7 +334,7 @@ export default {
 			tagName: elementType.tagName,
 			id: 'element-' + Date.now(),
 			...defaults[elementType.tagName],
-			onclick: elementType.tagName !== 'div' ? this.selectElementHandler.bind(this) : undefined
+			onclick: this.selectElementHandler.bind(this)
 		};
 	},
 
@@ -395,7 +398,7 @@ export default {
 			this.selectedElement[property] = value;
 		}
 
-		this.renderCanvas();
+		this.createElementCanvas();
 	},
 
 	removeSelectedElement: function () {
@@ -414,7 +417,7 @@ export default {
 		current.splice(this.selectedPath[this.selectedPath.length - 1], 1);
 		this.selectedElement = null;
 		this.selectedPath = null;
-		this.renderCanvas();
+		this.createElementCanvas();
 		this.updateElementList();
 		this.updatePropertiesPanel();
 	},
@@ -425,7 +428,7 @@ export default {
 		const url = URL.createObjectURL(dataBlob);
 		
 		// Create download link using declarative DOM
-		const link = DDOM.render({
+		const link = DDOM.createElement({
 			tagName: 'a',
 			attributes: {
 				href: url,
@@ -440,7 +443,7 @@ export default {
 		URL.revokeObjectURL(url);
 	},
 
-	renderCanvas: function () {
+	createElementCanvas: function () {
 		const canvas = document.getElementById('canvas-area');
 		if (!canvas) return;
 
@@ -449,7 +452,12 @@ export default {
 		// Make canvas a drop target for new elements
 		canvas.ondragover = (e) => {
 			e.preventDefault();
-			e.dataTransfer.dropEffect = 'copy';
+			const elementType = e.dataTransfer.getData('application/element-type');
+			if (elementType) {
+				e.dataTransfer.dropEffect = 'copy';
+			} else {
+				e.dataTransfer.dropEffect = 'move';
+			}
 		};
 
 		canvas.ondrop = (e) => {
@@ -466,60 +474,16 @@ export default {
 			return;
 		}
 
-		// Render each child element
+		// createElement each child element with explicit ID-based selectors
 		this.currentStructure.document.body.children.forEach((child, index) => {
-			const element = DDOM.render(child);
+			// Ensure the element has an ID for specific styling
+			if (!child.id) {
+				child.id = 'element-' + Date.now() + '-' + index;
+			}
+			
+			const element = DDOM.createElement(child, undefined, null, index + 1);
 			if (element) {
-				// Add visual indicators for drag and drop
-				element.style.position = 'relative';
-
-				// Make rendered elements draggable for reordering
-				element.draggable = true;
-				element.dataset.canvasIndex = index;
-
-				element.ondragstart = (e) => {
-					e.stopPropagation();
-					e.dataTransfer.effectAllowed = 'move';
-					element.style.opacity = '0.5';
-					this.draggedCanvasElement = { element: child, index };
-				};
-
-				element.ondragend = (e) => {
-					element.style.opacity = '1';
-					this.draggedCanvasElement = null;
-					// Remove drop indicators
-					canvas.querySelectorAll('.canvas-drop-indicator').forEach(el => el.remove());
-				};
-
-				element.ondragover = (e) => {
-					e.preventDefault();
-					e.stopPropagation();
-					if (this.draggedCanvasElement && this.draggedCanvasElement.index !== index) {
-						this.showCanvasDropIndicator(element, e);
-					}
-				};
-
-				element.ondrop = (e) => {
-					e.preventDefault();
-					e.stopPropagation();
-					if (this.draggedCanvasElement && this.draggedCanvasElement.index !== index) {
-						this.handleCanvasElementDrop(index, e);
-					}
-				};
-
-				// Add inline editing for text content
-				if (child.textContent !== undefined && !['input', 'img'].includes(child.tagName)) {
-					element.ondblclick = (e) => {
-						e.preventDefault();
-						e.stopPropagation();
-						this.startInlineEdit(element, child);
-					};
-
-					// Add visual hint for editable elements
-					element.style.cursor = 'text';
-					element.title = 'Double-click to edit text';
-				}
-
+				this.setupElementDragAndDrop(element, child, index, []);
 				canvas.appendChild(element);
 			}
 		});
@@ -533,7 +497,7 @@ export default {
 		const midY = rect.top + rect.height / 2;
 		const isAbove = event.clientY < midY;
 
-		const indicator = DDOM.render({
+		const indicator = DDOM.createElement({
 			tagName: 'canvas-drop-indicator'
 		});
 
@@ -574,7 +538,7 @@ export default {
 		elements.splice(newIndex, 0, movedElement);
 
 		// Update displays
-		this.renderCanvas();
+		this.createElementCanvas();
 		this.updateElementList();
 		this.selectElement(movedElement.id);
 	},
@@ -593,7 +557,7 @@ export default {
 		this.selectElement(dataElement.id);
 
 		// Create input element
-		const input = DDOM.render({
+		const input = DDOM.createElement({
 			tagName: 'inline-editor',
 			attributes: {
 				originalText: dataElement.textContent || '',
@@ -614,12 +578,12 @@ export default {
 		if (!list) return;
 
 		list.innerHTML = '';
-		this.renderElementTree(this.currentStructure.document.body.children, list, 0);
+		this.createElementElementTree(this.currentStructure.document.body.children, list, 0);
 	},
 
-	renderElementTree: function (elements, container, depth) {
+	createElementElementTree: function (elements, container, depth) {
 		elements.forEach((element, index) => {
-			const item = DDOM.render({
+			const item = DDOM.createElement({
 				tagName: 'tree-item',
 				attributes: {
 					elementData: JSON.stringify(element),
@@ -631,7 +595,7 @@ export default {
 			container.appendChild(item);
 
 			if (element.children && element.children.length > 0) {
-				this.renderElementTree(element.children, container, depth + 1);
+				this.createElementElementTree(element.children, container, depth + 1);
 			}
 		});
 	},
@@ -666,7 +630,7 @@ export default {
 		const midY = rect.top + rect.height / 2;
 		const isAbove = event.clientY < midY;
 
-		const indicator = DDOM.render({
+		const indicator = DDOM.createElement({
 			tagName: 'drop-indicator'
 		});
 
@@ -713,7 +677,7 @@ export default {
 		targetElements.splice(newIndex, 0, movedElement);
 
 		// Update the display
-		this.renderCanvas();
+		this.createElementCanvas();
 		this.updateElementList();
 		this.selectElement(movedElement.id); // Keep selection
 	},
@@ -745,7 +709,7 @@ export default {
 		panel.innerHTML = '';
 
 		if (!this.selectedElement) {
-			const emptyState = DDOM.render({
+			const emptyState = DDOM.createElement({
 				tagName: 'div',
 				style: { padding: '20px', textAlign: 'center', color: '#999' },
 				textContent: 'Select an element to edit properties'
@@ -755,7 +719,7 @@ export default {
 		}
 
 		// Create properties container
-		const container = DDOM.render({
+		const container = DDOM.createElement({
 			tagName: 'div',
 			style: { padding: '15px' },
 			children: [
@@ -1064,7 +1028,7 @@ export default {
 		}
 	},
 
-	onRender: function () {
+	oncreateElement: function () {
 		// Expose the builder globally
 		window.builderApp = this;
 
@@ -1072,7 +1036,7 @@ export default {
 		const palette = document.getElementById('element-palette');
 		if (palette) {
 			this.elementTypes.forEach(elementType => {
-				const button = DDOM.render({
+				const button = DDOM.createElement({
 					tagName: 'palette-button',
 					attributes: {
 						icon: elementType.icon,
@@ -1085,9 +1049,188 @@ export default {
 			});
 		}
 
-		// Initial render
-		this.renderCanvas();
+		// Initial createElement
+		this.createElementCanvas();
 		this.updateElementList();
 		this.updatePropertiesPanel();
-	}
+	},
+
+	setupElementDragAndDrop: function (element, dataElement, index, parentPath) {
+		// Add visual indicators for drag and drop
+		element.style.position = 'relative';
+
+		// Make createElemented elements draggable for reordering
+		element.draggable = true;
+		element.dataset.canvasIndex = index;
+		element.dataset.elementId = dataElement.id;
+
+		element.ondragstart = (e) => {
+			e.stopPropagation();
+			e.dataTransfer.effectAllowed = 'move';
+			element.style.opacity = '0.5';
+			this.draggedCanvasElement = { 
+				element: dataElement, 
+				index, 
+				parentPath: [...parentPath] 
+			};
+		};
+
+		element.ondragend = (e) => {
+			element.style.opacity = '1';
+			this.draggedCanvasElement = null;
+			// Remove drop indicators
+			document.querySelectorAll('.canvas-drop-indicator, .container-drop-indicator').forEach(el => el.remove());
+		};
+
+		element.ondragover = (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			
+			const elementType = e.dataTransfer.getData('application/element-type');
+			const isNewElement = elementType && e.dataTransfer.getData('text/plain') === 'new-element';
+			
+			if (isNewElement && this.isContainer(dataElement)) {
+				// New element being dropped into container
+				e.dataTransfer.dropEffect = 'copy';
+				this.showContainerDropIndicator(element, e);
+			} else if (!this.draggedCanvasElement || this.draggedCanvasElement.element.id === dataElement.id) {
+				return;
+			} else if (this.isContainer(dataElement)) {
+				// Existing element being moved into container
+				e.dataTransfer.dropEffect = 'copy';
+				this.showContainerDropIndicator(element, e);
+			} else {
+				// Element reordering
+				e.dataTransfer.dropEffect = 'move';
+				this.showCanvasDropIndicator(element, e);
+			}
+		};
+
+		element.ondragleave = (e) => {
+			// Only remove indicators if we're actually leaving the element
+			if (!element.contains(e.relatedTarget)) {
+				element.querySelectorAll('.canvas-drop-indicator, .container-drop-indicator').forEach(el => el.remove());
+			}
+		};
+
+		element.ondrop = (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			
+			const elementType = e.dataTransfer.getData('application/element-type');
+			const isNewElement = elementType && e.dataTransfer.getData('text/plain') === 'new-element';
+			
+			if (isNewElement && this.isContainer(dataElement)) {
+				// Adding new element to container
+				const type = JSON.parse(elementType);
+				const newElement = this.createDefaultElement(type);
+				
+				if (!dataElement.children) {
+					dataElement.children = [];
+				}
+				dataElement.children.push(newElement);
+				
+				this.createElementCanvas();
+				this.updateElementList();
+				this.selectElement(newElement.id);
+				return;
+			}
+			
+			if (!this.draggedCanvasElement || this.draggedCanvasElement.element.id === dataElement.id) {
+				return;
+			}
+
+			// Check if dropping into a container
+			const indicator = element.querySelector('.container-drop-indicator');
+			if (indicator && this.isContainer(dataElement)) {
+				this.handleDropIntoContainer(dataElement, parentPath, e);
+			} else {
+				this.handleCanvasElementDrop(index, e);
+			}
+		};
+
+		// Add inline editing for text content
+		if (dataElement.textContent !== undefined && !['input', 'img'].includes(dataElement.tagName)) {
+			element.ondblclick = (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				this.startInlineEdit(element, dataElement);
+			};
+
+			// Add visual hint for editable elements
+			element.style.cursor = 'text';
+			element.title = 'Double-click to edit text';
+		}
+
+		// Setup drag and drop for child elements if this is a container
+		if (dataElement.children && dataElement.children.length > 0) {
+			// Find the container element in the DOM and setup its children
+			setTimeout(() => {
+				dataElement.children.forEach((child, childIndex) => {
+					const childElement = document.getElementById(child.id);
+					if (childElement) {
+						this.setupElementDragAndDrop(childElement, child, childIndex, [...parentPath, index, 'children']);
+					}
+				});
+			}, 0);
+		}
+	},
+
+	isContainer: function (dataElement) {
+		// Elements that can contain other elements
+		return ['div', 'section', 'article', 'main', 'aside', 'header', 'footer', 'nav'].includes(dataElement.tagName);
+	},
+
+	showContainerDropIndicator: function (element, event) {
+		// Remove existing indicators in this element
+		element.querySelectorAll('.container-drop-indicator').forEach(el => el.remove());
+
+		const indicator = DDOM.createElement({
+			tagName: 'div',
+			className: 'container-drop-indicator',
+			style: {
+				position: 'absolute',
+				top: '0',
+				left: '0',
+				right: '0',
+				bottom: '0',
+				border: '2px dashed #007bff',
+				backgroundColor: 'rgba(0, 123, 255, 0.1)',
+				zIndex: '1000',
+				pointerEvents: 'none',
+				borderRadius: '4px'
+			},
+			textContent: 'Drop here to add to container'
+		});
+
+		indicator.style.display = 'flex';
+		indicator.style.alignItems = 'center';
+		indicator.style.justifyContent = 'center';
+		indicator.style.color = '#007bff';
+		indicator.style.fontWeight = 'bold';
+		indicator.style.fontSize = '14px';
+
+		element.appendChild(indicator);
+	},
+
+	handleDropIntoContainer: function (containerElement, containerPath, event) {
+		if (!this.draggedCanvasElement) return;
+
+		// Remove the dragged element from its current location
+		const sourceElements = this.getElementsAtPath(this.draggedCanvasElement.parentPath);
+		const movedElement = sourceElements.splice(this.draggedCanvasElement.index, 1)[0];
+
+		// Ensure the container has a children array
+		if (!containerElement.children) {
+			containerElement.children = [];
+		}
+
+		// Add to the container
+		containerElement.children.push(movedElement);
+
+		// Update displays
+		this.createElementCanvas();
+		this.updateElementList();
+		this.selectElement(movedElement.id);
+	},
 };

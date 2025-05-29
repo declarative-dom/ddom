@@ -4,7 +4,7 @@
 
 Just as JSON provides a syntax and grammar for describing arbitrary data, Declarative DOM defines a constrained structure for describing DOM nodes and documents. Special emphasis is placed on creating a standardized syntax to define the import and initiation of custom elements in a declarative way.
 
-Included are type specifications and a reference rendering library.
+Included are type specifications and a reference createElementing library.
 
 ## What It Is
 
@@ -19,7 +19,7 @@ Declarative DOM is:
 
 - It is not a template language
 - It is not a virtual DOM diffing engine
-- It does not define rendering semantics
+- It does not define createElementing semantics
 
 ## Goals
 
@@ -34,6 +34,11 @@ The Declarative DOM specification follows strict guidelines to maintain consiste
 
 ### Primary Principle: DOM Fidelity
 DDOM should mirror and support valid DOM properties, keys, and value types as closely as possible. The specification aims for 1:1 correspondence with native DOM APIs wherever feasible.
+
+### Core Tenet: DOM Primacy
+**"Libraries and frameworks shall pass away, but the DOM shall endure forever."**
+
+All naming conventions, method signatures, and behavioral patterns must align with native DOM APIs first and foremost. While framework conventions *might* be relevant to address functionality gaps in DOM standards (see Exception 2, below), DOM standards always take precedence. This ensures DDOM remains stable and familiar as the web platform evolves, regardless of changing framework trends.
 
 ### Exception 1: Read-Only Properties
 When DOM properties are read-only but should be settable declaratively, DDOM defines syntax that aligns as closely as possible with the final intended DOM outcome. Examples include:
@@ -54,7 +59,7 @@ The most notable examples:
 
 **Reactive Properties**: Native DOM doesn't provide built-in reactivity for custom element properties. DDOM adopts a `$`-prefixed syntax for reactive properties in custom elements because:
 - It follows the established JavaScript convention of using `$` for special/reactive variables (popularized by frameworks like Svelte)
-- It enables declarative specification of reactive state that automatically triggers re-renders
+- It enables declarative specification of reactive state that automatically triggers re-createElements
 - It provides a clear visual distinction between static and reactive properties
 - It aligns with modern web development patterns while maintaining declarative consistency
 
@@ -67,9 +72,9 @@ The most notable examples:
 ## Example
 
 ```js
-import { renderWindow } from 'declarative-dom';
+import { adoptWindow } from 'declarative-dom';
 
-renderWindow({
+adoptWindow({
   customElements: [
     {
       tagName: 'my-box',

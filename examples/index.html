@@ -11,14 +11,14 @@
 
         // Wait for DDOM to be available
         window.addEventListener('load', () => {
-            // Render
-            DDOM.renderWindow(indexConfig);
-            // Call onRender to initialize examples
-            if (indexConfig.onRender) {
+            // createElement
+            DDOM.adoptWindow(indexConfig);
+            // Call oncreateElement to initialize examples
+            if (indexConfig.oncreateElement) {
                 try {
-                    indexConfig.onRender.call(indexConfig);
+                    indexConfig.oncreateElement.call(indexConfig);
                 } catch (error) {
-                    console.error('Error calling onRender:', error);
+                    console.error('Error calling oncreateElement:', error);
                     console.log('indexConfig:', indexConfig);
                 }
             }
@@ -26,7 +26,6 @@
     </script>
 </head>
 
-<body>
-</body>
+<body></body>
 
 </html>

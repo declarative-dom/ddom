@@ -57,38 +57,95 @@ export default {
 
 	switchExample: function(exampleKey) {
 		this.currentExample = exampleKey;
-		this.renderCurrentExample();
+		this.createElementCurrentExample();
 		this.updateNavButtons();
 	},
 
-	renderCurrentExample: function() {
+	createElementCurrentExample: function() {
 		const exampleContainer = document.getElementById('example-container');
-		if (exampleContainer) {
-			exampleContainer.innerHTML = '';
-
+		if (exampleContainer && this.examples[this.currentExample]?.config) {
 			const example = this.examples[this.currentExample];
-			if (example && example.config) {
-				// Register custom elements if they exist
-				if (example.config.customElements) {
-					DDOM.registerCustomElements(example.config.customElements);
-				}
+			
+			// Register custom elements if they exist
+			if (example.config.customElements) {
+				DDOM.define(example.config.customElements);
+			}
 
-				// Render the body content directly using render
-				if (example.config.document && example.config.document.body) {
-					// Create a container div and apply the body content to it
-					const bodyDescriptor = { 
-						tagName: 'div', 
-						...example.config.document.body 
-					};
-					console.log('Body descriptor:', bodyDescriptor);
-					const bodyElement = DDOM.render(bodyDescriptor, exampleContainer);
-					console.log('Body element:', bodyElement);
-				}
+			// Create split layout using pure DDOM
+			const splitLayout = {
+				tagName: 'div',
+				style: {
+					display: 'flex',
+					height: 'calc(100vh - 160px)',
+					gap: '1px',
+					backgroundColor: '#dee2e6'
+				},
+				children: [
+					// Left side - createElemented example
+					{
+						tagName: 'div',
+						style: {
+							flex: '1',
+							backgroundColor: 'white',
+							overflow: 'auto',
+							padding: '1rem'
+						},
+						children: example.config.document?.body?.children || []
+					},
+					// Right side - DDOM code
+					{
+						tagName: 'div',
+						style: {
+							flex: '1',
+							backgroundColor: '#f8f9fa',
+							overflow: 'auto',
+							padding: '1rem',
+							fontFamily: 'Courier New, monospace',
+							fontSize: '0.85em',
+							lineHeight: '1.4'
+						},
+						children: [
+							{
+								tagName: 'h3',
+								textContent: 'DDOM Configuration',
+								style: {
+									marginTop: '0',
+									marginBottom: '1rem',
+									color: '#495057',
+									fontFamily: 'Arial, sans-serif',
+									fontSize: '1em'
+								}
+							},
+							{
+								tagName: 'pre',
+								style: {
+									backgroundColor: '#ffffff',
+									border: '1px solid #dee2e6',
+									borderRadius: '4px',
+									padding: '1rem',
+									margin: '0',
+									overflow: 'auto',
+									whiteSpace: 'pre-wrap',
+									wordWrap: 'break-word'
+								},
+								textContent: (() => {
+									const configToShow = { ...example.config };
+									if (configToShow.oncreateElement) delete configToShow.oncreateElement;
+									return JSON.stringify(configToShow, null, 2);
+								})()
+							}
+						]
+					}
+				]
+			};
 
-				// Call onRender if it exists
-				if (example.config.onRender) {
-					example.config.onRender.call(example.config);
-				}
+			// Clear and createElement using pure DDOM
+			exampleContainer.innerHTML = '';
+			DDOM.createElement(splitLayout, exampleContainer);
+
+			// Call oncreateElement if it exists
+			if (example.config.oncreateElement) {
+				example.config.oncreateElement.call(example.config);
 			}
 		}
 	},
@@ -196,10 +253,10 @@ export default {
 		}
 	},
 
-	onRender: async function() {
+	oncreateElement: async function() {
 		await this.loadExamples();
 		// Expose switchExample function globally for navigation buttons
 		window.switchExample = this.switchExample.bind(this);
-		this.renderCurrentExample();
+		this.createElementCurrentExample();
 	}
 };

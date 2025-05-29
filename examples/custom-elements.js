@@ -5,6 +5,7 @@ export default {
       style: {
         border: '1px solid #ddd',
         borderRadius: '8px',
+        display: 'block',
         padding: '1em',
         margin: '1em 0',
         backgroundColor: 'white',
