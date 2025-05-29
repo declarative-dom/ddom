@@ -12,8 +12,8 @@ Declarative DOM is:
 
 - A specification for DOM structure-as-data
 - Strongly typed using TypeScript
-- Inspired by the semantics of `HTMLElement` and `Window`
-- Useful for UI builders, visual editors, and component serialization
+- Inspired by the semantics of [`HTMLElement`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement) and [`Window`](https://developer.mozilla.org/en-US/docs/Web/API/Window)
+- Useful for UI builders, visual application editors, and component serialization
 
 ## What It Is Not
 

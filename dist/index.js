@@ -138,6 +138,62 @@ function insertRules(styles, selector) {
 }
 
 /**
+ * A reactive signal that notifies subscribers when its value changes.
+ * Signals provide a simple way to implement reactive programming patterns.
+ *
+ * @template T The type of value stored in the signal
+ * @example
+ * ```typescript
+ * const count = new Signal(0);
+ * const unsubscribe = count.subscribe(value => console.log('Count:', value));
+ * count.value = 5; // Logs: "Count: 5"
+ * unsubscribe();
+ * ```
+ */
+class Signal {
+    #value;
+    #subscribers = new Set();
+    /**
+     * Creates a new Signal with the given initial value.
+     *
+     * @param initialValue The initial value for the signal
+     */
+    constructor(initialValue) {
+        this.#value = initialValue;
+    }
+    /**
+     * Gets the current value of the signal.
+     *
+     * @returns The current value
+     */
+    get value() {
+        return this.#value;
+    }
+    /**
+     * Sets a new value for the signal. If the new value is different from the current value
+     * (using Object.is comparison), all subscribers will be notified.
+     *
+     * @param newValue The new value to set
+     */
+    set value(newValue) {
+        if (!Object.is(this.#value, newValue)) {
+            this.#value = newValue;
+            this.#subscribers.forEach(fn => fn(newValue));
+        }
+    }
+    /**
+     * Subscribes to value changes on this signal.
+     *
+     * @param fn The function to call when the signal value changes
+     * @returns A function that when called, unsubscribes the callback
+     */
+    subscribe(fn) {
+        this.#subscribers.add(fn);
+        return () => this.#subscribers.delete(fn);
+    }
+}
+
+/**
  * Registers an array of custom elements with the browser's CustomElementRegistry.
  * This function creates new custom element classes that extend HTMLElement and
  * implement the declarative DOM structure and behavior specified in the definitions.
@@ -175,21 +231,21 @@ function define(elements) {
             #container;
             constructor() {
                 super();
-                // // create signals for reactive fields
-                // reactiveFields.forEach(field => {
-                // 	const initialValue = (ddom as any)[field];
-                // 	const signal = new Signal(initialValue);
-                // 	const propertyName = field.slice(1); // Remove the $ prefix for the actual property
-                // 	Object.defineProperty(this, propertyName, {
-                // 		get: () => signal.value,
-                // 		set: (value: any) => signal.value = value,
-                // 	});
-                // 	signal.subscribe(() => this.#triggerCreateElement());
-                // });
-                // // Call custom constructor if defined
-                // if (ddom.constructor && typeof ddom.constructor === 'function') {
-                // 	ddom.constructor(this);
-                // }
+                // create signals for reactive fields
+                reactiveFields.forEach(field => {
+                    const initialValue = ddom[field];
+                    const signal = new Signal(initialValue);
+                    const propertyName = field.slice(1); // Remove the $ prefix for the actual property
+                    Object.defineProperty(this, propertyName, {
+                        get: () => signal.value,
+                        set: (value) => signal.value = value,
+                    });
+                    signal.subscribe(() => this.#triggerCreateElement());
+                });
+                // Call custom constructor if defined
+                if (ddom.constructor && typeof ddom.constructor === 'function') {
+                    ddom.constructor(this);
+                }
             }
             adoptedCallback() {
                 if (ddom.adoptedCallback && typeof ddom.adoptedCallback === 'function') {
@@ -261,14 +317,20 @@ function define(elements) {
                         this.#container.removeChild(this.#container.firstChild);
                     }
                 }
-                // Apply all properties to the container
-                adoptNode(ddom, this.#container, false, allIgnoreKeys);
+                // Create a reactive context for dynamic property resolution
+                const reactiveContext = { ...ddom };
+                reactiveFields.forEach(field => {
+                    const propertyName = field.slice(1);
+                    reactiveContext[propertyName] = this[propertyName];
+                });
+                // Apply all properties to the container with reactive context
+                adoptNode(reactiveContext, this.#container, false, allIgnoreKeys);
             }
             #triggerCreateElement() {
                 queueMicrotask(() => {
                     if (this.#abortController.signal.aborted)
                         return;
-                    // createElement the custom element
+                    // Re-render the custom element
                     this.#createElement();
                 });
             }

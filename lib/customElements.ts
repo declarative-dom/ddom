@@ -61,22 +61,22 @@ export function define(elements: DeclarativeCustomElement[]) {
 			constructor() {
 				super();
 
-				// // create signals for reactive fields
-				// reactiveFields.forEach(field => {
-				// 	const initialValue = (ddom as any)[field];
-				// 	const signal = new Signal(initialValue);
-				// 	const propertyName = field.slice(1); // Remove the $ prefix for the actual property
-				// 	Object.defineProperty(this, propertyName, {
-				// 		get: () => signal.value,
-				// 		set: (value: any) => signal.value = value,
-				// 	});
-				// 	signal.subscribe(() => this.#triggerCreateElement());
-				// });
+				// create signals for reactive fields
+				reactiveFields.forEach(field => {
+					const initialValue = (ddom as any)[field];
+					const signal = new Signal(initialValue);
+					const propertyName = field.slice(1); // Remove the $ prefix for the actual property
+					Object.defineProperty(this, propertyName, {
+						get: () => signal.value,
+						set: (value: any) => signal.value = value,
+					});
+					signal.subscribe(() => this.#triggerCreateElement());
+				});
 
-				// // Call custom constructor if defined
-				// if (ddom.constructor && typeof ddom.constructor === 'function') {
-				// 	ddom.constructor(this);
-				// }
+				// Call custom constructor if defined
+				if (ddom.constructor && typeof ddom.constructor === 'function') {
+					ddom.constructor(this);
+				}
 			}
 
 			adoptedCallback() {
@@ -163,14 +163,21 @@ export function define(elements: DeclarativeCustomElement[]) {
 					}
 				}
 
-				// Apply all properties to the container
-				adoptNode(ddom, this.#container, false, allIgnoreKeys);
+				// Create a reactive context for dynamic property resolution
+				const reactiveContext = { ...ddom } as any;
+				reactiveFields.forEach(field => {
+					const propertyName = field.slice(1);
+					reactiveContext[propertyName] = (this as any)[propertyName];
+				});
+
+				// Apply all properties to the container with reactive context
+				adoptNode(reactiveContext, this.#container, false, allIgnoreKeys);
 			}
 
 			#triggerCreateElement() {
 				queueMicrotask(() => {
 					if (this.#abortController.signal.aborted) return;
-					// createElement the custom element
+					// Re-render the custom element
 					this.#createElement();
 				});
 			}
