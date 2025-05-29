@@ -20,12 +20,9 @@ const ddomHandlers: {
 } = {
 	children: (ddom, el, key, value) => {
 		if (Array.isArray(value)) {
-			value.forEach((child: DeclarativeHTMLElement, index: number) => {
+			value.forEach((child: DeclarativeHTMLElement) => {
 				child.parentNode = el;
-				const childNode = createElement(child);
-				if (childNode && 'appendChild' in el) {
-					el.appendChild(childNode as Node);
-				}
+				createElement(child);
 			});
 		}
 	},
@@ -78,11 +75,40 @@ const ddomHandlers: {
 /**
  * Adopts a DeclarativeWindow into the current document context.
  */
+/**
+ * Adopts a DeclarativeDocument into the current document context.
+ * This function applies the declarative document properties to the global document object.
+ * 
+ * @param ddom The declarative document object to adopt
+ * @example
+ * ```typescript
+ * adoptDocument({
+ *   title: 'My App',
+ *   head: { children: [{ tagName: 'meta', attributes: { charset: 'utf-8' } }] }
+ * });
+ * ```
+ */
 export function adoptDocument(ddom: DeclarativeDocument) {
 	adoptNode(ddom, document);
 }
 
-
+/**
+ * Adopts a declarative DOM structure into an existing DOM node.
+ * This function applies properties from the declarative object to the target element,
+ * handling children, attributes, styles, and other properties appropriately.
+ * 
+ * @param ddom The declarative DOM object to adopt
+ * @param el The target DOM node to apply properties to
+ * @param css Whether to process CSS styles (default: true)
+ * @param ignoreKeys Array of property keys to ignore during adoption
+ * @example
+ * ```typescript
+ * adoptNode({
+ *   textContent: 'Hello',
+ *   style: { color: 'red' }
+ * }, myElement);
+ * ```
+ */
 export function adoptNode(ddom: DeclarativeDOM, el: DOMNode, css: boolean = true, ignoreKeys: string[] = []): void {
 	// Apply all properties
 	for (const [key, value] of Object.entries(ddom)) {
@@ -98,41 +124,109 @@ export function adoptNode(ddom: DeclarativeDOM, el: DOMNode, css: boolean = true
 
 /**
  * Adopts a DeclarativeWindow into the current window context.
+ * This function applies the declarative window properties to the global window object.
+ * 
+ * @param ddom The declarative window object to adopt
+ * @example
+ * ```typescript
+ * adoptWindow({
+ *   document: { title: 'My App' },
+ *   customElements: [{ tagName: 'my-component' }]
+ * });
+ * ```
  */
 export function adoptWindow(ddom: DeclarativeWindow) {
 	adoptNode(ddom, window);
 }
 
-
+/**
+ * Creates an HTML element from a declarative element definition.
+ * This function constructs a real DOM element based on the provided declarative structure,
+ * applying all properties, attributes, children, and event handlers.
+ * 
+ * @param ddom The declarative HTML element definition
+ * @param css Whether to process CSS styles (default: true)
+ * @returns The created HTML element
+ * @example
+ * ```typescript
+ * const button = createElement({
+ *   tagName: 'button',
+ *   textContent: 'Click me',
+ *   onclick: () => alert('Clicked!')
+ * });
+ * ```
+ */
 export function createElement(ddom: DeclarativeHTMLElement, css: boolean = true): HTMLElement {
 	const el = document.createElement(ddom.tagName) as HTMLElement;
 
-	// if the id is defined, set it on the element
-	el.id = ddom.id;
+    // set id if it's defined and not undefined
+    if (ddom.id && ddom.id !== undefined) {
+        el.id = ddom.id;
+    }
+
+	// if parentNode is defined, append the element to it
+	if (ddom.parentNode && ddom.parentNode !== undefined && 'appendChild' in ddom.parentNode) {
+		ddom.parentNode.appendChild(el);
+	}
 
 	// Apply all properties using the unified dispatch table
-	adoptNode(ddom, el, css, ['id', 'tagName']);
+	adoptNode(ddom, el, css, ['id', 'parentNode', 'tagName']);
 
 	return el;
 }
 
 /**
- * Inserts CSS rules for a given element based on its declarative styles
+ * Inserts CSS rules for a given element based on its declarative styles.
+ * This function generates unique selectors and applies styles to the global DDOM stylesheet.
+ * 
+ * @param el The DOM element to apply styles to
+ * @param styles The declarative CSS properties object
+ * @example
+ * ```typescript
+ * adoptStyles(myElement, {
+ *   color: 'red',
+ *   fontSize: '16px',
+ *   ':hover': { backgroundColor: 'blue' }
+ * });
+ * ```
  */
 function adoptStyles(el: Element, styles: DeclarativeCSSProperties): void {
-	// define the selector
-	let path = [], parent;
-	while (parent = el.parentNode) {
-		let tag = el.tagName;
-		path.unshift(
-			el.id ? `#${el.id}` : (
-				parent.querySelectorAll(tag).length === 1 ? tag :
-					`${tag}:nth-child(${Array.from(parent.children).indexOf(el) + 1})`
-			)
-		);
-		el = parent as Element;
-	}
-	const selector = `${path.join(' > ')}`.toLowerCase();
-	insertRules(styles as DeclarativeCSSProperties, selector);
-}
+    // Generate a unique selector for this element
+    let selector: string;
 
+    if (el.id) {
+        // Use ID if available
+        selector = `#${el.id}`;
+    } else {
+        // Generate a path-based selector
+        const path: string[] = [];
+        let current: Element | null = el;
+
+        while (current && current !== document.documentElement) {
+            const tagName = current.tagName.toLowerCase();
+            const parent: Element | null = current.parentElement;
+
+            if (parent) {
+                const siblings = Array.from(parent.children).filter((child: Element) =>
+                    child.tagName.toLowerCase() === tagName
+                );
+
+                if (siblings.length === 1) {
+                    path.unshift(tagName);
+                } else {
+                    const index = siblings.indexOf(current) + 1;
+                    path.unshift(`${tagName}:nth-of-type(${index})`);
+                }
+            } else {
+                path.unshift(tagName);
+            }
+
+            current = parent;
+        }
+
+        selector = path.join(' > ');
+    }
+    // debug
+    console.debug(`Inserting styles for selector: ${selector}`, styles);
+    insertRules(styles as DeclarativeCSSProperties, selector);
+}

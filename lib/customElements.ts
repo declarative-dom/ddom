@@ -15,6 +15,21 @@ import { adoptNode, createElement } from './elements';
 import { Signal } from './reactive';
 import { insertRules } from './styleSheets';
 
+/**
+ * Registers an array of custom elements with the browser's CustomElementRegistry.
+ * This function creates new custom element classes that extend HTMLElement and
+ * implement the declarative DOM structure and behavior specified in the definitions.
+ * 
+ * @param elements Array of declarative custom element definitions to register
+ * @example
+ * ```typescript
+ * define([{
+ *   tagName: 'my-component',
+ *   children: [{ tagName: 'p', textContent: 'Hello World' }],
+ *   connectedCallback: (el) => console.log('Component connected')
+ * }]);
+ * ```
+ */
 export function define(elements: DeclarativeCustomElement[]) {
 	const unregisteredDDOMElements = elements.filter(element => !customElements.get(element.tagName));
 
@@ -164,7 +179,17 @@ export function define(elements: DeclarativeCustomElement[]) {
 }
 
 /**
- * Recursively registers styles for a custom element and all its children
+ * Recursively registers styles for a custom element and all its children.
+ * This function processes the style object of the element and its nested children,
+ * generating CSS rules with appropriate selectors.
+ * 
+ * @param ddom The declarative DOM element or any object with style and children properties
+ * @param selector The CSS selector to use for this element's styles
+ * @example
+ * ```typescript
+ * adoptStyles(myElement, 'my-component');
+ * // Generates CSS rules for my-component and its children
+ * ```
  */
 function adoptStyles(ddom: any, selector: string): void {
 	// Register styles for the element itself

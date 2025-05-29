@@ -8,7 +8,16 @@ import {
 let ddomStyleSheet: CSSStyleSheet | null = null;
 
 /**
- * Adopts or creates the global DDOM stylesheet
+ * Adopts or creates the global DDOM stylesheet.
+ * Creates a new CSSStyleSheet and adds it to the document's adopted stylesheets
+ * if one doesn't already exist. This allows for efficient CSS rule management.
+ * 
+ * @returns The global DDOM stylesheet instance
+ * @example
+ * ```typescript
+ * const sheet = adoptStyleSheet();
+ * sheet.insertRule('.my-class { color: red; }');
+ * ```
  */
 export function adoptStyleSheet(): CSSStyleSheet {
 	if (!ddomStyleSheet) {
@@ -19,7 +28,14 @@ export function adoptStyleSheet(): CSSStyleSheet {
 }
 
 /**
- * Clears all DDOM styles from the stylesheet
+ * Clears all DDOM styles from the stylesheet.
+ * This function removes all CSS rules from the global DDOM stylesheet,
+ * effectively resetting all declarative styles.
+ * 
+ * @example
+ * ```typescript
+ * clearStyleSheet(); // Removes all DDOM-generated CSS rules
+ * ```
  */
 export function clearStyleSheet(): void {
 	const sheet = adoptStyleSheet();
@@ -29,7 +45,18 @@ export function clearStyleSheet(): void {
 }
 
 /**
- * Checks if a key is a CSS property (not a nested selector)
+ * Checks if a key represents a CSS property (not a nested selector).
+ * Returns true for standard CSS properties, false for selectors like
+ * pseudo-classes, media queries, class/ID selectors, etc.
+ * 
+ * @param key The property key to check
+ * @returns True if the key is a CSS property, false if it's a selector
+ * @example
+ * ```typescript
+ * isCSSProperty('color'); // true
+ * isCSSProperty(':hover'); // false
+ * isCSSProperty('.class'); // false
+ * ```
  */
 function isCSSProperty(key: string): boolean {
 	return !key.startsWith(':') && !key.startsWith('@') && !key.includes(' ') &&
@@ -37,7 +64,24 @@ function isCSSProperty(key: string): boolean {
 }
 
 /**
- * Flattens nested CSS styles into individual rules with full selectors
+ * Flattens nested CSS styles into individual rules with full selectors.
+ * This function recursively processes nested style objects and generates
+ * flat CSS rules with proper selector hierarchies.
+ * 
+ * @param styles The nested declarative CSS properties object
+ * @param baseSelector The base CSS selector to build upon
+ * @returns Array of flattened CSS rules with selectors and properties
+ * @example
+ * ```typescript
+ * flattenRules({
+ *   color: 'red',
+ *   ':hover': { backgroundColor: 'blue' }
+ * }, '.my-class');
+ * // Returns: [
+ * //   { selector: '.my-class', properties: { color: 'red' } },
+ * //   { selector: '.my-class:hover', properties: { backgroundColor: 'blue' } }
+ * // ]
+ * ```
  */
 function flattenRules(styles: DeclarativeCSSProperties, baseSelector: string): Array<{ selector: string; properties: { [key: string]: string } }> {
 	const rules: Array<{ selector: string; properties: { [key: string]: string } }> = [];
@@ -75,7 +119,19 @@ function flattenRules(styles: DeclarativeCSSProperties, baseSelector: string): A
 }
 
 /**
- * Inserts CSS rules into the DDOM stylesheet for an element
+ * Inserts CSS rules into the DDOM stylesheet for an element.
+ * This function processes declarative CSS styles and generates appropriate
+ * CSS rules with proper selectors and nesting support.
+ * 
+ * @param styles The declarative CSS properties object
+ * @param selector The CSS selector to apply the styles to
+ * @example
+ * ```typescript
+ * insertRules({
+ *   color: 'red',
+ *   ':hover': { backgroundColor: 'blue' }
+ * }, '.my-component');
+ * ```
  */
 export function insertRules(styles: DeclarativeCSSProperties, selector: string): void {
 	const sheet = adoptStyleSheet();

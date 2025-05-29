@@ -1,7 +1,16 @@
 // Global stylesheet reference for DDOM styles
 let ddomStyleSheet = null;
 /**
- * Adopts or creates the global DDOM stylesheet
+ * Adopts or creates the global DDOM stylesheet.
+ * Creates a new CSSStyleSheet and adds it to the document's adopted stylesheets
+ * if one doesn't already exist. This allows for efficient CSS rule management.
+ *
+ * @returns The global DDOM stylesheet instance
+ * @example
+ * ```typescript
+ * const sheet = adoptStyleSheet();
+ * sheet.insertRule('.my-class { color: red; }');
+ * ```
  */
 function adoptStyleSheet() {
     if (!ddomStyleSheet) {
@@ -11,7 +20,14 @@ function adoptStyleSheet() {
     return ddomStyleSheet;
 }
 /**
- * Clears all DDOM styles from the stylesheet
+ * Clears all DDOM styles from the stylesheet.
+ * This function removes all CSS rules from the global DDOM stylesheet,
+ * effectively resetting all declarative styles.
+ *
+ * @example
+ * ```typescript
+ * clearStyleSheet(); // Removes all DDOM-generated CSS rules
+ * ```
  */
 function clearStyleSheet() {
     const sheet = adoptStyleSheet();
@@ -20,14 +36,42 @@ function clearStyleSheet() {
     }
 }
 /**
- * Checks if a key is a CSS property (not a nested selector)
+ * Checks if a key represents a CSS property (not a nested selector).
+ * Returns true for standard CSS properties, false for selectors like
+ * pseudo-classes, media queries, class/ID selectors, etc.
+ *
+ * @param key The property key to check
+ * @returns True if the key is a CSS property, false if it's a selector
+ * @example
+ * ```typescript
+ * isCSSProperty('color'); // true
+ * isCSSProperty(':hover'); // false
+ * isCSSProperty('.class'); // false
+ * ```
  */
 function isCSSProperty(key) {
     return !key.startsWith(':') && !key.startsWith('@') && !key.includes(' ') &&
         !key.startsWith('.') && !key.startsWith('#') && !key.startsWith('[');
 }
 /**
- * Flattens nested CSS styles into individual rules with full selectors
+ * Flattens nested CSS styles into individual rules with full selectors.
+ * This function recursively processes nested style objects and generates
+ * flat CSS rules with proper selector hierarchies.
+ *
+ * @param styles The nested declarative CSS properties object
+ * @param baseSelector The base CSS selector to build upon
+ * @returns Array of flattened CSS rules with selectors and properties
+ * @example
+ * ```typescript
+ * flattenRules({
+ *   color: 'red',
+ *   ':hover': { backgroundColor: 'blue' }
+ * }, '.my-class');
+ * // Returns: [
+ * //   { selector: '.my-class', properties: { color: 'red' } },
+ * //   { selector: '.my-class:hover', properties: { backgroundColor: 'blue' } }
+ * // ]
+ * ```
  */
 function flattenRules(styles, baseSelector) {
     const rules = [];
@@ -60,7 +104,19 @@ function flattenRules(styles, baseSelector) {
     return rules;
 }
 /**
- * Inserts CSS rules into the DDOM stylesheet for an element
+ * Inserts CSS rules into the DDOM stylesheet for an element.
+ * This function processes declarative CSS styles and generates appropriate
+ * CSS rules with proper selectors and nesting support.
+ *
+ * @param styles The declarative CSS properties object
+ * @param selector The CSS selector to apply the styles to
+ * @example
+ * ```typescript
+ * insertRules({
+ *   color: 'red',
+ *   ':hover': { backgroundColor: 'blue' }
+ * }, '.my-component');
+ * ```
  */
 function insertRules(styles, selector) {
     const sheet = adoptStyleSheet();
@@ -81,6 +137,21 @@ function insertRules(styles, selector) {
     }
 }
 
+/**
+ * Registers an array of custom elements with the browser's CustomElementRegistry.
+ * This function creates new custom element classes that extend HTMLElement and
+ * implement the declarative DOM structure and behavior specified in the definitions.
+ *
+ * @param elements Array of declarative custom element definitions to register
+ * @example
+ * ```typescript
+ * define([{
+ *   tagName: 'my-component',
+ *   children: [{ tagName: 'p', textContent: 'Hello World' }],
+ *   connectedCallback: (el) => console.log('Component connected')
+ * }]);
+ * ```
+ */
 function define(elements) {
     const unregisteredDDOMElements = elements.filter(element => !customElements.get(element.tagName));
     unregisteredDDOMElements.forEach(ddom => {
@@ -205,7 +276,17 @@ function define(elements) {
     });
 }
 /**
- * Recursively registers styles for a custom element and all its children
+ * Recursively registers styles for a custom element and all its children.
+ * This function processes the style object of the element and its nested children,
+ * generating CSS rules with appropriate selectors.
+ *
+ * @param ddom The declarative DOM element or any object with style and children properties
+ * @param selector The CSS selector to use for this element's styles
+ * @example
+ * ```typescript
+ * adoptStyles(myElement, 'my-component');
+ * // Generates CSS rules for my-component and its children
+ * ```
  */
 function adoptStyles$1(ddom, selector) {
     // Register styles for the element itself
@@ -227,12 +308,9 @@ function adoptStyles$1(ddom, selector) {
 const ddomHandlers = {
     children: (ddom, el, key, value) => {
         if (Array.isArray(value)) {
-            value.forEach((child, index) => {
+            value.forEach((child) => {
                 child.parentNode = el;
-                const childNode = createElement(child);
-                if (childNode && 'appendChild' in el) {
-                    el.appendChild(childNode);
-                }
+                createElement(child);
             });
         }
     },
@@ -285,9 +363,39 @@ const ddomHandlers = {
 /**
  * Adopts a DeclarativeWindow into the current document context.
  */
+/**
+ * Adopts a DeclarativeDocument into the current document context.
+ * This function applies the declarative document properties to the global document object.
+ *
+ * @param ddom The declarative document object to adopt
+ * @example
+ * ```typescript
+ * adoptDocument({
+ *   title: 'My App',
+ *   head: { children: [{ tagName: 'meta', attributes: { charset: 'utf-8' } }] }
+ * });
+ * ```
+ */
 function adoptDocument(ddom) {
     adoptNode(ddom, document);
 }
+/**
+ * Adopts a declarative DOM structure into an existing DOM node.
+ * This function applies properties from the declarative object to the target element,
+ * handling children, attributes, styles, and other properties appropriately.
+ *
+ * @param ddom The declarative DOM object to adopt
+ * @param el The target DOM node to apply properties to
+ * @param css Whether to process CSS styles (default: true)
+ * @param ignoreKeys Array of property keys to ignore during adoption
+ * @example
+ * ```typescript
+ * adoptNode({
+ *   textContent: 'Hello',
+ *   style: { color: 'red' }
+ * }, myElement);
+ * ```
+ */
 function adoptNode(ddom, el, css = true, ignoreKeys = []) {
     // Apply all properties
     for (const [key, value] of Object.entries(ddom)) {
@@ -300,31 +408,99 @@ function adoptNode(ddom, el, css = true, ignoreKeys = []) {
 }
 /**
  * Adopts a DeclarativeWindow into the current window context.
+ * This function applies the declarative window properties to the global window object.
+ *
+ * @param ddom The declarative window object to adopt
+ * @example
+ * ```typescript
+ * adoptWindow({
+ *   document: { title: 'My App' },
+ *   customElements: [{ tagName: 'my-component' }]
+ * });
+ * ```
  */
 function adoptWindow(ddom) {
     adoptNode(ddom, window);
 }
+/**
+ * Creates an HTML element from a declarative element definition.
+ * This function constructs a real DOM element based on the provided declarative structure,
+ * applying all properties, attributes, children, and event handlers.
+ *
+ * @param ddom The declarative HTML element definition
+ * @param css Whether to process CSS styles (default: true)
+ * @returns The created HTML element
+ * @example
+ * ```typescript
+ * const button = createElement({
+ *   tagName: 'button',
+ *   textContent: 'Click me',
+ *   onclick: () => alert('Clicked!')
+ * });
+ * ```
+ */
 function createElement(ddom, css = true) {
     const el = document.createElement(ddom.tagName);
-    // if the id is defined, set it on the element
-    el.id = ddom.id;
+    // set id if it's defined and not undefined
+    if (ddom.id && ddom.id !== undefined) {
+        el.id = ddom.id;
+    }
+    // if parentNode is defined, append the element to it
+    if (ddom.parentNode && ddom.parentNode !== undefined && 'appendChild' in ddom.parentNode) {
+        ddom.parentNode.appendChild(el);
+    }
     // Apply all properties using the unified dispatch table
-    adoptNode(ddom, el, css, ['id', 'tagName']);
+    adoptNode(ddom, el, css, ['id', 'parentNode', 'tagName']);
     return el;
 }
 /**
- * Inserts CSS rules for a given element based on its declarative styles
+ * Inserts CSS rules for a given element based on its declarative styles.
+ * This function generates unique selectors and applies styles to the global DDOM stylesheet.
+ *
+ * @param el The DOM element to apply styles to
+ * @param styles The declarative CSS properties object
+ * @example
+ * ```typescript
+ * adoptStyles(myElement, {
+ *   color: 'red',
+ *   fontSize: '16px',
+ *   ':hover': { backgroundColor: 'blue' }
+ * });
+ * ```
  */
 function adoptStyles(el, styles) {
-    // define the selector
-    let path = [], parent;
-    while (parent = el.parentNode) {
-        let tag = el.tagName;
-        path.unshift(el.id ? `#${el.id}` : (parent.querySelectorAll(tag).length === 1 ? tag :
-            `${tag}:nth-child(${Array.from(parent.children).indexOf(el) + 1})`));
-        el = parent;
+    // Generate a unique selector for this element
+    let selector;
+    if (el.id) {
+        // Use ID if available
+        selector = `#${el.id}`;
     }
-    const selector = `${path.join(' > ')}`.toLowerCase();
+    else {
+        // Generate a path-based selector
+        const path = [];
+        let current = el;
+        while (current && current !== document.documentElement) {
+            const tagName = current.tagName.toLowerCase();
+            const parent = current.parentElement;
+            if (parent) {
+                const siblings = Array.from(parent.children).filter((child) => child.tagName.toLowerCase() === tagName);
+                if (siblings.length === 1) {
+                    path.unshift(tagName);
+                }
+                else {
+                    const index = siblings.indexOf(current) + 1;
+                    path.unshift(`${tagName}:nth-of-type(${index})`);
+                }
+            }
+            else {
+                path.unshift(tagName);
+            }
+            current = parent;
+        }
+        selector = path.join(' > ');
+    }
+    // debug
+    console.debug(`Inserting styles for selector: ${selector}`, styles);
     insertRules(styles, selector);
 }
 
