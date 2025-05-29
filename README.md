@@ -1,10 +1,10 @@
 # Declarative DOM
 
-**Declarative DOM** is a working draft-state data format for expressing nearly 100% DOM-consistent structure using JavaScript object literals. Think of it as an object syntax supporting a subset and re-casting of the current DOM properties, where certain readonly DOM properties become writable in a declarative manner. 
+**Declarative DOM** is a working draft-state data specification for defining web pages and web application runtimes using JSON object literals. It provides a strongly typed, JSON-like syntax for defining DOM nodes, custom elements, and documents in a declarative manner. This specification is designed to be used with JavaScript and TypeScript, enabling developers to create and manipulate DOM structures without relying on traditional imperative programming patterns.
 
-Just as JSON provides a syntax and grammar for describing arbitrary data, Declarative DOM defines a constrained structure for describing DOM nodes and documents. Special emphasis is placed on creating a standardized syntax to define the import and initiation of custom elements in a declarative way.
+Just as JSON provides a syntax and grammar for describing arbitrary data, Declarative DOM defines a constrained structure for describing DOM nodes and documents. Special emphasis is placed on creating a standardized syntax to define the import and initiation of custom elements (aka [Web Components](https://developer.mozilla.org/en-US/docs/Web/API/Web_components)).
 
-Included are type specifications and a reference createElementing library.
+Included are type specifications and a reference rendering library.
 
 ## What It Is
 
@@ -19,7 +19,7 @@ Declarative DOM is:
 
 - It is not a template language
 - It is not a virtual DOM diffing engine
-- It does not define createElementing semantics
+- It does not define rendering semantics
 
 ## Goals
 
@@ -41,7 +41,7 @@ DDOM should mirror and support valid DOM properties, keys, and value types as cl
 All naming conventions, method signatures, and behavioral patterns must align with native DOM APIs first and foremost. While framework conventions *might* be relevant to address functionality gaps in DOM standards (see Exception 2, below), DOM standards always take precedence. This ensures DDOM remains stable and familiar as the web platform evolves, regardless of changing framework trends.
 
 ### Exception 1: Read-Only Properties
-When DOM properties are read-only but should be settable declaratively, DDOM defines syntax that aligns as closely as possible with the final intended DOM outcome. Examples include:
+When DOM properties are read-only but should be declarable, DDOM defines syntax that aligns as closely as possible with the final intended DOM outcome. Examples include:
 - `tagName` - normally read-only, but essential for declarative element creation
 - `children` - allows declarative specification of child elements
 - `document` and `customElements` - enable declarative document and component structure
@@ -80,6 +80,8 @@ adoptWindow({
       tagName: 'my-box',
       style: { 
         backgroundColor: 'skyblue', 
+        display: 'block',
+        width: 'fit-content',
         padding: '1em',
         ':hover': {
           backgroundColor: 'lightblue',
