@@ -1,10 +1,10 @@
 # Declarative DOM
 
-**Declarative DOM** *(or DDOM)* is a Javascript object schema for defining and deploying web applications. It aims to support all current web development capabilities within an object structure aligned to the [DOM](https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model), [CSSOM](https://developer.mozilla.org/en-US/docs/Web/API/CSS_Object_Model), and adjacent web standards.&#x20;
+**Declarative DOM** *(or DDOM)* is a JavaScript object schema for defining and deploying web applications. It aims to support all current web development capabilities within an object structure aligned to the [DOM](https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model), [CSSOM](https://developer.mozilla.org/en-US/docs/Web/API/CSS_Object_Model), and adjacent web standards.&#x20;
 
-Specifically, Declarative DOM provides a strongly typed, JSON-like syntax for defining DOM documents, nodes, and custom elements, in a declarative manner. This specification is designed to be used with JavaScript and TypeScript, enabling developers to create and manipulate DOM structures without relying on traditional imperative programming patterns.
+Just as JSON provides a syntax and grammar for describing arbitrary data, Declarative DOM defines a type-enforced structure for describing web applications and components. Specifically, Declarative DOM provides a strongly typed, JSON-like syntax for defining DOM documents, nodes, and custom elements, in a declarative manner. Special emphasis is placed on creating a consistent and predictable standards-aligned syntax to define the structure and functionality of custom elements (aka [Web Components](https://developer.mozilla.org/en-US/docs/Web/API/Web_components)).
 
-Just as JSON provides a syntax and grammar for describing arbitrary data, Declarative DOM defines a constrained structure for describing DOM nodes and documents. Special emphasis is placed on creating a standardized syntax to define the import and initiation of custom elements (aka [Web Components](https://developer.mozilla.org/en-US/docs/Web/API/Web_components)), using a syntax which mirrors the DOM intention of these elements. Any developer familiar with the DOM should easily understand the intent of a Declarative DOM definition, while DOM conformance makes deployment technically trivial.
+This specification is designed to be used with JavaScript and TypeScript, enabling developers to create and manipulate DOM structures without relying on traditional imperative programming patterns. Any developer familiar with the DOM should easily understand the intent of a Declarative DOM definition, while DOM conformance facilitates minimal-translation deployments.
 
 This repository houses a working draft-state data specification, type specifications and a reference rendering library.
 
@@ -13,7 +13,7 @@ This repository houses a working draft-state data specification, type specificat
 Declarative DOM is:
 
 * A specification for DOM structure-as-data
-* Strongly typed for use with JSDoc or TypeScript
+* A collection of types for use with JSDoc or TypeScript
 * Inspired by the semantics of [`HTMLElement`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement) and [`Window`](https://developer.mozilla.org/en-US/docs/Web/API/Window)
 * Useful for UI builders, visual application editors, and component serialization
 
@@ -36,13 +36,13 @@ The Declarative DOM specification follows strict guidelines to maintain consiste
 
 ### Primary Principle: DOM Fidelity
 
-DDOM should mirror and support valid DOM properties, keys, and value types as closely as possible. The specification aims for 1:1 correspondence with native DOM APIs wherever feasible.
+DDOM should mirror and support valid DOM properties, keys, and value types as closely as possible. The specification aims for near 1:1 correspondence with native DOM APIs.
 
 ### Core Tenet: DOM Primacy
 
 **"Libraries and frameworks shall pass away, but the DOM shall endure forever."**
 
-All naming conventions, method signatures, and behavior patterns should align with current DOM APIs first and foremost. While framework conventions *might* be relevant to address functionality gaps in web standards (see Exception 2, below), web standards always take precedence. This ensures DDOM remains stable and familiar as the web platform evolves, regardless of changing framework trends.
+All naming conventions, method signatures, and behavior patterns should align with current DOM APIs first and foremost. While framework conventions *could* be relevant to address functionality gaps in web standards (see Exception 2, below), web standards always take precedence. This ensures DDOM remains stable and familiar as the web platform evolves, regardless of changing framework trends.
 
 ### Exception 1: Read-Only Properties
 
@@ -65,16 +65,20 @@ Notable examples include:
 * It aligns with DDOM's objective of treating UI structure as data
 * It maintains the declarative nature while extending beyond basic DOM capabilities
 
+The bottom line: CSS nesting is currently a draft specification and may not be fully supported in all browsers. It may never be adopted in the CSSOM. DDOM adopts this syntax to faciliate essential functionality, align with emerging standards, and provide a consistent declarative approach.
+
 **Reactive Properties**: Unlike string-only attributes, web component standards don't currently provide native rendering reactivity for custom element properties. DDOM adopts a `$`-prefixed syntax for reactive properties in custom elements because:
 
-* It follows an established JavaScript convention of using `$` for special/reactive variables (popularized by frameworks like Svelte)
-* It enables declarative specification of reactive state that automatically triggers re-rendering
-* It provides a clear visual distinction between static and reactive properties
+* Reactive properties are considered essential for modern web applications
+* No existing DOM API provides a way to define reactive properties
+* It borrows from the `#`-prefix standard to define private properties in JavaScript, providing a familiar syntax
 * It aligns with modern web development patterns while maintaining declarative consistency
+
+The Bottom Line: The `$`-prefixed syntax is not part of the official DOM or web standards. It is inspired by conventions in modern frameworks like Svelte to provide a familiar and intuitive approach for developers.
 
 ### Design Constraints
 
-1. **No Proprietary Syntax**: Avoid inventing new patterns when established web standards exist
+1. **Standards-based Syntax**: Avoid inventing new patterns when sufficient web standards exist; adopt popular conventions when necessary
 2. **Predictable Mapping**: Developers should be able to predict DDOM syntax from their DOM knowledge
 3. **Future-Proof**: Syntax should align with emerging web standards when possible
 4. **Minimal Exceptions**: Only deviate from DOM APIs when absolutely necessary for declarative completeness
@@ -82,6 +86,7 @@ Notable examples include:
 ## Example
 
 ```JavaScript
+// adoptWindow initializes the DDOM structure and applies it to the current document
 import { adoptWindow } from 'declarative-dom';
 
 adoptWindow({
