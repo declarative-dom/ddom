@@ -4,7 +4,7 @@
 
 Just as JSON provides a syntax and grammar for describing arbitrary data, DDOM defines a type-enforced structure for describing web applications and components. Specifically, DDOM provides a strongly typed, JSON-like syntax for defining DOM documents, nodes, and custom elements, in a declarative manner. Special emphasis is placed on creating a consistent and predictable standards-aligned syntax to define the structure and functionality of custom elements (aka [Web Components](https://developer.mozilla.org/en-US/docs/Web/API/Web_components)).
 
-This specification is designed to be used with JavaScript and TypeScript, enabling developers to create and manipulate DOM structures without relying on traditional imperative programming patterns. Any developer familiar with the DOM should easily understand the intent of a DDOM definition, while DOM conformance facilitates minimal-translation deployments.
+This specification is designed to be used with JavaScript and TypeScript, enabling developers to create and manipulate DOM structures without relying on traditional imperative programming patterns. Any developer familiar with the DOM should easily understand the intent of a DDOM definition, while DOM conformance facilitates predictable and efficient deployment.
 
 This repository houses a working draft-state [data specification](spec/SPEC.md), [type specifications](spec/types.d.ts) and a [reference rendering library](lib/).
 
