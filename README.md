@@ -120,6 +120,9 @@ adoptWindow({
     }
   ],
   document: {
+    head: {
+      title: 'Declarative DOM Example'
+    },
     body: {
       style: { 
         margin: '2em', 
@@ -134,7 +137,52 @@ adoptWindow({
   }
 });
 ```
+Which can be rendered as the following HTML equivalent:
 
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Declarative DOM Example</title>
+  <style>
+    body {
+      margin: 2em;
+      background: #111;
+      color: white;
+      font-family: system-ui, sans-serif;
+    }
+    my-box {
+      background-color: skyblue;
+      display: block;
+      width: fit-content;
+      padding: 1em;
+    }
+    my-box:hover {
+      background-color: lightblue;
+      transform: scale(1.05);
+    }
+    my-box h2 {
+      margin: 0;
+    }
+    my-box button {
+      padding: 0.5em 1em;
+      border: none;
+      border-radius: 4px;
+    }
+    my-box button:hover {
+      background-color: #007acc;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <my-box>
+    <h2>Hello!</h2>
+    <button onclick="alert('Clicked!')">Click me</button>
+  </my-box>
+</body>
+</html>
+```
 ## License
 
 MIT
