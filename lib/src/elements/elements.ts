@@ -21,7 +21,7 @@ import {
 
 
 const ddomHandlers: {
-	[key: string]: (ddom: DeclarativeDOM, el: DOMNode, key: string, value: any, css?: boolean) => void;
+	[key: string]: (ddom: DeclarativeDOM, el: DOMNode, key: string, value: any) => void;
 } = {
 	children: (ddom, el, key, value) => {
 		if (Array.isArray(value)) {
@@ -40,8 +40,8 @@ const ddomHandlers: {
 			}
 		}
 	},
-	style: (ddom, el, key, value, css) => {
-		if (css && value && typeof value === 'object') {
+	style: (ddom, el, key, value) => {
+		if (value && typeof value === 'object') {
 			adoptStyles((el as Element), value);
 		}
 	},
@@ -114,7 +114,7 @@ export function adoptDocument(ddom: DeclarativeDocument) {
  * }, myElement);
  * ```
  */
-export function adoptNode(ddom: DeclarativeDOM, el: DOMNode, css: boolean = true, ignoreKeys: string[] = []): void {
+export function adoptNode(ddom: DeclarativeDOM, el: DOMNode, ignoreKeys: string[] = []): void {
 	// Apply all properties
 	for (const [key, value] of Object.entries(ddom)) {
 		if (ignoreKeys.includes(key)) {
@@ -122,7 +122,7 @@ export function adoptNode(ddom: DeclarativeDOM, el: DOMNode, css: boolean = true
 		}
 
 		const handler = ddomHandlers[key] || ddomHandlers.default;
-		handler(ddom, el, key, value, css);
+		handler(ddom, el, key, value);
 	}
 }
 
@@ -161,7 +161,7 @@ export function adoptWindow(ddom: DeclarativeWindow) {
  * });
  * ```
  */
-export function createElement(ddom: DeclarativeHTMLElement, css: boolean = true): HTMLElement {
+export function createElement(ddom: DeclarativeHTMLElement): HTMLElement {
 	const el = document.createElement(ddom.tagName) as HTMLElement;
 
     // set id if it's defined and not undefined
@@ -175,7 +175,7 @@ export function createElement(ddom: DeclarativeHTMLElement, css: boolean = true)
 	}
 
 	// Apply all properties using the unified dispatch table
-	adoptNode(ddom, el, css, ['id', 'parentNode', 'tagName']);
+	adoptNode(ddom, el, ['id', 'parentNode', 'tagName']);
 
 	return el;
 }

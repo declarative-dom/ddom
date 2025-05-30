@@ -33,7 +33,7 @@ export declare function adoptDocument(ddom: DeclarativeDocument): void;
  * }, myElement);
  * ```
  */
-export declare function adoptNode(ddom: DeclarativeDOM, el: DOMNode, css?: boolean, ignoreKeys?: string[]): void;
+export declare function adoptNode(ddom: DeclarativeDOM, el: DOMNode, ignoreKeys?: string[]): void;
 /**
  * Adopts a DeclarativeWindow into the current window context.
  * This function applies the declarative window properties to the global window object.
@@ -65,4 +65,4 @@ export declare function adoptWindow(ddom: DeclarativeWindow): void;
  * });
  * ```
  */
-export declare function createElement(ddom: DeclarativeHTMLElement, css?: boolean): HTMLElement;
+export declare function createElement(ddom: DeclarativeHTMLElement): HTMLElement;
