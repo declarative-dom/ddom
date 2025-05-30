@@ -1,7 +1,7 @@
 import {
 	DeclarativeHTMLElement,
 	DeclarativeCSSProperties,
-} from '../spec/types';
+} from '../../../types/src';
 
 
 // Global stylesheet reference for DDOM styles

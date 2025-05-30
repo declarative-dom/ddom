@@ -10,18 +10,20 @@
 		"allowImportingTsExtensions": false,
 		"declaration": true,
 		"outDir": "./dist",
-		"rootDir": "./",
+		"rootDir": "../",
 		"strict": true,
 		"esModuleInterop": true,
 		"forceConsistentCasingInFileNames": true,
 		"skipLibCheck": true
 	},
 	"include": [
-		"./lib/*.ts",
-		"./spec/types.d.ts"
+		"src/**/*",
+		"../types/src/types.d.ts"
 	],
 	"exclude": [
 		"node_modules",
-		"dist"
+		"dist",
+		"**/*.test.ts",
+		"**/*.spec.ts"
 	]
 }

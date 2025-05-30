@@ -1,5 +1,5 @@
 /**
- * DeclarativeDOM is a type system and specification for defining structured DOM data
+ * Declarative DOM is a type system and specification for defining structured DOM data
  * in a JS-native format. It is intended to reflect the shape of the real DOM 
  * (HTMLElement, Window, etc.) as closely as possible, with only the minimal
  * necessary changes to support declarative definition.

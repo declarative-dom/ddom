@@ -9,10 +9,15 @@ import {
 	DeclarativeHTMLHeadElement,
 	DeclarativeWindow,
 	DOMNode,
-} from '../spec/types';
+} from '../../../types/src';
 
-import { insertRules } from './styleSheets';
-import { define } from './customElements';
+import {
+	define,
+} from '../customElements';
+
+import {
+	insertRules,
+} from '../styleSheets';
 
 
 const ddomHandlers: {

@@ -1,0 +1,41 @@
+{
+	"name": "@declarative-dom/types",
+	"version": "1.0.0",
+	"description": "TypeScript type definitions for Declarative DOM",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"files": [
+		"dist/**/*"
+	],
+	"scripts": {
+		"build": "tsc",
+		"clean": "rm -rf dist",
+		"prepublishOnly": "npm run clean && npm run build",
+		"test": "tsc --noEmit",
+		"upgrade": "npx npm-check-updates -u && npm install"
+	},
+	"keywords": [
+		"typescript",
+		"types",
+		"definitions"
+	],
+	"author": "Your Name <your.email@example.com>",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/declarative-dom/declarative-dom/types.git"
+	},
+	"bugs": {
+		"url": "https://github.com/declarative-dom/declarative-dom/issues"
+	},
+	"homepage": "https://github.com/declarative-dom/declarative-dom#readme",
+	"devDependencies": {
+		"typescript": "^5.4.0"
+	},
+	"engines": {
+		"node": ">=16.0.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

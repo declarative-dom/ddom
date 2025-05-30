@@ -18,7 +18,10 @@ export default {
 				},
 				{
 					tagName: 'button',
-					textContent: 'Click Me!',
+					attributes: {
+						text: 'Click Me!',
+					},
+					textContent: `${this.attributes.text}`,
 					style: {
 						padding: '0.5em 1em',
 						backgroundColor: '#007bff',

@@ -1,22 +1,23 @@
 {
-  "name": "declarative-dom",
+  "name": "@declarative-dom/lib",
   "version": "0.1.0",
   "description": "A specification and TypeScript type system for describing DOM structure as serializable JavaScript objects.",
   "type": "module",
-  "main": "dist/lib/index.js",
-  "types": "./spec/index.d.ts",
+  "main": "dist/index.js",
+  "types": "../types/src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./spec/index.d.ts",
-      "import": "./dist/lib/index.js"
+      "types": "./../types/src/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./lib/*": {
-      "import": "./dist/lib/*.js"
+      "import": "./dist/*.js"
     }
   },
   "scripts": {
     "build": "rollup -c",
-    "dev": "rollup -c --watch"
+    "dev": "rollup -c --watch",
+    "upgrade": "npx npm-check-updates -u && npm install"
   },
   "keywords": [
     "declarative",

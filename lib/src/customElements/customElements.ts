@@ -9,11 +9,20 @@ import {
 	DeclarativeDOMElement,
 	DOMNode,
 	DeclarativeCSSProperties,
-} from '../spec/types';
+} from '../../../types/src';
 
-import { adoptNode, createElement } from './elements';
-import { Signal } from './reactive';
-import { insertRules } from './styleSheets';
+import {
+	adoptNode,
+	createElement,
+} from '../elements';
+
+import {
+	Signal,
+} from '../events';
+
+import {
+	insertRules,
+} from '../styleSheets';
 
 /**
  * Registers an array of custom elements with the browser's CustomElementRegistry.
