@@ -6,7 +6,7 @@ Just as JSON provides a syntax and grammar for describing arbitrary data, Declar
 
 This specification is designed to be used with JavaScript and TypeScript, enabling developers to create and manipulate DOM structures without relying on traditional imperative programming patterns. Any developer familiar with the DOM should easily understand the intent of a Declarative DOM definition, while DOM conformance facilitates minimal-translation deployments.
 
-This repository houses a working draft-state data specification, type specifications and a reference rendering library.
+This repository houses a working draft-state [data specification](spec/SPEC.md), [type specifications](spec/types.d.ts) and a [reference rendering library](lib/).
 
 ## What It Is
 
@@ -54,7 +54,7 @@ When standard DOM properties are read-only but should be declarable, DDOM define
 
 ### Exception 2: DOM Functionality Gaps
 
-When no equivalent DOM syntax exists for functionality essential to a declarative UI, DDOM extends the DOM syntax, but with best-effort alignment to adjacent web standards and conventions. This ensures that the syntax remains familiar to web developers while supporting essential capabilities.
+When no equivalent DOM syntax exists for functionality essential to a declarative UI, DDOM extends the DOM syntax, but with best-effort alignment to adjacent web standards and established conventions. This ensures that the syntax remains familiar to web developers while supporting essential capabilities.
 
 Notable examples include:
 
@@ -65,20 +65,20 @@ Notable examples include:
 * It aligns with DDOM's objective of treating UI structure as data
 * It maintains the declarative nature while extending beyond basic DOM capabilities
 
-The bottom line: CSS nesting is currently a draft specification and may not be fully supported in all browsers. It may never be adopted in the CSSOM. DDOM adopts this syntax to faciliate essential functionality, align with emerging standards, and provide a consistent declarative approach.
+The bottom line: CSS nesting is currently a draft specification, may not be directly supported in all browsers, and may never be adopted in the CSSOM. DDOM adopts this syntax to support essential functionality, align with emerging standards, and provide a consistent declarative approach.
 
-**Reactive Properties**: Unlike string-only attributes, web component standards don't currently provide native rendering reactivity for custom element properties. DDOM adopts a `$`-prefixed syntax for reactive properties in custom elements because:
+**Reactive Properties**: Unlike string-only *attributes*, web component standards don't currently provide native rendering reactivity for custom element *properties*. DDOM adopts a `$`-prefixed syntax for reactive properties in custom elements because:
 
 * Reactive properties are considered essential for modern web applications
 * No existing DOM API provides a way to define reactive properties
-* It borrows from the `#`-prefix standard to define private properties in JavaScript, providing a familiar syntax
+* It borrows from the `#`-prefix JavaScript private properties standard, providing a familiar syntax
 * It aligns with modern web development patterns while maintaining declarative consistency
 
 The Bottom Line: The `$`-prefixed syntax is not part of the official DOM or web standards. It is inspired by conventions in modern frameworks like Svelte to provide a familiar and intuitive approach for developers.
 
 ### Design Constraints
 
-1. **Standards-based Syntax**: Avoid inventing new patterns when sufficient web standards exist; adopt popular conventions when necessary
+1. **Standards-based Syntax**: Avoid inventing new patterns when sufficient web standards exist; adopt established conventions when necessary
 2. **Predictable Mapping**: Developers should be able to predict DDOM syntax from their DOM knowledge
 3. **Future-Proof**: Syntax should align with emerging web standards when possible
 4. **Minimal Exceptions**: Only deviate from DOM APIs when absolutely necessary for declarative completeness

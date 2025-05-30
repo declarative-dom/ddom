@@ -355,7 +355,7 @@ For each element with styles:
 // Clear all DDOM styles
 window.DDOM.clearDDOMStyles();
 
-// Styles are automatically managed during createElementing
+// Styles are automatically managed during rendering
 ```
 
 ### 9. Document Structure
@@ -446,7 +446,7 @@ When serializing structures with event handlers:
 
 ### 12. Implementation Requirements
 
-#### 12.1 createElementing
+#### 12.1 Rendering
 
 Implementations must:
 - Create actual DOM elements from declarative descriptions
@@ -569,13 +569,13 @@ When accepting declarative DOM from untrusted sources:
 
 Future versions may consider:
 - Template variable substitution
-- Conditional createElementing directives
+- Conditional rendering directives
 - Loop constructs for dynamic content
 
 #### 15.2 Performance
 
 Potential optimizations:
-- Incremental createElementing for large structures
+- Incremental rendering for large structures
 - Virtual DOM diffing capabilities
 - Lazy loading of custom element definitions
 
@@ -599,4 +599,4 @@ An implementation conforms to this specification if it:
 
 **Authors**: Declarative DOM Working Group  
 **Version**: 0.1.0 Draft  
-**Last Modified**: 2024
+**Last Modified**: 2025-05-30
