@@ -180,7 +180,7 @@ export function define(elements: DeclarativeCustomElement[]) {
 				});
 
 				// Apply all properties to the container with reactive context
-				adoptNode(reactiveContext, this.#container, allIgnoreKeys);
+				adoptNode(reactiveContext, this.#container, false, allIgnoreKeys);
 			}
 
 			#triggerCreateElement() {

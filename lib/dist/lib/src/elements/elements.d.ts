@@ -33,7 +33,7 @@ export declare function adoptDocument(ddom: DeclarativeDocument): void;
  * }, myElement);
  * ```
  */
-export declare function adoptNode(ddom: DeclarativeDOM, el: DOMNode, ignoreKeys?: string[]): void;
+export declare function adoptNode(ddom: DeclarativeDOM, el: DOMNode, css?: boolean, ignoreKeys?: string[]): void;
 /**
  * Adopts a DeclarativeWindow into the current window context.
  * This function applies the declarative window properties to the global window object.
@@ -48,6 +48,26 @@ export declare function adoptNode(ddom: DeclarativeDOM, el: DOMNode, ignoreKeys?
  * ```
  */
 export declare function adoptWindow(ddom: DeclarativeWindow): void;
+/**
+ * Creates an HTML element from a declarative element definition and appends it to a parent node.
+ * This function constructs a real DOM element based on the provided declarative structure,
+ * applying all properties, attributes, children, and event handlers, then immediately appends
+ * it to the specified parent node.
+ *
+ * @param ddom The declarative HTML element definition
+ * @param parentNode The parent node to append the created element to
+ * @param css Whether to process CSS styles (default: true)
+ * @returns The created HTML element
+ * @example
+ * ```typescript
+ * const button = appendChild({
+ *   tagName: 'button',
+ *   textContent: 'Click me',
+ *   onclick: () => alert('Clicked!')
+ * }, document.body);
+ * ```
+ */
+export declare function appendChild(ddom: DeclarativeHTMLElement, parentNode: DOMNode, css?: boolean): HTMLElement;
 /**
  * Creates an HTML element from a declarative element definition.
  * This function constructs a real DOM element based on the provided declarative structure,
@@ -65,4 +85,4 @@ export declare function adoptWindow(ddom: DeclarativeWindow): void;
  * });
  * ```
  */
-export declare function createElement(ddom: DeclarativeHTMLElement): HTMLElement;
+export declare function createElement(ddom: DeclarativeHTMLElement, css?: boolean): HTMLElement;

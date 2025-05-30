@@ -21,13 +21,12 @@ import {
 
 
 const ddomHandlers: {
-	[key: string]: (ddom: DeclarativeDOM, el: DOMNode, key: string, value: any) => void;
+	[key: string]: (ddom: DeclarativeDOM, el: DOMNode, key: string, value: any, css?: boolean) => void;
 } = {
-	children: (ddom, el, key, value) => {
+	children: (ddom, el, key, value, css) => {
 		if (Array.isArray(value)) {
 			value.forEach((child: DeclarativeHTMLElement) => {
-				child.parentNode = el;
-				createElement(child);
+				appendChild(child, el as DOMNode, css);
 			});
 		}
 	},
@@ -40,8 +39,8 @@ const ddomHandlers: {
 			}
 		}
 	},
-	style: (ddom, el, key, value) => {
-		if (value && typeof value === 'object') {
+	style: (ddom, el, key, value, css) => {
+		if (css && value && typeof value === 'object') {
 			adoptStyles((el as Element), value);
 		}
 	},
@@ -114,7 +113,7 @@ export function adoptDocument(ddom: DeclarativeDocument) {
  * }, myElement);
  * ```
  */
-export function adoptNode(ddom: DeclarativeDOM, el: DOMNode, ignoreKeys: string[] = []): void {
+export function adoptNode(ddom: DeclarativeDOM, el: DOMNode, css: boolean = true, ignoreKeys: string[] = []): void {
 	// Apply all properties
 	for (const [key, value] of Object.entries(ddom)) {
 		if (ignoreKeys.includes(key)) {
@@ -122,7 +121,7 @@ export function adoptNode(ddom: DeclarativeDOM, el: DOMNode, ignoreKeys: string[
 		}
 
 		const handler = ddomHandlers[key] || ddomHandlers.default;
-		handler(ddom, el, key, value);
+		handler(ddom, el, key, value, css);
 	}
 }
 
@@ -145,6 +144,44 @@ export function adoptWindow(ddom: DeclarativeWindow) {
 }
 
 /**
+ * Creates an HTML element from a declarative element definition and appends it to a parent node.
+ * This function constructs a real DOM element based on the provided declarative structure,
+ * applying all properties, attributes, children, and event handlers, then immediately appends
+ * it to the specified parent node.
+ * 
+ * @param ddom The declarative HTML element definition
+ * @param parentNode The parent node to append the created element to
+ * @param css Whether to process CSS styles (default: true)
+ * @returns The created HTML element
+ * @example
+ * ```typescript
+ * const button = appendChild({
+ *   tagName: 'button',
+ *   textContent: 'Click me',
+ *   onclick: () => alert('Clicked!')
+ * }, document.body);
+ * ```
+ */
+export function appendChild(ddom: DeclarativeHTMLElement, parentNode: DOMNode, css: boolean = true): HTMLElement {
+    const el = document.createElement(ddom.tagName) as HTMLElement;
+
+    // set id if it's defined and not undefined
+    if (ddom.id && ddom.id !== undefined) {
+        el.id = ddom.id;
+    }
+
+    // Append the element to the provided parent node
+    if ('appendChild' in parentNode) {
+        parentNode.appendChild(el);
+    }
+
+    // Apply all properties using the unified dispatch table
+    adoptNode(ddom, el, css, ['id', 'parentNode', 'tagName']);
+
+    return el;
+}
+
+/**
  * Creates an HTML element from a declarative element definition.
  * This function constructs a real DOM element based on the provided declarative structure,
  * applying all properties, attributes, children, and event handlers.
@@ -161,7 +198,7 @@ export function adoptWindow(ddom: DeclarativeWindow) {
  * });
  * ```
  */
-export function createElement(ddom: DeclarativeHTMLElement): HTMLElement {
+export function createElement(ddom: DeclarativeHTMLElement, css: boolean = true): HTMLElement {
 	const el = document.createElement(ddom.tagName) as HTMLElement;
 
     // set id if it's defined and not undefined
@@ -169,13 +206,8 @@ export function createElement(ddom: DeclarativeHTMLElement): HTMLElement {
         el.id = ddom.id;
     }
 
-	// if parentNode is defined, append the element to it
-	if (ddom.parentNode && ddom.parentNode !== undefined && 'appendChild' in ddom.parentNode) {
-		ddom.parentNode.appendChild(el);
-	}
-
 	// Apply all properties using the unified dispatch table
-	adoptNode(ddom, el, ['id', 'parentNode', 'tagName']);
+	adoptNode(ddom, el, css, ['id', 'parentNode', 'tagName']);
 
 	return el;
 }
