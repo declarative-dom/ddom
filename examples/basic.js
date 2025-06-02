@@ -21,7 +21,7 @@ export default {
 					attributes: {
 						text: 'Click Me!',
 					},
-					textContent: `${this.getAttribute("text")}`,
+					textContent: el => `${el.getAttribute("text")}`,
 					style: {
 						padding: '0.5em 1em',
 						backgroundColor: '#007bff',
@@ -31,7 +31,7 @@ export default {
 						cursor: 'pointer',
 						':hover': { backgroundColor: '#007acc', color: 'white' }
 					},
-					onclick: () => { alert('Button clicked!'); }
+					onclick: (event) => { alert(`You clicked on the ${event.target.getAttribute("text")} button!`); }
 				}
 			]
 		}

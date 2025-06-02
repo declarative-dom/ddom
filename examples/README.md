@@ -45,8 +45,19 @@ Advanced example with dynamic content:
 To run these examples:
 
 1. Make sure you have the declarative-dom library built and available
-2. Serve the examples directory with a local web server
-3. Open `index.html` in your browser
+2. Install dependencies and start the development server:
+
+```bash
+cd examples
+npm install
+npm run dev
+```
+
+3. Open the URL shown in the terminal (typically `http://localhost:5173/`)
+
+### Alternative: Using any web server
+
+You can also serve the examples directory with any local web server:
 
 ```bash
 # Example using Python's built-in server

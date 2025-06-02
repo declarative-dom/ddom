@@ -1,0 +1,16 @@
+{
+  "name": "declarative-dom-examples",
+  "version": "1.0.0",
+  "description": "Examples for the Declarative DOM library",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "preview": "vite preview",
+    "build": "vite build",
+	"upgrade": "npx npm-check-updates -u && npm install"
+  },
+  "devDependencies": {
+    "vite": "^6.3.5"
+  }
+}

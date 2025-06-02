@@ -5,6 +5,18 @@
  * necessary changes to support declarative definition.
  */
 
+/**
+ * DeclarableArray Type Definition
+ */
+export type DeclarableArray<T = any, R = any> = {
+  items: T[];
+  map: string | object | ((item: T, index: number) => R);
+  filter?: any | ((item: T, index: number) => boolean);
+  sort?: string | ((a: T, b: T) => number);
+  prepend?: any[];
+  append?: any[];
+};
+
 export type DeclarativeCSSProperties = {
 	[K in keyof CSSStyleDeclaration]?: CSSStyleDeclaration[K];
 } & {

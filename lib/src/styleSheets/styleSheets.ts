@@ -96,7 +96,7 @@ function flattenRules(styles: DeclarativeCSSProperties, baseSelector: string): A
 			// Handle nested selectors
 			let nestedSelector: string;
 
-			if (key.startsWith(':')) {
+			if (key.startsWith(':') || key.startsWith('[')) {
 				// Pseudo-selectors
 				nestedSelector = `${baseSelector}${key}`;
 			} else {

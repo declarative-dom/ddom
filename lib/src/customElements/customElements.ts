@@ -13,7 +13,6 @@ import {
 
 import {
 	adoptNode,
-	createElement,
 } from '../elements';
 
 import {
@@ -67,19 +66,48 @@ export function define(elements: DeclarativeCustomElement[]) {
 			#abortController = new AbortController();
 			#container!: HTMLElement | ShadowRoot | DocumentFragment;
 
+			#adoptNode() {
+				// Ensure container is initialized
+				if (!this.#container) {
+					this.#container = this;
+				}
+
+				// Clear any existing content
+				if ('innerHTML' in this.#container) {
+					this.#container.innerHTML = '';
+				} else if (this.#container instanceof DocumentFragment) {
+					// For DocumentFragment, remove all children
+					while (this.#container.firstChild) {
+						this.#container.removeChild(this.#container.firstChild);
+					}
+				}
+
+				// Create a reactive context for dynamic property resolution
+				// const reactiveContext = { ...ddom } as any;
+				// reactiveFields.forEach(field => {
+				// 	const propertyName = field;
+				// 	reactiveContext[propertyName] = (this as any)[propertyName];
+				// });
+
+				// Apply all properties to the container with reactive context
+				adoptNode(ddom, this.#container, false, allIgnoreKeys);
+			}
+
 			constructor() {
 				super();
 
 				// create signals for reactive fields
 				reactiveFields.forEach(field => {
 					const initialValue = (ddom as any)[field];
+					// debug
+					console.log(`Creating signal for field: ${field} with initial value:`, initialValue);
 					const signal = new Signal(initialValue);
-					const propertyName = field.slice(1); // Remove the $ prefix for the actual property
+					const propertyName = field;
 					Object.defineProperty(this, propertyName, {
 						get: () => signal.value,
 						set: (value: any) => signal.value = value,
 					});
-					signal.subscribe(() => this.#triggerCreateElement());
+					signal.subscribe(() => this.#triggerAdoptNode());
 				});
 
 				// Call custom constructor if defined
@@ -112,7 +140,7 @@ export function define(elements: DeclarativeCustomElement[]) {
 					ddom.connectedCallback(this);
 				}
 
-				this.#createElement();
+				this.#adoptNode();
 			}
 
 			connectedMoveCallback() {
@@ -156,38 +184,11 @@ export function define(elements: DeclarativeCustomElement[]) {
 				return ddom.observedAttributes || [];
 			}
 
-			#createElement() {
-				// Ensure container is initialized
-				if (!this.#container) {
-					this.#container = this;
-				}
-
-				// Clear any existing content
-				if ('innerHTML' in this.#container) {
-					this.#container.innerHTML = '';
-				} else if (this.#container instanceof DocumentFragment) {
-					// For DocumentFragment, remove all children
-					while (this.#container.firstChild) {
-						this.#container.removeChild(this.#container.firstChild);
-					}
-				}
-
-				// Create a reactive context for dynamic property resolution
-				const reactiveContext = { ...ddom } as any;
-				reactiveFields.forEach(field => {
-					const propertyName = field.slice(1);
-					reactiveContext[propertyName] = (this as any)[propertyName];
-				});
-
-				// Apply all properties to the container with reactive context
-				adoptNode(reactiveContext, this.#container, false, allIgnoreKeys);
-			}
-
-			#triggerCreateElement() {
+			#triggerAdoptNode() {
 				queueMicrotask(() => {
 					if (this.#abortController.signal.aborted) return;
 					// Re-render the custom element
-					this.#createElement();
+					this.#adoptNode();
 				});
 			}
 		});

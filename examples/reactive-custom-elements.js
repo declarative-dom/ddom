@@ -14,16 +14,21 @@ export default {
         margin: '1em 0',
         textAlign: 'center',
         fontFamily: 'system-ui, sans-serif',
-        transition: 'all 0.3s ease'
+        transition: 'all 0.3s ease',
+        backgroundColor: '#ffffff',
+        color: '#333333',
+        '[data-theme="dark"]': {
+          backgroundColor: '#2c2c2c',
+          color: '#ffffff',
+          borderColor: '#555'
+        }
       },
       children: [
         {
           tagName: 'h3',
-          // This will be dynamic based on the reactive $count field
-          get textContent() {
-            return `Count: ${this.$count || 0}`;
-          },
-          style: { 
+          // DOM-aligned function approach for dynamic content
+          textContent: el => `Count: ${el.parentNode?.$count || 0}`,
+          style: {
             margin: '0 0 1em 0',
             fontSize: '1.5em'
           }
@@ -48,11 +53,10 @@ export default {
                   backgroundColor: '#ff3838'
                 }
               },
-              onclick: function(event) {
-                const button = event.target;
-                const counterElement = button.closest('counter-widget');
-                if (counterElement) {
-                  counterElement.count--;
+              onclick: function (event) {
+                const counterElement = event.target.parentNode.parentNode; // button -> div -> counter-widget
+                if (counterElement && counterElement.tagName === 'COUNTER-WIDGET') {
+                  counterElement.$count--;
                 }
               }
             },
@@ -72,10 +76,10 @@ export default {
                   backgroundColor: '#15a85a'
                 }
               },
-              onclick: function(event) {
-                const counterElement = event.target.closest('counter-widget');
-                if (counterElement) {
-                  counterElement.count++;
+              onclick: function (event) {
+                const counterElement = event.target.parentNode.parentNode; // button -> div -> counter-widget
+                if (counterElement && counterElement.tagName === 'COUNTER-WIDGET') {
+                  counterElement.$count++;
                 }
               }
             }
@@ -95,18 +99,17 @@ export default {
               backgroundColor: '#3742fa'
             }
           },
-          onclick: function(event) {
-            const counterElement = event.target.closest('counter-widget');
-            if (counterElement) {
-              counterElement.theme = counterElement.theme === 'light' ? 'dark' : 'light';
+          onclick: function (event) {
+            const counterElement = event.target.parentNode; // button -> counter-widget
+            if (counterElement && counterElement.tagName === 'COUNTER-WIDGET') {
+              counterElement.$theme = counterElement.$theme === 'light' ? 'dark' : 'light';
+              counterElement.setAttribute('data-theme', counterElement.$theme);
             }
           }
         },
         {
           tagName: 'p',
-          get textContent() {
-            return `Current theme: ${this.$theme || 'light'}`;
-          },
+          textContent: el => `Current theme: ${el.parentNode?.$theme || 'light'}`,
           style: {
             margin: '1em 0 0 0',
             fontSize: '0.9em',
@@ -114,17 +117,61 @@ export default {
           }
         }
       ],
-      // Connected callback to apply initial reactive styling
-      connectedCallback: function(element) {
-        this.updateTheme();
+    },
+    {
+      tagName: 'todo-item',
+      // Reactive properties for individual todo items
+      $item: null,
+      toggle: null,
+      delete: null,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0.5em',
+        borderBottom: '1px solid #eee'
       },
-      // Custom method to update theme-based styling
-      updateTheme: function() {
-        const isDark = this.theme === 'dark';
-        this.style.backgroundColor = isDark ? '#2c2c2c' : '#ffffff';
-        this.style.color = isDark ? '#ffffff' : '#333333';
-        this.style.borderColor = isDark ? '#555' : '#ddd';
-      }
+      children: [
+        {
+          tagName: 'input',
+          type: 'checkbox',
+          checked: el => el.parentNode?.$item?.completed || false,
+          style: { marginRight: '0.5em' },
+          onchange: function (event) {
+            const todoItem = event.target.parentNode;
+            if (todoItem && todoItem.toggle) {
+              todoItem.toggle(event.target.checked);
+            }
+          }
+        },
+        {
+          tagName: 'span',
+          textContent: el => el.parentNode?.$item?.text || '',
+          style: {
+            flex: '1',
+            textDecoration: el => el.parentNode?.$item?.completed ? 'line-through' : 'none',
+            opacity: el => el.parentNode?.$item?.completed ? '0.6' : '1'
+          }
+        },
+        {
+          tagName: 'button',
+          textContent: '×',
+          style: {
+            border: 'none',
+            background: 'none',
+            color: '#ff4757',
+            cursor: 'pointer',
+            fontSize: '1.2em'
+          },
+          onclick: function (event) {
+            const todoItem = event.target.parentNode;
+            // debug
+            console.log('Deleting todo item:', todoItem.$item);
+            if (todoItem && todoItem.delete) {
+              todoItem.delete();
+            }
+          }
+        }
+      ]
     },
     {
       tagName: 'todo-list',
@@ -147,16 +194,18 @@ export default {
         {
           tagName: 'h3',
           textContent: 'Reactive Todo List',
-          style: { 
+          style: {
             margin: '0 0 1em 0',
             color: '#333'
           }
         },
         {
+          id: 'todo-input-container',
           tagName: 'div',
           style: { marginBottom: '1em' },
           children: [
             {
+              id: 'todo-input',
               tagName: 'input',
               type: 'text',
               placeholder: 'Add new todo...',
@@ -179,18 +228,18 @@ export default {
                 color: 'white',
                 cursor: 'pointer'
               },
-              onclick: function(event) {
-                const todoList = event.target.closest('todo-list');
+              onclick: function (event) {
+                const todoList = event.target.parentNode.parentNode; // button -> div -> todo-list
                 const input = event.target.previousElementSibling;
-                if (todoList && input && input.value.trim()) {
-                  const newItems = [...todoList.items];
+                if (todoList && todoList.tagName === 'TODO-LIST' && input && input.value.trim()) {
+                  const newItems = [...todoList.$items];
                   newItems.push({
-                    id: todoList.nextId,
+                    id: todoList.$nextId,
                     text: input.value.trim(),
                     completed: false
                   });
-                  todoList.items = newItems;
-                  todoList.nextId = todoList.nextId + 1;
+                  todoList.$items = newItems;
+                  todoList.$nextId = todoList.$nextId + 1;
                   input.value = '';
                 }
               }
@@ -198,66 +247,29 @@ export default {
           ]
         },
         {
+          id: 'todo-items',
           tagName: 'div',
-          // This will dynamically render todo items based on reactive $items
-          get children() {
-            const todoList = this.closest('todo-list');
-            if (!todoList || !todoList.items) return [];
-            
-            return todoList.items.map(item => ({
-              tagName: 'div',
-              style: {
-                display: 'flex',
-                alignItems: 'center',
-                padding: '0.5em',
-                borderBottom: '1px solid #eee'
+          children: el => {
+            const todoList = el.parentNode;
+            // debug
+            console.log('Rendering todo items:', todoList.$items);
+            if (!todoList || !todoList.$items) return [];
+
+            return todoList.$items.map(item => ({
+              tagName: 'todo-item',
+              $item: item,
+              toggle: (checked) => {
+                const newItems = todoList.$items.map(todo =>
+                  todo.id === item.id
+                    ? { ...todo, completed: checked }
+                    : todo
+                );
+                todoList.$items = newItems;
               },
-              children: [
-                {
-                  tagName: 'input',
-                  type: 'checkbox',
-                  checked: item.completed,
-                  style: { marginRight: '0.5em' },
-                  onchange: function(event) {
-                    const todoList = event.target.closest('todo-list');
-                    if (todoList) {
-                      const newItems = todoList.items.map(todo => 
-                        todo.id === item.id 
-                          ? { ...todo, completed: event.target.checked }
-                          : todo
-                      );
-                      todoList.items = newItems;
-                    }
-                  }
-                },
-                {
-                  tagName: 'span',
-                  textContent: item.text,
-                  style: {
-                    flex: '1',
-                    textDecoration: item.completed ? 'line-through' : 'none',
-                    opacity: item.completed ? '0.6' : '1'
-                  }
-                },
-                {
-                  tagName: 'button',
-                  textContent: '×',
-                  style: {
-                    border: 'none',
-                    background: 'none',
-                    color: '#ff4757',
-                    cursor: 'pointer',
-                    fontSize: '1.2em'
-                  },
-                  onclick: function(event) {
-                    const todoList = event.target.closest('todo-list');
-                    if (todoList) {
-                      const newItems = todoList.items.filter(todo => todo.id !== item.id);
-                      todoList.items = newItems;
-                    }
-                  }
-                }
-              ]
+              delete: () => {
+                const newItems = todoList.$items.filter(todo => todo.id !== item.id);
+                todoList.$items = newItems;
+              }
             }));
           }
         }
@@ -277,8 +289,8 @@ export default {
         {
           tagName: 'h1',
           textContent: 'Reactive Custom Elements Example',
-          style: { 
-            color: '#333', 
+          style: {
+            color: '#333',
             marginBottom: '1em',
             textAlign: 'center'
           }

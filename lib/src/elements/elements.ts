@@ -24,7 +24,19 @@ const ddomHandlers: {
 	[key: string]: (ddom: DeclarativeDOM, el: DOMNode, key: string, value: any, css?: boolean) => void;
 } = {
 	children: (ddom, el, key, value, css) => {
-		if (Array.isArray(value)) {
+		// Handle function-based children (for reactive/computed children)
+		if (typeof value === 'function') {
+			try {
+				const computedChildren = value(el);
+				if (Array.isArray(computedChildren)) {
+					computedChildren.forEach((child: DeclarativeHTMLElement) => {
+						appendChild(child, el as DOMNode, css);
+					});
+				}
+			} catch (error) {
+				console.warn(`Failed to evaluate function for children:`, error);
+			}
+		} else if (Array.isArray(value)) {
 			value.forEach((child: DeclarativeHTMLElement) => {
 				appendChild(child, el as DOMNode, css);
 			});
@@ -69,6 +81,14 @@ const ddomHandlers: {
 		if (key.startsWith('on') && typeof value === 'function') {
 			const eventName = key.slice(2).toLowerCase();
 			el.addEventListener(eventName, value as EventListener);
+		} else if (typeof value === 'function') {
+			// Evaluate function with element as parameter for computed properties
+			try {
+				const computedValue = value(el);
+				(el as any)[key] = computedValue;
+			} catch (error) {
+				console.warn(`Failed to evaluate function for property ${key}:`, error);
+			}
 		} else {
 			// Set all other properties directly on the element
 			(el as any)[key] = value;
@@ -163,22 +183,22 @@ export function adoptWindow(ddom: DeclarativeWindow) {
  * ```
  */
 export function appendChild(ddom: DeclarativeHTMLElement, parentNode: DOMNode, css: boolean = true): HTMLElement {
-    const el = document.createElement(ddom.tagName) as HTMLElement;
+	const el = document.createElement(ddom.tagName) as HTMLElement;
 
-    // set id if it's defined and not undefined
-    if (ddom.id && ddom.id !== undefined) {
-        el.id = ddom.id;
-    }
+	// set id if it's defined and not undefined
+	if (ddom.id && ddom.id !== undefined) {
+		el.id = ddom.id;
+	}
 
-    // Append the element to the provided parent node
-    if ('appendChild' in parentNode) {
-        parentNode.appendChild(el);
-    }
+	// Append the element to the provided parent node
+	if ('appendChild' in parentNode) {
+		parentNode.appendChild(el);
+	}
 
-    // Apply all properties using the unified dispatch table
-    adoptNode(ddom, el, css, ['id', 'parentNode', 'tagName']);
+	// Apply all properties using the unified dispatch table
+	adoptNode(ddom, el, css, ['id', 'parentNode', 'tagName']);
 
-    return el;
+	return el;
 }
 
 /**
@@ -201,10 +221,10 @@ export function appendChild(ddom: DeclarativeHTMLElement, parentNode: DOMNode, c
 export function createElement(ddom: DeclarativeHTMLElement, css: boolean = true): HTMLElement {
 	const el = document.createElement(ddom.tagName) as HTMLElement;
 
-    // set id if it's defined and not undefined
-    if (ddom.id && ddom.id !== undefined) {
-        el.id = ddom.id;
-    }
+	// set id if it's defined and not undefined
+	if (ddom.id && ddom.id !== undefined) {
+		el.id = ddom.id;
+	}
 
 	// Apply all properties using the unified dispatch table
 	adoptNode(ddom, el, css, ['id', 'parentNode', 'tagName']);
@@ -228,42 +248,40 @@ export function createElement(ddom: DeclarativeHTMLElement, css: boolean = true)
  * ```
  */
 function adoptStyles(el: Element, styles: DeclarativeCSSProperties): void {
-    // Generate a unique selector for this element
-    let selector: string;
+	// Generate a unique selector for this element
+	let selector: string;
 
-    if (el.id) {
-        // Use ID if available
-        selector = `#${el.id}`;
-    } else {
-        // Generate a path-based selector
-        const path: string[] = [];
-        let current: Element | null = el;
+	if (el.id) {
+		// Use ID if available
+		selector = `#${el.id}`;
+	} else {
+		// Generate a path-based selector
+		const path: string[] = [];
+		let current: Element | null = el;
 
-        while (current && current !== document.documentElement) {
-            const tagName = current.tagName.toLowerCase();
-            const parent: Element | null = current.parentElement;
+		while (current && current !== document.documentElement) {
+			const tagName = current.tagName.toLowerCase();
+			const parent: Element | null = current.parentElement;
 
-            if (parent) {
-                const siblings = Array.from(parent.children).filter((child: Element) =>
-                    child.tagName.toLowerCase() === tagName
-                );
+			if (parent) {
+				const siblings = Array.from(parent.children).filter((child: Element) =>
+					child.tagName.toLowerCase() === tagName
+				);
 
-                if (siblings.length === 1) {
-                    path.unshift(tagName);
-                } else {
-                    const index = siblings.indexOf(current) + 1;
-                    path.unshift(`${tagName}:nth-of-type(${index})`);
-                }
-            } else {
-                path.unshift(tagName);
-            }
+				if (siblings.length === 1) {
+					path.unshift(tagName);
+				} else {
+					const index = siblings.indexOf(current) + 1;
+					path.unshift(`${tagName}:nth-of-type(${index})`);
+				}
+			} else {
+				path.unshift(tagName);
+			}
 
-            current = parent;
-        }
+			current = parent;
+		}
 
-        selector = path.join(' > ');
-    }
-    // debug
-    console.debug(`Inserting styles for selector: ${selector}`, styles);
-    insertRules(styles as DeclarativeCSSProperties, selector);
+		selector = path.join(' > ');
+	}
+	insertRules(styles as DeclarativeCSSProperties, selector);
 }
