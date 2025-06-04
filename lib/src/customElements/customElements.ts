@@ -1,14 +1,14 @@
 import {
-	DeclarativeCustomElement,
-	DeclarativeHTMLBodyElement,
-	DeclarativeHTMLElement,
-	DeclarativeHTMLHeadElement,
-	DeclarativeWindow,
-	DeclarativeDocument,
-	DeclarativeDOM,
-	DeclarativeDOMElement,
+	CustomElementSpec,
+	HTMLBodyElementSpec,
+	HTMLElementSpec,
+	HTMLHeadElementSpec,
+	WindowSpec,
+	DocumentSpec,
+	DOMSpec,
+	ElementSpec,
 	DOMNode,
-	DeclarativeCSSProperties,
+	StyleExpr,
 } from '../../../types/src';
 
 import {
@@ -17,6 +17,8 @@ import {
 
 import {
 	Signal,
+	createReactiveProperty,
+	globalSignalWatcher,
 } from '../events';
 
 import {
@@ -38,7 +40,7 @@ import {
  * }]);
  * ```
  */
-export function define(elements: DeclarativeCustomElement[]) {
+export function define(elements: CustomElementSpec[]) {
 	const unregisteredDDOMElements = elements.filter(element => !customElements.get(element.tagName));
 
 	unregisteredDDOMElements.forEach(ddom => {
@@ -47,7 +49,7 @@ export function define(elements: DeclarativeCustomElement[]) {
 
 		// Handle global document modifications from custom element
 		if (ddom.document) {
-			adoptNode(ddom.document as DeclarativeDocument, document);
+			adoptNode(ddom.document as DocumentSpec, document);
 		}
 
 		// Apply all properties using the unified dispatch table
@@ -58,15 +60,22 @@ export function define(elements: DeclarativeCustomElement[]) {
 			'formStateRestoreCallback', 'observedAttributes', 'constructor', 'style'
 		];
 
-		const reactiveFields = Object.keys(ddom).filter(key => key.startsWith('$'));
+		const reactiveProps = Object.entries(ddom).filter(([key, value]) => key.startsWith('$'));
+		// debug
+		console.log(`[define] Registering custom element: ${ddom.tagName}`, {
+			reactiveProps,
+			ignoreKeys: customElementIgnoreKeys
+		});
 
-		const allIgnoreKeys = [...customElementIgnoreKeys, ...reactiveFields];
+		// const allIgnoreKeys = [...customElementIgnoreKeys, ...reactiveProps.map(([key]) => key)];
 
 		customElements.define(ddom.tagName, class extends HTMLElement {
 			#abortController = new AbortController();
 			#container!: HTMLElement | ShadowRoot | DocumentFragment;
 
 			#adoptNode() {
+				console.log(`[${ddom.tagName}] Starting re-render...`);
+				
 				// Ensure container is initialized
 				if (!this.#container) {
 					this.#container = this;
@@ -82,33 +91,71 @@ export function define(elements: DeclarativeCustomElement[]) {
 					}
 				}
 
-				// Create a reactive context for dynamic property resolution
-				// const reactiveContext = { ...ddom } as any;
-				// reactiveFields.forEach(field => {
-				// 	const propertyName = field;
-				// 	reactiveContext[propertyName] = (this as any)[propertyName];
-				// });
-
+				console.log(`[${ddom.tagName}] Calling adoptNode...`);
 				// Apply all properties to the container with reactive context
-				adoptNode(ddom, this.#container, false, allIgnoreKeys);
+				adoptNode(ddom, this.#container, false, customElementIgnoreKeys);
+				console.log(`[${ddom.tagName}] Re-render complete`);
 			}
 
 			constructor() {
 				super();
 
-				// create signals for reactive fields
-				reactiveFields.forEach(field => {
-					const initialValue = (ddom as any)[field];
-					// debug
-					console.log(`Creating signal for field: ${field} with initial value:`, initialValue);
-					const signal = new Signal(initialValue);
-					const propertyName = field;
-					Object.defineProperty(this, propertyName, {
-						get: () => signal.value,
-						set: (value: any) => signal.value = value,
-					});
-					signal.subscribe(() => this.#triggerAdoptNode());
+				// create signals for reactive keys and set up proper signal effect
+				const signals: Signal.State<any>[] = [];
+				reactiveProps.forEach(([key, initialValue]) => {
+					console.log(`[${ddom.tagName}] Processing reactive prop: ${key}`, initialValue);
+					const signal = createReactiveProperty(this, key, initialValue);
+					signals.push(signal);
+					console.log(`[${ddom.tagName}] Added signal for ${key}:`, signal);
 				});
+				
+				// Create a proper effect using the exact pattern from the React example
+				if (signals.length > 0) {
+					console.log(`[${ddom.tagName}] Creating effect for ${signals.length} signals`);
+					
+					// Use the exact effect pattern from the React example
+					const createEffect = (callback: () => void) => {
+						let cleanup: (() => void) | void;
+
+						const computed = new Signal.Computed(() => {
+							cleanup?.();
+							cleanup = callback();
+						});
+
+						globalSignalWatcher.watch(computed);
+						computed.get();
+
+						return () => {
+							globalSignalWatcher.unwatch(computed);
+							cleanup?.();
+						};
+					};
+					
+					// Create the effect that tracks our reactive properties
+					const effectCleanup = createEffect(() => {
+						console.log(`[${ddom.tagName}] Effect running - tracking dependencies`);
+						
+						// Access all signals directly to establish dependencies
+						signals.forEach((signal, index) => {
+							const value = signal.get(); // Direct signal access - no wrapper
+							console.log(`[${ddom.tagName}] Effect tracking signal ${index}:`, value);
+						});
+						
+						console.log(`[${ddom.tagName}] Effect dependencies established - will trigger re-render on next change`);
+						
+						// Return a cleanup function that triggers re-render
+						return () => {
+							console.log(`[${ddom.tagName}] Effect triggered - scheduling re-render`);
+							this.#triggerAdoptNode();
+						};
+					});
+					
+					// Clean up on disconnect
+					this.#abortController.signal.addEventListener('abort', () => {
+						console.log(`[${ddom.tagName}] Cleaning up effect on disconnect`);
+						effectCleanup();
+					});
+				}
 
 				// Call custom constructor if defined
 				if (ddom.constructor && typeof ddom.constructor === 'function') {
@@ -123,6 +170,7 @@ export function define(elements: DeclarativeCustomElement[]) {
 			}
 
 			attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
+				this.#triggerAdoptNode();
 				if (ddom.attributeChangedCallback && typeof ddom.attributeChangedCallback === 'function') {
 					ddom.attributeChangedCallback(this, name, oldValue, newValue);
 				}
@@ -186,7 +234,11 @@ export function define(elements: DeclarativeCustomElement[]) {
 
 			#triggerAdoptNode() {
 				queueMicrotask(() => {
-					if (this.#abortController.signal.aborted) return;
+					if (this.#abortController.signal.aborted) {
+						console.log(`[${ddom.tagName}] Re-render aborted - element disconnected`);
+						return;
+					}
+					console.log(`[${ddom.tagName}] Triggering re-render...`);
 					// Re-render the custom element
 					this.#adoptNode();
 				});
@@ -216,7 +268,7 @@ function adoptStyles(ddom: any, selector: string): void {
 
 	// Recursively register styles for children
 	if (ddom.children && Array.isArray(ddom.children)) {
-		ddom.children.forEach((child: DeclarativeHTMLElement) => {
+		ddom.children.forEach((child: HTMLElementSpec) => {
 			if (child.style && typeof child.style === 'object') {
 				// For custom element registration, we'll use a simple descendant selector
 				const childSelector = `${selector} ${child.tagName?.toLowerCase() || '*'}`;

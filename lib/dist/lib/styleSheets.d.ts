@@ -1,4 +1,4 @@
-import { DeclarativeCSSProperties } from '../spec/types';
+import { StyleExpr } from '../spec/types';
 /**
  * Adopts or creates the global DDOM stylesheet.
  * Creates a new CSSStyleSheet and adds it to the document's adopted stylesheets
@@ -38,4 +38,4 @@ export declare function clearStyleSheet(): void;
  * }, '.my-component');
  * ```
  */
-export declare function insertRules(styles: DeclarativeCSSProperties, selector: string): void;
+export declare function insertRules(styles: StyleExpr, selector: string): void;

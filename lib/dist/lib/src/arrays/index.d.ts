@@ -1,0 +1,1 @@
+export { DeclarativeArray, isArrayExpr } from './arrays';

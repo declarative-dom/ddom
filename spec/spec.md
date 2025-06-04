@@ -57,18 +57,18 @@ The base type that defines properties available for declarative override:
 type WritableOverrides = {
   tagName?: string;
   attributes?: Record<string, string>;
-  children?: DeclarativeHTMLElement[];
-  document?: Partial<DeclarativeDocument>;
-  customElements?: DeclarativeCustomElement[];
+  children?: HTMLElementSpec[];
+  document?: Partial<DocumentSpec>;
+  customElements?: CustomElementSpec[];
 };
 ```
 
-#### 4.2 DeclarativeHTMLElement
+#### 4.2 HTMLElementSpec
 
 Represents any HTML element:
 
 ```typescript
-type DeclarativeHTMLElement = Omit<HTMLElement, keyof WritableOverrides> & 
+type HTMLElementSpec = Omit<HTMLElement, keyof WritableOverrides> & 
   WritableOverrides & {
     tagName: string; // Required for elements
   };
@@ -82,12 +82,12 @@ type DeclarativeHTMLElement = Omit<HTMLElement, keyof WritableOverrides> &
 - All standard HTMLElement properties (textContent, id, className, etc.)
 - Event handlers as function properties (onclick, onload, etc.)
 
-#### 4.3 DeclarativeCustomElement
+#### 4.3 CustomElementSpec
 
 Defines a custom element:
 
 ```typescript
-type DeclarativeCustomElement = WritableOverrides & {
+type CustomElementSpec = WritableOverrides & {
   tagName: string; // Required - must contain a hyphen
   connectedCallback?: (element: HTMLElement) => void;
   disconnectedCallback?: (element: HTMLElement) => void;
@@ -103,24 +103,24 @@ type DeclarativeCustomElement = WritableOverrides & {
 - `attributeChangedCallback`: Called when observed attributes change
 - `adoptedCallback`: Called when element is adopted into a new document
 
-#### 4.4 DeclarativeDocument
+#### 4.4 DocumentSpec
 
 Represents a document:
 
 ```typescript
-type DeclarativeDocument = Omit<Document, keyof WritableOverrides> & 
+type DocumentSpec = Omit<Document, keyof WritableOverrides> & 
   WritableOverrides & {
-    body?: Partial<DeclarativeHTMLBodyElement>;
-    head?: Partial<DeclarativeHTMLHeadElement>;
+    body?: Partial<HTMLBodyElementSpec>;
+    head?: Partial<HTMLHeadElementSpec>;
   };
 ```
 
-#### 4.5 DeclarativeWindow
+#### 4.5 WindowSpec
 
 Represents a window:
 
 ```typescript
-type DeclarativeWindow = Omit<Window, keyof WritableOverrides> & WritableOverrides;
+type WindowSpec = Omit<Window, keyof WritableOverrides> & WritableOverrides;
 ```
 
 ### 5. Property Mapping

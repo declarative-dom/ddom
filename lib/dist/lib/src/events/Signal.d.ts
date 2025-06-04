@@ -1,42 +1,18 @@
+import { Signal } from 'signal-polyfill';
 /**
- * A reactive signal that notifies subscribers when its value changes.
- * Signals provide a simple way to implement reactive programming patterns.
- *
- * @template T The type of value stored in the signal
- * @example
- * ```typescript
- * const count = new Signal(0);
- * const unsubscribe = count.subscribe(value => console.log('Count:', value));
- * count.value = 5; // Logs: "Count: 5"
- * unsubscribe();
- * ```
+ * Type representing a Signal node, which can be either a State or Computed signal.
+ * This is used to ensure type safety when working with reactive properties.
  */
-export declare class Signal<T> {
-    #private;
-    /**
-     * Creates a new Signal with the given initial value.
-     *
-     * @param initialValue The initial value for the signal
-     */
-    constructor(initialValue: T);
-    /**
-     * Gets the current value of the signal.
-     *
-     * @returns The current value
-     */
-    get value(): T;
-    /**
-     * Sets a new value for the signal. If the new value is different from the current value
-     * (using Object.is comparison), all subscribers will be notified.
-     *
-     * @param newValue The new value to set
-     */
-    set value(newValue: T);
-    /**
-     * Subscribes to value changes on this signal.
-     *
-     * @param fn The function to call when the signal value changes
-     * @returns A function that when called, unsubscribes the callback
-     */
-    subscribe(fn: (value: T) => void): () => boolean;
-}
+export type SignalNode<T = any> = Signal.State<T> | Signal.Computed<T>;
+declare const globalSignalWatcher: Signal.subtle.Watcher;
+export { globalSignalWatcher };
+/**
+ * Creates a reactive property on an element using the Signal standard.
+ * Returns the Signal object directly - no wrapper getters/setters.
+ *
+ * @param el The element to add the reactive property to
+ * @param key The property name (should start with $)
+ * @param initialValue The initial value or a function that returns a Signal.State
+ * @returns The Signal.State object for direct .get()/.set() usage
+ */
+export declare function createReactiveProperty(el: any, key: string, initialValue: any): Signal.State<any>;

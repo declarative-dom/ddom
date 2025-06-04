@@ -1,5 +1,11 @@
-// filepath: /home/batonac/Development/declarative-dom/examples/reactive-custom-elements.js
+// filepath: examples/reactive-custom-elements.js
 export default {
+  // Reactive properties prefixed with $ for automatic reactivity
+  $todos: [
+    { text: 'Learn Declarative DOM', completed: false },
+    { text: 'Build awesome apps', completed: false },
+    { text: 'Share with the world', completed: false }
+  ],
   customElements: [
     {
       tagName: 'counter-widget',
@@ -26,8 +32,8 @@ export default {
       children: [
         {
           tagName: 'h3',
-          // DOM-aligned function approach for dynamic content
-          textContent: el => `Count: ${el.parentNode?.$count || 0}`,
+          // Using Attribute Value Templates for dynamic content
+          textContent: 'Count: {parentNode.$count}',
           style: {
             margin: '0 0 1em 0',
             fontSize: '1.5em'
@@ -56,7 +62,9 @@ export default {
               onclick: function (event) {
                 const counterElement = event.target.parentNode.parentNode; // button -> div -> counter-widget
                 if (counterElement && counterElement.tagName === 'COUNTER-WIDGET') {
-                  counterElement.$count--;
+                  console.log('[Counter] Decrementing count from:', counterElement.$count.get());
+                  counterElement.$count.set(counterElement.$count.get() - 1);
+                  console.log('[Counter] Count is now:', counterElement.$count.get());
                 }
               }
             },
@@ -79,7 +87,9 @@ export default {
               onclick: function (event) {
                 const counterElement = event.target.parentNode.parentNode; // button -> div -> counter-widget
                 if (counterElement && counterElement.tagName === 'COUNTER-WIDGET') {
-                  counterElement.$count++;
+                  console.log('[Counter] Incrementing count from:', counterElement.$count.get());
+                  counterElement.$count.set(counterElement.$count.get() + 1);
+                  console.log('[Counter] Count is now:', counterElement.$count.get());
                 }
               }
             }
@@ -102,14 +112,17 @@ export default {
           onclick: function (event) {
             const counterElement = event.target.parentNode; // button -> counter-widget
             if (counterElement && counterElement.tagName === 'COUNTER-WIDGET') {
-              counterElement.$theme = counterElement.$theme === 'light' ? 'dark' : 'light';
-              counterElement.setAttribute('data-theme', counterElement.$theme);
+              console.log('[Theme] Changing theme from:', counterElement.$theme.get());
+              const newTheme = counterElement.$theme.get() === 'light' ? 'dark' : 'light';
+              counterElement.$theme.set(newTheme);
+              console.log('[Theme] Theme is now:', counterElement.$theme.get());
+              counterElement.setAttribute('data-theme', newTheme);
             }
           }
         },
         {
           tagName: 'p',
-          textContent: el => `Current theme: ${el.parentNode?.$theme || 'light'}`,
+          textContent: 'Current theme: {parentNode.$theme}',
           style: {
             margin: '1em 0 0 0',
             fontSize: '0.9em',
@@ -120,10 +133,20 @@ export default {
     },
     {
       tagName: 'todo-item',
-      // Reactive properties for individual todo items
-      $item: null,
-      toggle: null,
-      delete: null,
+      $item: {},
+      $index: 0,
+      delete: function () {
+        // Get current todos array, modify it, then set it back to trigger reactivity
+        const currentTodos = window.$todos.get();
+        currentTodos.splice(this.$index.get(), 1);
+        window.$todos.set(currentTodos); // This triggers the signal update
+      },
+      toggle: function (checked) {
+        // Get current todos array, modify the specific item, then set it back
+        const currentTodos = window.$todos.get();
+        currentTodos[this.$index.get()] = { ...currentTodos[this.$index.get()], completed: checked };
+        window.$todos.set(currentTodos); // This triggers the signal update
+      },
       style: {
         display: 'flex',
         alignItems: 'center',
@@ -134,7 +157,7 @@ export default {
         {
           tagName: 'input',
           type: 'checkbox',
-          checked: el => el.parentNode?.$item?.completed || false,
+          checked: '{parentNode.$item.completed}',
           style: { marginRight: '0.5em' },
           onchange: function (event) {
             const todoItem = event.target.parentNode;
@@ -145,11 +168,11 @@ export default {
         },
         {
           tagName: 'span',
-          textContent: el => el.parentNode?.$item?.text || '',
+          textContent: '{parentNode.$item.text}',
           style: {
             flex: '1',
-            textDecoration: el => el.parentNode?.$item?.completed ? 'line-through' : 'none',
-            opacity: el => el.parentNode?.$item?.completed ? '0.6' : '1'
+            textDecoration: '{parentNode.$item.completed ? "line-through" : "none"}',
+            opacity: '{parentNode.$item.completed ? "0.6" : "1"}'
           }
         },
         {
@@ -165,8 +188,13 @@ export default {
           onclick: function (event) {
             const todoItem = event.target.parentNode;
             // debug
-            console.log('Deleting todo item:', todoItem.$item);
+            console.log('Todo item:', todoItem);
+            console.log('Deleting todo item:', todoItem.$item.get());
+            console.log('Todo item index:', todoItem.$index.get());
+            console.log('Todo item delete function:', todoItem.delete);
             if (todoItem && todoItem.delete) {
+              // debug
+              console.log('Calling delete on todo item:', todoItem.$item.get());
               todoItem.delete();
             }
           }
@@ -175,13 +203,6 @@ export default {
     },
     {
       tagName: 'todo-list',
-      // Reactive array for todo items
-      $items: [
-        { id: 1, text: 'Learn Declarative DOM', completed: false },
-        { id: 2, text: 'Build awesome apps', completed: false },
-        { id: 3, text: 'Share with the world', completed: false }
-      ],
-      $nextId: 4,
       style: {
         display: 'block',
         border: '1px solid #ddd',
@@ -232,14 +253,13 @@ export default {
                 const todoList = event.target.parentNode.parentNode; // button -> div -> todo-list
                 const input = event.target.previousElementSibling;
                 if (todoList && todoList.tagName === 'TODO-LIST' && input && input.value.trim()) {
-                  const newItems = [...todoList.$items];
-                  newItems.push({
-                    id: todoList.$nextId,
+                  // Get current todos array, modify it, then set it back to trigger reactivity
+                  const currentTodos = window.$todos.get();
+                  currentTodos.push({
                     text: input.value.trim(),
                     completed: false
                   });
-                  todoList.$items = newItems;
-                  todoList.$nextId = todoList.$nextId + 1;
+                  window.$todos.set(currentTodos); // This triggers the signal update
                   input.value = '';
                 }
               }
@@ -249,28 +269,13 @@ export default {
         {
           id: 'todo-items',
           tagName: 'div',
-          children: el => {
-            const todoList = el.parentNode;
-            // debug
-            console.log('Rendering todo items:', todoList.$items);
-            if (!todoList || !todoList.$items) return [];
-
-            return todoList.$items.map(item => ({
+          children: {
+            items: () => window.$todos,
+            map: {
               tagName: 'todo-item',
-              $item: item,
-              toggle: (checked) => {
-                const newItems = todoList.$items.map(todo =>
-                  todo.id === item.id
-                    ? { ...todo, completed: checked }
-                    : todo
-                );
-                todoList.$items = newItems;
-              },
-              delete: () => {
-                const newItems = todoList.$items.filter(todo => todo.id !== item.id);
-                todoList.$items = newItems;
-              }
-            }));
+              $item: (item, index) => item,
+              $index: (item, index) => index,
+            }
           }
         }
       ]
@@ -297,7 +302,7 @@ export default {
         },
         {
           tagName: 'p',
-          textContent: 'This example demonstrates reactive custom elements using the $ prefix for reactive properties. Changes to these properties automatically trigger re-renders.',
+          textContent: 'This example demonstrates reactive custom elements using the $ prefix for reactive properties and Attribute Value Templates for dynamic content. Changes to reactive properties automatically trigger re-renders.',
           style: {
             maxWidth: '600px',
             margin: '0 auto 2em',
@@ -336,7 +341,11 @@ export default {
                 },
                 {
                   tagName: 'li',
-                  textContent: 'Getters can reference reactive properties for dynamic content'
+                  textContent: 'Attribute Value Templates ({property}) enable dynamic content'
+                },
+                {
+                  tagName: 'li',
+                  textContent: 'ArrayExprs provide data-driven list rendering'
                 },
                 {
                   tagName: 'li',

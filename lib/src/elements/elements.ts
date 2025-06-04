@@ -1,45 +1,52 @@
 import {
-	DeclarativeCSSProperties,
-	DeclarativeCustomElement,
-	DeclarativeDocument,
-	DeclarativeDOM,
-	DeclarativeDOMElement,
-	DeclarativeHTMLBodyElement,
-	DeclarativeHTMLElement,
-	DeclarativeHTMLHeadElement,
-	DeclarativeWindow,
+	ArrayExpr,
+	StyleExpr,
+	CustomElementSpec,
+	DocumentSpec,
+	DOMSpec,
+	ElementSpec,
+	HTMLBodyElementSpec,
+	HTMLElementSpec,
+	HTMLHeadElementSpec,
+	WindowSpec,
 	DOMNode,
 } from '../../../types/src';
 
 import {
-	define,
-} from '../customElements';
+	DeclarativeArray,
+	isArrayExpr,
+} from '../arrays';
+
+import {
+	createReactiveProperty,
+	Signal
+} from '../events';
 
 import {
 	insertRules,
 } from '../styleSheets';
 
+import {
+	transform
+} from '../xpath';
 
 const ddomHandlers: {
-	[key: string]: (ddom: DeclarativeDOM, el: DOMNode, key: string, value: any, css?: boolean) => void;
+	[key: string]: (ddom: DOMSpec, el: DOMNode, key: string, value: any, css?: boolean) => void;
 } = {
 	children: (ddom, el, key, value, css) => {
 		// Handle function-based children (for reactive/computed children)
-		if (typeof value === 'function') {
+		if (isArrayExpr(value)) {
 			try {
-				const computedChildren = value(el);
-				if (Array.isArray(computedChildren)) {
-					computedChildren.forEach((child: DeclarativeHTMLElement) => {
-						appendChild(child, el as DOMNode, css);
-					});
-				}
+				adoptArray(value, el as Element);
 			} catch (error) {
-				console.warn(`Failed to evaluate function for children:`, error);
+				console.warn(`Failed to process ArrayExpr for children:`, error);
 			}
 		} else if (Array.isArray(value)) {
-			value.forEach((child: DeclarativeHTMLElement) => {
+			value.forEach((child: HTMLElementSpec) => {
 				appendChild(child, el as DOMNode, css);
 			});
+		} else {
+			console.warn(`Invalid children value for key "${key}":`, value);
 		}
 	},
 	attributes: (ddom, el, key, value) => {
@@ -58,37 +65,33 @@ const ddomHandlers: {
 	},
 	document: (ddom, el, key, value) => {
 		if (value && el === window) {
-			adoptNode(value as DeclarativeDocument, document);
+			adoptNode(value as DocumentSpec, document);
 		}
 	},
 	body: (ddom, el, key, value) => {
 		if (value && (el === document || 'documentElement' in el)) {
-			adoptNode(value as DeclarativeHTMLElement, document.body);
+			adoptNode(value as HTMLElementSpec, document.body);
 		}
 	},
 	head: (ddom, el, key, value) => {
 		if (value && (el === document || 'documentElement' in el)) {
-			adoptNode(value as DeclarativeHTMLElement, document.head);
+			adoptNode(value as HTMLElementSpec, document.head);
 		}
 	},
 	customElements: (ddom, el, key, value) => {
 		if (value) {
-			define(value);
+			// Import define dynamically to avoid circular dependency
+			import('../customElements').then(({ define }) => {
+				define(value);
+			});
 		}
 	},
 	default: (ddom, el, key, value) => {
-		// Handle event listeners (properties starting with 'on')
+		// Handle reactive properties
 		if (key.startsWith('on') && typeof value === 'function') {
+			// Handle event listeners (properties starting with 'on')
 			const eventName = key.slice(2).toLowerCase();
 			el.addEventListener(eventName, value as EventListener);
-		} else if (typeof value === 'function') {
-			// Evaluate function with element as parameter for computed properties
-			try {
-				const computedValue = value(el);
-				(el as any)[key] = computedValue;
-			} catch (error) {
-				console.warn(`Failed to evaluate function for property ${key}:`, error);
-			}
 		} else {
 			// Set all other properties directly on the element
 			(el as any)[key] = value;
@@ -97,10 +100,10 @@ const ddomHandlers: {
 };
 
 /**
- * Adopts a DeclarativeWindow into the current document context.
+ * Adopts a WindowSpec into the current document context.
  */
 /**
- * Adopts a DeclarativeDocument into the current document context.
+ * Adopts a DocumentSpec into the current document context.
  * This function applies the declarative document properties to the global document object.
  * 
  * @param ddom The declarative document object to adopt
@@ -112,7 +115,7 @@ const ddomHandlers: {
  * });
  * ```
  */
-export function adoptDocument(ddom: DeclarativeDocument) {
+export function adoptDocument(ddom: DocumentSpec) {
 	adoptNode(ddom, document);
 }
 
@@ -133,21 +136,77 @@ export function adoptDocument(ddom: DeclarativeDocument) {
  * }, myElement);
  * ```
  */
-export function adoptNode(ddom: DeclarativeDOM, el: DOMNode, css: boolean = true, ignoreKeys: string[] = []): void {
+export function adoptNode(ddom: DOMSpec, el: DOMNode, css: boolean = true, ignoreKeys: string[] = []): void {
+	const renderXPath = ['textContent', 'innerHTML', 'className'];
+	let allIgnoreKeys = [...ignoreKeys, ...renderXPath];
+	const reactiveProps = Object.entries(ddom).filter(([key, value]) => key.startsWith('$') && !ignoreKeys.includes(key));
+	if (reactiveProps.length > 0) {
+		reactiveProps.forEach(([key, initialValue]) => {
+			// if they property already exists, set its value
+			if (key in el) {
+				const property = (el as any)[key];
+				if (Signal.isState(property)) {
+					if (typeof initialValue === 'function') {
+						// If the initial value is a function, evaluate it to get the signal
+						// const evaluatedValue = initialValue();
+						// if (Signal.isState(evaluatedValue) || Signal.isComputed(evaluatedValue)) {
+						// 	// If it's already a signal, set its value
+						// 	property.set(evaluatedValue.get());
+						// } else {
+						// 	// Otherwise, set the initial value directly
+						// 	property.set(evaluatedValue);
+						// }
+						// // debug
+						// console.log(`[adoptNode] Updated existing signal property '${key}' with evaluated value:`, evaluatedValue);
+					} else if (Signal.isComputed(initialValue) || Signal.isState(initialValue)) {
+						// If the initial value is already a signal, set its value
+						property.set(initialValue.get());
+						// debug
+						console.log(`[adoptNode] Updated existing signal property '${key}' with signal value:`, initialValue.get());
+					} else {
+						// property.set(initialValue);
+						// debug
+						// console.log(`[adoptNode] Updated existing signal property '${key}' with value:`, initialValue);
+					}
+				} else if (Signal.isComputed(property)) {
+					// If it's a computed signal, skip it
+				} else {
+					// Otherwise, create a new signal with the initial value
+					(el as any)[key] = initialValue;
+				}
+			} else {
+				// Create a reactive property on the element
+				createReactiveProperty(el, key, initialValue);
+			}
+			allIgnoreKeys.push(key);
+		});
+	}
+	// set id using XPath if it's defined
+	if ('id' in ddom && ddom.id !== undefined && el instanceof HTMLElement) {
+		el.id = transform(ddom.id as string, el as Node);
+		allIgnoreKeys.push('id');
+	}
 	// Apply all properties
 	for (const [key, value] of Object.entries(ddom)) {
-		if (ignoreKeys.includes(key)) {
+		if (allIgnoreKeys.includes(key)) {
 			continue;
 		}
 
 		const handler = ddomHandlers[key] || ddomHandlers.default;
 		handler(ddom, el, key, value, css);
 	}
+
+	// Handle textContent and innerHTML with XPath transformation
+	for (const key of renderXPath) {
+		if (ddom[key as keyof DOMSpec]) {
+			(el as any)[key] = transform(ddom[key as keyof DOMSpec] as string, (el as Node));
+		}
+	}
 }
 
 
 /**
- * Adopts a DeclarativeWindow into the current window context.
+ * Adopts a WindowSpec into the current window context.
  * This function applies the declarative window properties to the global window object.
  * 
  * @param ddom The declarative window object to adopt
@@ -159,7 +218,7 @@ export function adoptNode(ddom: DeclarativeDOM, el: DOMNode, css: boolean = true
  * });
  * ```
  */
-export function adoptWindow(ddom: DeclarativeWindow) {
+export function adoptWindow(ddom: WindowSpec) {
 	adoptNode(ddom, window);
 }
 
@@ -182,13 +241,8 @@ export function adoptWindow(ddom: DeclarativeWindow) {
  * }, document.body);
  * ```
  */
-export function appendChild(ddom: DeclarativeHTMLElement, parentNode: DOMNode, css: boolean = true): HTMLElement {
+export function appendChild(ddom: HTMLElementSpec, parentNode: DOMNode, css: boolean = true): HTMLElement {
 	const el = document.createElement(ddom.tagName) as HTMLElement;
-
-	// set id if it's defined and not undefined
-	if (ddom.id && ddom.id !== undefined) {
-		el.id = ddom.id;
-	}
 
 	// Append the element to the provided parent node
 	if ('appendChild' in parentNode) {
@@ -218,13 +272,8 @@ export function appendChild(ddom: DeclarativeHTMLElement, parentNode: DOMNode, c
  * });
  * ```
  */
-export function createElement(ddom: DeclarativeHTMLElement, css: boolean = true): HTMLElement {
+export function createElement(ddom: HTMLElementSpec, css: boolean = true): HTMLElement {
 	const el = document.createElement(ddom.tagName) as HTMLElement;
-
-	// set id if it's defined and not undefined
-	if (ddom.id && ddom.id !== undefined) {
-		el.id = ddom.id;
-	}
 
 	// Apply all properties using the unified dispatch table
 	adoptNode(ddom, el, css, ['id', 'parentNode', 'tagName']);
@@ -247,7 +296,7 @@ export function createElement(ddom: DeclarativeHTMLElement, css: boolean = true)
  * });
  * ```
  */
-function adoptStyles(el: Element, styles: DeclarativeCSSProperties): void {
+function adoptStyles(el: Element, styles: StyleExpr): void {
 	// Generate a unique selector for this element
 	let selector: string;
 
@@ -283,5 +332,59 @@ function adoptStyles(el: Element, styles: DeclarativeCSSProperties): void {
 
 		selector = path.join(' > ');
 	}
-	insertRules(styles as DeclarativeCSSProperties, selector);
+	insertRules(styles as StyleExpr, selector);
+}
+
+/**
+ * Adopts a ArrayExpr and renders its items as DOM elements in the parent container
+ * 
+ * This function creates a reactive ArrayExpr instance and renders each mapped item
+ * as a DOM element, properly handling reactive properties and leveraging existing element
+ * creation functions.
+ * 
+ * @param arrayExpr - The DeclarativeArray configuration
+ * @param parentElement - The parent DOM element to render items into
+ * @param css - Whether to process CSS styles (default: true)
+ */
+export function adoptArray<T>(
+	arrayExpr: ArrayExpr<T, any>, 
+	parentElement: Element,
+	css = true,
+): void {
+	// Create the reactive ArrayExpr instance
+	const reactiveArray = new DeclarativeArray(arrayExpr, parentElement);
+	
+	// Function to render the current array state
+	const renderArray = () => {
+		// Clear existing children
+		parentElement.innerHTML = '';
+		
+		// Get current processed items
+		const items = reactiveArray.get();
+		
+		// Render each mapped item
+		items.forEach((item: any) => {
+			if (item && typeof item === 'object' && item.tagName) {
+				// append the element
+				appendChild(item, (parentElement as HTMLElement), css);
+			}
+		});
+	};
+	
+	// Initial render
+	renderArray();
+	
+	// Set up reactive subscription using the Signal.Computed from the array
+	// This will automatically re-render when the array changes
+	const arraySignal = reactiveArray.getSignal();
+	
+	// Create a computed that triggers re-render when array changes
+	const renderComputed = new Signal.Computed(() => {
+		arraySignal.get(); // Access the signal to establish dependency
+		queueMicrotask(renderArray); // Schedule re-render
+		return true;
+	});
+	
+	// Trigger the computed to establish the subscription
+	renderComputed.get();
 }

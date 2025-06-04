@@ -1,9 +1,9 @@
-import { DeclarativeDocument, DeclarativeDOM, DeclarativeHTMLElement, DeclarativeWindow, DOMNode } from '../spec/types';
+import { DocumentSpec, DOMSpec, HTMLElementSpec, WindowSpec, DOMNode } from '../spec/types';
 /**
- * Adopts a DeclarativeWindow into the current document context.
+ * Adopts a WindowSpec into the current document context.
  */
 /**
- * Adopts a DeclarativeDocument into the current document context.
+ * Adopts a DocumentSpec into the current document context.
  * This function applies the declarative document properties to the global document object.
  *
  * @param ddom The declarative document object to adopt
@@ -15,7 +15,7 @@ import { DeclarativeDocument, DeclarativeDOM, DeclarativeHTMLElement, Declarativ
  * });
  * ```
  */
-export declare function adoptDocument(ddom: DeclarativeDocument): void;
+export declare function adoptDocument(ddom: DocumentSpec): void;
 /**
  * Adopts a declarative DOM structure into an existing DOM node.
  * This function applies properties from the declarative object to the target element,
@@ -33,9 +33,9 @@ export declare function adoptDocument(ddom: DeclarativeDocument): void;
  * }, myElement);
  * ```
  */
-export declare function adoptNode(ddom: DeclarativeDOM, el: DOMNode, css?: boolean, ignoreKeys?: string[]): void;
+export declare function adoptNode(ddom: DOMSpec, el: DOMNode, css?: boolean, ignoreKeys?: string[]): void;
 /**
- * Adopts a DeclarativeWindow into the current window context.
+ * Adopts a WindowSpec into the current window context.
  * This function applies the declarative window properties to the global window object.
  *
  * @param ddom The declarative window object to adopt
@@ -47,7 +47,7 @@ export declare function adoptNode(ddom: DeclarativeDOM, el: DOMNode, css?: boole
  * });
  * ```
  */
-export declare function adoptWindow(ddom: DeclarativeWindow): void;
+export declare function adoptWindow(ddom: WindowSpec): void;
 /**
  * Creates an HTML element from a declarative element definition.
  * This function constructs a real DOM element based on the provided declarative structure,
@@ -65,4 +65,4 @@ export declare function adoptWindow(ddom: DeclarativeWindow): void;
  * });
  * ```
  */
-export declare function createElement(ddom: DeclarativeHTMLElement, css?: boolean): HTMLElement;
+export declare function createElement(ddom: HTMLElementSpec, css?: boolean): HTMLElement;

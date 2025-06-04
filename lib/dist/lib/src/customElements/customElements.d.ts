@@ -1,4 +1,4 @@
-import { DeclarativeCustomElement } from '../../../types/src';
+import { CustomElementSpec } from '../../../types/src';
 /**
  * Registers an array of custom elements with the browser's CustomElementRegistry.
  * This function creates new custom element classes that extend HTMLElement and
@@ -14,4 +14,4 @@ import { DeclarativeCustomElement } from '../../../types/src';
  * }]);
  * ```
  */
-export declare function define(elements: DeclarativeCustomElement[]): void;
+export declare function define(elements: CustomElementSpec[]): void;

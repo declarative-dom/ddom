@@ -1,6 +1,6 @@
 # Declarative DOM
 
-**Declarative DOM** *(or DDOM)* is a JavaScript object schema for defining and deploying web applications. It aims to support all current web development capabilities within an object structure aligned to the [DOM](https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model), [CSSOM](https://developer.mozilla.org/en-US/docs/Web/API/CSS_Object_Model), and adjacent web standards.&#x20;
+**Declarative DOM** *(or DDOM)* is a JavaScript object schema for defining and deploying web applications. It aims to support all current web development capabilities within an object structure aligned to the [DOM](https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model), [CSSOM](https://developer.mozilla.org/en-US/docs/Web/API/CSS_Object_Model), and adjacent web standards.
 
 Just as JSON provides a syntax and grammar for describing arbitrary data, DDOM defines a type-enforced structure for describing web applications and components. Specifically, DDOM provides a strongly typed, JSON-like syntax for defining DOM documents, nodes, and custom elements, in a declarative manner. Special emphasis is placed on creating a consistent and predictable standards-aligned syntax to define the structure and functionality of custom elements (aka [Web Components](https://developer.mozilla.org/en-US/docs/Web/API/Web_components)).
 
@@ -25,10 +25,12 @@ Declarative DOM is:
 
 ## Goals
 
-* 🧠 Treat UI as data: no strings, no templates
+* 🧠 Treat UI as data
 * 🎯 Align closely with native DOM types
 * 🛠️ Designed for app builders and WYSIWYG editor tooling
 * 📦 JSON/JS-friendly for transport, storage, and analysis
+
+
 
 ## Philosophy
 
@@ -42,39 +44,52 @@ DDOM should mirror and support valid DOM properties, keys, and value types as cl
 
 **"Libraries and frameworks shall pass away, but the DOM shall endure forever."**
 
-All naming conventions, method signatures, and behavior patterns should align with current DOM APIs first and foremost. While framework conventions *could* be relevant to address functionality gaps in web standards (see Exception 2, below), web standards always take precedence. This ensures DDOM remains stable and familiar as the web platform evolves, regardless of changing framework trends.
+All naming conventions, method signatures, and behavior patterns should align with current DOM APIs first and foremost. While framework conventions *could* be relevant to address functionality gaps in web standards (see Exceptions below), web standards always take precedence. This ensures DDOM remains stable and familiar as the web platform evolves, regardless of changing framework trends.
 
-### Exception 1: Read-Only Properties
+### Exceptions to DOM APIs
 
-When standard DOM properties are read-only but should be declarable, DDOM defines syntax that aligns as closely as possible with the intended DOM result. Examples include:
+DDOM deviates from strict DOM APIs only when necessary for declarative completeness. Each exception follows the principle of aligning with the closest applicable web standard:
 
-* `tagName` - normally read-only, but essential for declarative element creation
-* `children` - allows declarative specification of child elements inside a list element.
-* `document` and `customElements` - enable declarative document and web component structure
+#### 1. Read-Only Properties
 
-### Exception 2: DOM Functionality Gaps
+When standard DOM properties are read-only but essential for declarative element creation, DDOM provides declarative syntax:
 
-When no equivalent DOM syntax exists for functionality essential to a declarative UI, DDOM extends the DOM syntax, but with best-effort alignment to adjacent web standards and established conventions. This ensures that the syntax remains familiar to web developers while supporting essential capabilities.
+* **`tagName`** - Normally read-only on DOM elements, but required to specify which element type to create
+* **`children`** - Allows declarative specification of child elements as an array
+* **`document`** - Enables declarative document structure definition
+* **`customElements`** - Supports declarative web component registration
 
-Notable examples include:
+#### 2. CSS Nesting Support
 
-**CSS Nesting**: The [CSSOM](https://developer.mozilla.org/en-US/docs/Web/API/CSS_Object_Model) only exposes flattened CSS rules and doesn't allow selector-based targeting on [HTMLElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement) [styles](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/style). DDOM adopts [CSS nesting](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_nesting) syntax because:
+The [CSSOM](https://developer.mozilla.org/en-US/docs/Web/API/CSS_Object_Model) only exposes flattened CSS rules and doesn't allow selector-based targeting on [HTMLElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement) [styles](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/style). DDOM adopts [CSS nesting](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_nesting) syntax because:
 
 * It can be implemented using CSSOM-like APIs
 * It provides a familiar, standardized syntax for nested selectors
 * It aligns with DDOM's objective of treating UI structure as data
 * It maintains the declarative nature while extending beyond basic DOM capabilities
 
-The bottom line: CSS nesting is currently a draft specification, may not be directly supported in all browsers, and may never be adopted in the CSSOM. DDOM adopts this syntax to support essential functionality, align with emerging standards, and provide a consistent declarative approach.
+**Note**: CSS nesting is an emerging web standard that may not be directly supported in all browsers or fully adopted in the CSSOM. DDOM adopts this syntax to support essential functionality while aligning with emerging standards.
 
-**Reactive Properties**: Unlike string-only *attributes*, web component standards don't currently provide native rendering reactivity for custom element *properties*. DDOM adopts a `$`-prefixed syntax for reactive properties in custom elements because:
+#### 3. Reactive Properties
+
+Unlike string-only *attributes*, web component standards don't currently provide native rendering reactivity for custom element *properties*. DDOM adopts a `$`-prefixed syntax for reactive properties in custom elements because:
 
 * Reactive properties are considered essential for modern web applications
 * No existing DOM API provides a way to define reactive properties
-* It borrows from the `#`-prefix JavaScript private properties standard, providing a familiar syntax
+* It borrows from the `#`-prefix JavaScript private properties standard, providing familiar syntax
 * It aligns with modern web development patterns while maintaining declarative consistency
 
-The Bottom Line: The `$`-prefixed syntax is not part of the official DOM or web standards. It is inspired by conventions in modern frameworks like Svelte to provide a familiar and intuitive approach for developers.
+**Note**: The `$`-prefixed syntax is not part of official DOM or web standards. It is inspired by conventions in modern frameworks to provide a familiar and intuitive approach for developers.
+
+#### 4. Template Expressions
+
+DDOM supports dynamic content through W3C XSLT Attribute Value Templates (`{expression}` syntax) because:
+
+* Template expressions are essential for dynamic, data-driven UIs
+* AVT is an official W3C standard, not a framework invention
+* XPath provides powerful DOM querying capabilities
+* The syntax has been stable and proven for over 20 years
+* It maintains alignment with web standards while enabling declarative data binding
 
 ### Design Constraints
 

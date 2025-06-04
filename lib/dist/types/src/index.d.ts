@@ -1,1 +1,1 @@
-export { DeclarativeCSSProperties, DeclarativeCustomElement, DeclarativeDocument, DeclarativeDOM, DeclarativeDOMElement, DeclarativeHTMLBodyElement, DeclarativeHTMLElement, DeclarativeHTMLHeadElement, DeclarativeWindow, DOMNode } from './types';
+export { ArrayExpr, CustomElementSpec, DocumentSpec, DOMNode, DOMSpec, ElementSpec, FilterExpr, HTMLBodyElementSpec, HTMLElementSpec, HTMLHeadElementSpec, SortExpr, StyleExpr, WindowSpec, } from './types';

@@ -1,6 +1,6 @@
 import {
-	DeclarativeHTMLElement,
-	DeclarativeCSSProperties,
+	HTMLElementSpec,
+	StyleExpr,
 } from '../../../types/src';
 
 
@@ -83,7 +83,7 @@ function isCSSProperty(key: string): boolean {
  * // ]
  * ```
  */
-function flattenRules(styles: DeclarativeCSSProperties, baseSelector: string): Array<{ selector: string; properties: { [key: string]: string } }> {
+function flattenRules(styles: StyleExpr, baseSelector: string): Array<{ selector: string; properties: { [key: string]: string } }> {
 	const rules: Array<{ selector: string; properties: { [key: string]: string } }> = [];
 
 	// Collect direct CSS properties
@@ -105,7 +105,7 @@ function flattenRules(styles: DeclarativeCSSProperties, baseSelector: string): A
 			}
 
 			// Recursively flatten nested styles
-			const nestedRules = flattenRules(value as DeclarativeCSSProperties, nestedSelector);
+			const nestedRules = flattenRules(value as StyleExpr, nestedSelector);
 			rules.push(...nestedRules);
 		}
 	}
@@ -133,7 +133,7 @@ function flattenRules(styles: DeclarativeCSSProperties, baseSelector: string): A
  * }, '.my-component');
  * ```
  */
-export function insertRules(styles: DeclarativeCSSProperties, selector: string): void {
+export function insertRules(styles: StyleExpr, selector: string): void {
 	const sheet = adoptStyleSheet();
 	const rules = flattenRules(styles, selector);
 

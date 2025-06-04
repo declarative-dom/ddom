@@ -28,7 +28,7 @@ This builder showcases several key aspects of Declarative DOM:
 
 ## Technical Implementation
 
-The builder maintains a `DeclarativeWindow` object that represents the current state of the interface being built. When users interact with the builder:
+The builder maintains a `WindowSpec` object that represents the current state of the interface being built. When users interact with the builder:
 
 1. The declarative structure is modified
 2. The canvas is re-createElemented using `DDOM.createElement()`
