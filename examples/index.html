@@ -4,25 +4,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script type="module" src="../dist/index.js"></script>
+    <script type="module" src="../lib/dist/index.js"></script>
     <title>Declarative DOM Examples</title>
     <script type="module">
-        import indexConfig from './index.js';
+        import DDOM from '../lib/dist/index.js';
 
-        // Wait for DDOM to be available
-        window.addEventListener('load', () => {
-            // createElement
-            DDOM.adoptWindow(indexConfig);
-            // Call oncreateElement to initialize examples
-            if (indexConfig.oncreateElement) {
-                try {
-                    indexConfig.oncreateElement.call(indexConfig);
-                } catch (error) {
-                    console.error('Error calling oncreateElement:', error);
-                    console.log('indexConfig:', indexConfig);
-                }
+        import indexConfig from './index.js';
+        // createElement
+        DDOM.adoptWindow(indexConfig);
+        // Call oncreateElement to initialize examples
+        if (indexConfig.oncreateElement) {
+            try {
+                indexConfig.oncreateElement.call(indexConfig);
+            } catch (error) {
+                console.error('Error calling oncreateElement:', error);
+                console.log('indexConfig:', indexConfig);
             }
-        });
+        }
     </script>
 </head>
 

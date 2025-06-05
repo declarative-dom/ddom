@@ -17,6 +17,7 @@ import {
 
 import {
 	Signal,
+	createEffect,
 	createReactiveProperty,
 	globalSignalWatcher,
 } from '../events';
@@ -98,27 +99,8 @@ export function define(elements: CustomElementSpec[]) {
 					const signal = createReactiveProperty(this, key, initialValue);
 					signals.push(signal);
 				});
-				
-				// Create a proper effect using the exact pattern from the React example
+						// Create a proper effect using the exact pattern from the React example
 				if (signals.length > 0) {
-					
-					// Use the exact effect pattern from the React example
-					const createEffect = (callback: () => void) => {
-						let cleanup: (() => void) | void;
-
-						const computed = new Signal.Computed(() => {
-							cleanup?.();
-							cleanup = callback();
-						});
-
-						globalSignalWatcher.watch(computed);
-						computed.get();
-
-						return () => {
-							globalSignalWatcher.unwatch(computed);
-							cleanup?.();
-						};
-					};
 					
 					// Create the effect that tracks our reactive properties
 					const effectCleanup = createEffect(() => {

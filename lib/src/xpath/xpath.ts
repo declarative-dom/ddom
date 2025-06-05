@@ -55,9 +55,6 @@ export function transform(str: string, contextNode: Node): string {
 
         // If we hit undefined at any point, stop
         if (value === undefined) break;
-
-        // debug
-        console.log(`[transform] Resolved property '${key}':`, value);
       }
 
       if (value !== undefined) return String(value);

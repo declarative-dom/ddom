@@ -33,6 +33,30 @@ const processPending = () => {
 export { globalSignalWatcher };
 
 /**
+ * Creates a reactive effect that integrates with the global signal watcher system.
+ * This provides consistent reactive behavior across the entire DDOM system.
+ * 
+ * @param callback The effect callback function
+ * @returns A cleanup function to dispose of the effect
+ */
+export function createEffect(callback: () => void | (() => void)): () => void {
+  let cleanup: (() => void) | void;
+
+  const computed = new Signal.Computed(() => {
+    cleanup?.();
+    cleanup = callback();
+  });
+
+  globalSignalWatcher.watch(computed);
+  computed.get();
+
+  return () => {
+    globalSignalWatcher.unwatch(computed);
+    cleanup?.();
+  };
+}
+
+/**
  * Creates a reactive property on an element using the Signal standard.
  * Returns the Signal object directly - no wrapper getters/setters.
  * 

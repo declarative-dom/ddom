@@ -18,6 +18,7 @@ import {
 } from '../arrays';
 
 import {
+	createEffect,
 	createReactiveProperty,
 	Signal
 } from '../events';
@@ -336,8 +337,7 @@ export function adoptArray<T>(
 	arrayExpr: ArrayExpr<T, any>,
 	parentElement: Element,
 	css = true,
-): void {
-	// Create the reactive ArrayExpr instance
+): void {	// Create the reactive ArrayExpr instance
 	const reactiveArray = new DeclarativeArray(arrayExpr, parentElement);
 
 	const reactiveProps = Object.keys(arrayExpr?.map || {}).filter(key => key.startsWith('$'));
@@ -360,7 +360,6 @@ export function adoptArray<T>(
 					const property: Signal.State<any> = (el as any)[key];
 					if (Signal.isState(property)) {
 						// If it's a state signal, set its value
-						// debvug
 						property.set(item[key]);
 					}
 				});
@@ -371,17 +370,18 @@ export function adoptArray<T>(
 	// Initial render
 	renderArray();
 
-	// Set up reactive subscription using the Signal.Computed from the array
-	// This will automatically re-render when the array changes
-	const arraySignal = reactiveArray.getSignal();
-
-	// Create a computed that triggers re-render when array changes
-	const renderComputed = new Signal.Computed(() => {
-		arraySignal.get(); // Access the signal to establish dependency
-		queueMicrotask(renderArray); // Schedule re-render
-		return true;
+	// Set up reactive effect using the integrated createEffect function
+	// This will automatically re-render when the array's dependencies change
+	const effectCleanup = createEffect(() => {
+		// Access the array signal to establish dependencies
+		reactiveArray.get();
+		
+		// Return cleanup function that triggers re-render
+		return () => {
+			queueMicrotask(renderArray);
+		};
 	});
 
-	// Trigger the computed to establish the subscription
-	renderComputed.get();
+	// Note: effectCleanup could be returned if the caller needs to clean up manually,
+	// but typically the effect will be cleaned up when the parent element is removed
 }

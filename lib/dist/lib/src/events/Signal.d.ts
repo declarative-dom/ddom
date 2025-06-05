@@ -7,6 +7,14 @@ export type SignalNode<T = any> = Signal.State<T> | Signal.Computed<T>;
 declare const globalSignalWatcher: Signal.subtle.Watcher;
 export { globalSignalWatcher };
 /**
+ * Creates a reactive effect that integrates with the global signal watcher system.
+ * This provides consistent reactive behavior across the entire DDOM system.
+ *
+ * @param callback The effect callback function
+ * @returns A cleanup function to dispose of the effect
+ */
+export declare function createEffect(callback: () => void | (() => void)): () => void;
+/**
  * Creates a reactive property on an element using the Signal standard.
  * Returns the Signal object directly - no wrapper getters/setters.
  *

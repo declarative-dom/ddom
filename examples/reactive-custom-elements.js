@@ -243,7 +243,8 @@ export default {
             borderRadius: '50%',
             color: 'white',
             cursor: 'pointer',
-            fontSize: '1.2em'
+            fontSize: '1.2em',
+            width: '1.5em',
           },
           onclick: function (event) {
             const todoItem = event.target.parentNode;
@@ -267,7 +268,6 @@ export default {
           ]);
         }
       },
-      // $todos: () => window.$todos,
       style: {
         display: 'block',
         border: '1px solid #ddd',
@@ -347,7 +347,6 @@ export default {
     },
     {
       tagName: 'todo-items',
-      $items: () => window.$todos,
       children: {
         items: () => window.$todos,
         map: {

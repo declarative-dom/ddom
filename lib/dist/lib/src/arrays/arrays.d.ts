@@ -1,58 +1,71 @@
 import { ArrayExpr } from '../../../types/src';
 import { Signal } from '../events';
 /**
- * A reactive DeclarativeArray class that uses Signal.Computed for real-time updates
+ * Type guard to check if a value is an ArrayExpr.
+ * Validates that the object has the required 'items' property to be considered an ArrayExpr.
  *
- * This class creates a reactive array that automatically recomputes when any of its
- * dependencies change. It uses Signal.Computed for filtering, sorting, and mapping
- * operations, enabling true reactivity without manual re-evaluation.
- */
-export declare class DeclarativeArray<T = any, R = any> {
-    private expression;
-    private contextNode?;
-    private _items;
-    private _filtered;
-    private _sorted;
-    private _mapped;
-    private _final;
-    constructor(expression: ArrayExpr<T, R>, contextNode?: Node | undefined);
-    /**
-     * Get the current processed array result
-     */
-    get(): R[];
-    /**
-     * Get the computed signal for the final result
-     * This allows external systems to reactively depend on this array
-     */
-    getSignal(): Signal.Computed<R[]>;
-    /**
-     * Update the expressionuration of this ArrayExpr
-     */
-    updateexpression(newexpression: Partial<ArrayExpr<T, R>>): void;
-}
-/**
- * Process a ArrayExpr object and render elements directly to a parent container
- *
- * This function takes a ArrayExpr specification and processes it through
- * a series of transformations: filtering, sorting, mapping, and appending/prepending items.
- * Instead of returning synthesized DDOM objects, it directly creates and manages DOM elements
- * with their reactive properties properly assigned.
- *
- * @template T - The type of items in the source array
- * @param ArrayExpr - The ArrayExpr specification containing items and transformation rules
- * @param parentElement - The parent DOM element to render the array items into
- * @param contextNode - Optional DOM element context for function evaluation
- *
- * @throws {Error} When the items property is not an array
- *
+ * @template T - The type of items in the array
+ * @param value - The value to check
+ * @returns True if the value is an ArrayExpr, false otherwise
  * @example
  * ```typescript
- * fromArray({
- *   items: [{ name: 'John', age: 30 }, { name: 'Jane', age: 25 }],
- *   filter: [{ leftOperand: 'age', operator: '>', rightOperand: 27 }],
- *   sort: [{ sortBy: 'name', direction: 'asc' }],
- *   map: { tagName: 'todo-item', $item: (item) => item, $index: (item, index) => index }
- * }, containerElement);
+ * if (isArrayExpr(someValue)) {
+ *   // TypeScript now knows someValue is ArrayExpr<T, any>
+ *   console.log(someValue.items);
+ * }
  * ```
  */
-export declare function isArrayExpr(value: any): value is ArrayExpr;
+export declare function isArrayExpr<T>(value: any): value is ArrayExpr<T, any>;
+/**
+ * Reactive array implementation that integrates with the Signal system.
+ * Processes arrays through a complete pipeline of filtering, sorting, mapping, and composition.
+ * Automatically re-renders when source data changes through Signal reactivity.
+ *
+ * @template T - The type of items in the source array
+ * @template U - The type of items after mapping transformation
+ * @example
+ * ```typescript
+ * const reactiveArray = new DeclarativeArray({
+ *   items: userSignal,
+ *   filter: [{ leftOperand: 'active', operator: '===', rightOperand: true }],
+ *   sort: [{ sortBy: 'name', direction: 'asc' }],
+ *   map: (user) => ({ tagName: 'div', textContent: user.name })
+ * });
+ * ```
+ */
+export declare class DeclarativeArray<T, U = any> {
+    private config;
+    private parentElement?;
+    private sourceSignal;
+    private computed;
+    /**
+     * Creates a new DeclarativeArray instance with the specified configuration.
+     * Sets up the reactive pipeline for processing array data through filtering,
+     * sorting, mapping, and composition operations.
+     *
+     * @param config - The ArrayExpr configuration defining the processing pipeline
+     * @param parentElement - Optional parent element for context-aware operations
+     */
+    constructor(config: ArrayExpr<T, U>, parentElement?: Element | undefined);
+    /**
+     * Get the current processed array value.
+     * Executes the complete processing pipeline and returns the final array.
+     *
+     * @returns The processed array with all transformations applied
+     */
+    get(): U[];
+    /**
+     * Get the underlying signal for direct access.
+     * Useful for integrating with other reactive systems or debugging.
+     *
+     * @returns The computed signal that processes the array
+     */
+    getSignal(): Signal.Computed<U[]>; /**
+     * Update the source array (only works if source is a Signal.State).
+     * Triggers reactive updates throughout the system when called.
+     *
+     * @param newArray - The new array to set as the source
+     * @throws Error if the source is not a Signal.State
+     */
+    set(newArray: T[]): void;
+}
