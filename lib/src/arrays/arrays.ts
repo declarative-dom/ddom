@@ -27,10 +27,10 @@ export class DeclarativeArray<T = any, R = any> {
   private _mapped: Signal.Computed<R[]>;
   private _final: Signal.Computed<R[]>;
 
-  constructor(private config: ArrayExpr<T, R>, private contextNode?: Node) {
+  constructor(private expression: ArrayExpr<T, R>, private contextNode?: Node) {
     // Create reactive items computation
     this._items = new Signal.Computed(() => {
-      const { items } = this.config;
+      const { items } = this.expression;
       let resolvedItems;
 
       if (typeof items === 'function') {
@@ -54,7 +54,7 @@ export class DeclarativeArray<T = any, R = any> {
     // Create reactive filtered computation
     this._filtered = new Signal.Computed(() => {
       const items = this._items.get();
-      const { filter } = this.config;
+      const { filter } = this.expression;
 
       if (!filter || !Array.isArray(filter)) {
         return items;
@@ -87,7 +87,7 @@ export class DeclarativeArray<T = any, R = any> {
     // Create reactive sorted computation
     this._sorted = new Signal.Computed(() => {
       const filtered = this._filtered.get();
-      const { sort } = this.config;
+      const { sort } = this.expression;
 
       if (!sort || !Array.isArray(sort)) {
         return filtered;
@@ -121,16 +121,16 @@ export class DeclarativeArray<T = any, R = any> {
     // Create reactive mapped computation
     this._mapped = new Signal.Computed(() => {
       const sorted = this._sorted.get();
-      const { map } = this.config;
+      const { map } = this.expression;
 
       return sorted.map((item, index) => {
         if (typeof map === 'function') {
           return (map as (item: T, index: number) => R)(item, index);
         } else if (typeof map === 'object' && map !== null) {
-          // Object template - copy all properties from the template, handling reactive properties specially
+          // Object template - copy all properties from the template
           const mappedObj: any = {};
 
-          // First, copy all non-reactive properties from the template
+          // copy properties from the array item
           for (const [key, value] of Object.entries(map)) {
             if (typeof value === 'function') {
               // Execute function with item and index
@@ -149,7 +149,7 @@ export class DeclarativeArray<T = any, R = any> {
     // Create final computation with prepend/append
     this._final = new Signal.Computed(() => {
       const mapped = this._mapped.get();
-      const { prepend, append } = this.config;
+      const { prepend, append } = this.expression;
 
       let final = mapped;
       if (prepend && Array.isArray(prepend)) {
@@ -179,10 +179,10 @@ export class DeclarativeArray<T = any, R = any> {
   }
 
   /**
-   * Update the configuration of this ArrayExpr
+   * Update the expressionuration of this ArrayExpr
    */
-  updateConfig(newConfig: Partial<ArrayExpr<T, R>>): void {
-    Object.assign(this.config, newConfig);
+  updateexpression(newexpression: Partial<ArrayExpr<T, R>>): void {
+    Object.assign(this.expression, newexpression);
     // Note: The computations will automatically recompute when accessed next
   }
 }

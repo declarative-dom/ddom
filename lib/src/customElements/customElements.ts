@@ -250,7 +250,8 @@ export function define(elements: CustomElementSpec[]) {
 /**
  * Recursively registers styles for a custom element and all its children.
  * This function processes the style object of the element and its nested children,
- * generating CSS rules with appropriate selectors.
+ * generating CSS rules with appropriate selectors. When multiple elements of the same
+ * type have different styles, it adds :nth-of-type() selectors for specificity.
  * 
  * @param ddom The declarative DOM element or any object with style and children properties
  * @param selector The CSS selector to use for this element's styles
@@ -268,10 +269,36 @@ function adoptStyles(ddom: any, selector: string): void {
 
 	// Recursively register styles for children
 	if (ddom.children && Array.isArray(ddom.children)) {
+		// Track occurrences of each tagName to detect duplicates
+		const tagNameCounts = new Map<string, number>();
+		const tagNameIndexes = new Map<string, number>();
+		
+		// Count occurrences of each tagName that has styles
+		ddom.children.forEach((child: HTMLElementSpec) => {
+			if (child.style && typeof child.style === 'object' && child.tagName) {
+				const tagName = child.tagName.toLowerCase();
+				tagNameCounts.set(tagName, (tagNameCounts.get(tagName) || 0) + 1);
+			}
+		});
+
 		ddom.children.forEach((child: HTMLElementSpec) => {
 			if (child.style && typeof child.style === 'object') {
-				// For custom element registration, we'll use a simple descendant selector
-				const childSelector = `${selector} ${child.tagName?.toLowerCase() || '*'}`;
+				const tagName = child.tagName?.toLowerCase() || '*';
+				const count = tagNameCounts.get(tagName) || 0;
+				
+				let childSelector: string;
+				
+				if (count > 1) {
+					// Multiple elements of same type - use nth-of-type selector (consistent with elements.ts)
+					const currentIndex = (tagNameIndexes.get(tagName) || 0) + 1;
+					tagNameIndexes.set(tagName, currentIndex);
+					
+					childSelector = `${selector} ${tagName}:nth-of-type(${currentIndex})`;
+				} else {
+					// Single element of this type - use simple descendant selector
+					childSelector = `${selector} ${tagName}`;
+				}
+				
 				adoptStyles(child, childSelector);
 			}
 		});

@@ -136,29 +136,58 @@ export default {
       $item: {},
       $index: 0,
       delete: function () {
-        // Get current todos array, modify it, then set it back to trigger reactivity
-        const currentTodos = window.$todos.get();
-        currentTodos.splice(this.$index.get(), 1);
-        window.$todos.set(currentTodos); // This triggers the signal update
+        // debug
+        console.log('[TodoItem] Deleting item at index:', this.$index.get());
+
+        $todos.set($todos.get().toSpliced(this.$index.get(), 1)); // This triggers the signal update
       },
       toggle: function (checked) {
-        // Get current todos array, modify the specific item, then set it back
-        const currentTodos = window.$todos.get();
-        currentTodos[this.$index.get()] = { ...currentTodos[this.$index.get()], completed: checked };
-        window.$todos.set(currentTodos); // This triggers the signal update
+        const index = this.$index.get();
+        $todos.set(
+          $todos.get().toSpliced(index, 1, {
+            ...$todos.get()[index],
+            completed: checked
+          })
+        );
+      },
+      updateText: function (newText) {
+        const index = this.$index.get();
+        $todos.set(
+          $todos.get().toSpliced(index, 1, {
+            ...$todos.get()[index],
+            text: newText.trim()
+          })
+        );
+      },
+      attributes: {
+        checked: function (el) {
+          return el.$item.get().completed ? true : false;
+        }
       },
       style: {
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'space-between',
         padding: '0.5em',
-        borderBottom: '1px solid #eee'
+        borderBottom: '1px solid #eee',
+        '[checked] :not(button)': {
+          textDecoration: 'line-through',
+          opacity: '0.6'
+        }
       },
       children: [
         {
           tagName: 'input',
           type: 'checkbox',
-          checked: '{parentNode.$item.completed}',
-          style: { marginRight: '0.5em' },
+          name: 'todo-item-checkbox-{parentNode.$index}',
+          attributes: {
+            checked: function (el) {
+              return el.parentNode.$item.get().completed ? true : false;
+            }
+          },
+          style: {
+            marginRight: '0.5em',
+            maxWidth: 'fit-content',
+          },
           onchange: function (event) {
             const todoItem = event.target.parentNode;
             if (todoItem && todoItem.toggle) {
@@ -167,12 +196,42 @@ export default {
           }
         },
         {
-          tagName: 'span',
-          textContent: '{parentNode.$item.text}',
+          tagName: 'input',
+          type: 'text',
+          name: 'todo-item-text-{parentNode.$index}',
+          value: '{parentNode.$item.text}',
           style: {
             flex: '1',
-            textDecoration: '{parentNode.$item.completed ? "line-through" : "none"}',
-            opacity: '{parentNode.$item.completed ? "0.6" : "1"}'
+            FlexGrow: '1',
+            border: 'none',
+            background: 'transparent',
+            fontSize: 'inherit',
+            fontFamily: 'inherit',
+            padding: '0.25em',
+            margin: '0',
+            outline: 'none',
+            ':focus': {
+              background: '#f0f0f0',
+              border: '1px solid #007acc',
+              borderRadius: '3px'
+            }
+          },
+          onblur: function (event) {
+            const todoItem = event.target.parentNode;
+            const newText = event.target.value.trim();
+            if (todoItem && todoItem.updateText && newText) {
+              todoItem.updateText(newText);
+            }
+          },
+          onkeydown: function (event) {
+            if (event.key === 'Enter') {
+              event.target.blur(); // Trigger onblur to save
+            }
+            if (event.key === 'Escape') {
+              // Reset to original value
+              event.target.value = event.target.parentNode.$item.get().text;
+              event.target.blur();
+            }
           }
         },
         {
@@ -180,21 +239,15 @@ export default {
           textContent: '×',
           style: {
             border: 'none',
-            background: 'none',
-            color: '#ff4757',
+            backgroundColor: '#ff4757',
+            borderRadius: '50%',
+            color: 'white',
             cursor: 'pointer',
             fontSize: '1.2em'
           },
           onclick: function (event) {
             const todoItem = event.target.parentNode;
-            // debug
-            console.log('Todo item:', todoItem);
-            console.log('Deleting todo item:', todoItem.$item.get());
-            console.log('Todo item index:', todoItem.$index.get());
-            console.log('Todo item delete function:', todoItem.delete);
             if (todoItem && todoItem.delete) {
-              // debug
-              console.log('Calling delete on todo item:', todoItem.$item.get());
               todoItem.delete();
             }
           }
@@ -203,6 +256,18 @@ export default {
     },
     {
       tagName: 'todo-list',
+      add: function (text) {
+        if (text && text.trim()) {
+          window.$todos.set([
+            ...window.$todos.get(),
+            {
+              text: text.trim(),
+              completed: false
+            }
+          ]);
+        }
+      },
+      // $todos: () => window.$todos,
       style: {
         display: 'block',
         border: '1px solid #ddd',
@@ -236,6 +301,19 @@ export default {
                 borderRadius: '4px',
                 marginRight: '0.5em',
                 flex: '1'
+              },
+              onkeydown: function (event) {
+                if (event.key === 'Enter') {
+                  const todoList = event.target.parentNode.parentNode; // input -> div -> todo-list
+                  const input = event.target;
+                  if (todoList && todoList.add && input && input.value.trim()) {
+                    console.log('[Todo] Adding item via Enter:', input.value);
+                    todoList.add(input.value);
+                    input.focus(); // Keep cursor in the input field
+                    input.value = ''; // Clear input after adding
+                    event.preventDefault(); // Prevent form submission if inside a form
+                  }
+                }
               }
             },
             {
@@ -252,33 +330,32 @@ export default {
               onclick: function (event) {
                 const todoList = event.target.parentNode.parentNode; // button -> div -> todo-list
                 const input = event.target.previousElementSibling;
-                if (todoList && todoList.tagName === 'TODO-LIST' && input && input.value.trim()) {
-                  // Get current todos array, modify it, then set it back to trigger reactivity
-                  const currentTodos = window.$todos.get();
-                  currentTodos.push({
-                    text: input.value.trim(),
-                    completed: false
-                  });
-                  window.$todos.set(currentTodos); // This triggers the signal update
-                  input.value = '';
+                if (todoList && todoList.add && input) {
+                  console.log('[Todo] Adding item:', input.value);
+                  todoList.add(input.value);
+                  input.value = ''; // Clear input after adding
+                  input.focus(); // Keep cursor in the input field
                 }
               }
             }
           ]
         },
         {
-          id: 'todo-items',
-          tagName: 'div',
-          children: {
-            items: () => window.$todos,
-            map: {
-              tagName: 'todo-item',
-              $item: (item, index) => item,
-              $index: (item, index) => index,
-            }
-          }
+          tagName: 'todo-items',
         }
       ]
+    },
+    {
+      tagName: 'todo-items',
+      $items: () => window.$todos,
+      children: {
+        items: () => window.$todos,
+        map: {
+          tagName: 'todo-item',
+          $item: (item, index) => item,
+          $index: (item, index) => index,
+        }
+      }
     }
   ],
   document: {

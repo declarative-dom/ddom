@@ -8,14 +8,14 @@ import { Signal } from '../events';
  * operations, enabling true reactivity without manual re-evaluation.
  */
 export declare class DeclarativeArray<T = any, R = any> {
-    private config;
+    private expression;
     private contextNode?;
     private _items;
     private _filtered;
     private _sorted;
     private _mapped;
     private _final;
-    constructor(config: ArrayExpr<T, R>, contextNode?: Node | undefined);
+    constructor(expression: ArrayExpr<T, R>, contextNode?: Node | undefined);
     /**
      * Get the current processed array result
      */
@@ -26,9 +26,9 @@ export declare class DeclarativeArray<T = any, R = any> {
      */
     getSignal(): Signal.Computed<R[]>;
     /**
-     * Update the configuration of this ArrayExpr
+     * Update the expressionuration of this ArrayExpr
      */
-    updateConfig(newConfig: Partial<ArrayExpr<T, R>>): void;
+    updateexpression(newexpression: Partial<ArrayExpr<T, R>>): void;
 }
 /**
  * Process a ArrayExpr object and render elements directly to a parent container

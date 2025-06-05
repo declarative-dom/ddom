@@ -52,8 +52,25 @@ const ddomHandlers: {
 	attributes: (ddom, el, key, value) => {
 		if (value && typeof value === 'object') {
 			for (const [attrName, attrValue] of Object.entries(value)) {
-				if (attrValue && typeof attrValue === 'string' && el instanceof Element) {
-					el.setAttribute(attrName, attrValue);
+				let value = attrValue;
+				if (typeof attrValue === 'string') {
+					value = transform(attrValue, el as Node);
+				} else if (typeof attrValue === 'function') {
+					// eval function attributes
+					value = attrValue(el);
+				}
+				if (el instanceof Element) {
+					if (typeof value === 'boolean') {
+						// Handle boolean attributes
+						if (value) {
+							el.setAttribute(attrName, '');
+						} else {
+							el.removeAttribute(attrName);
+						}
+					} else {
+						// Set other attributes directly
+						el.setAttribute(attrName, value as string);
+					}
 				}
 			}
 		}
@@ -87,11 +104,19 @@ const ddomHandlers: {
 		}
 	},
 	default: (ddom, el, key, value) => {
-		// Handle reactive properties
-		if (key.startsWith('on') && typeof value === 'function') {
-			// Handle event listeners (properties starting with 'on')
-			const eventName = key.slice(2).toLowerCase();
-			el.addEventListener(eventName, value as EventListener);
+		// Handle functions properties
+		if (typeof value === 'function') {
+			if (key.startsWith('on') && el instanceof Element) {
+				// Handle event listeners (properties starting with 'on')
+				const eventName = key.slice(2).toLowerCase();
+				el.addEventListener(eventName, value as EventListener);
+			} else {
+				// set property as a function
+				(el as any)[key] = value;
+			}
+		} else if (typeof value === 'string') {
+			// evalute xpath expressions
+			(el as any)[key] = transform(value, el as Node);
 		} else {
 			// Set all other properties directly on the element
 			(el as any)[key] = value;
@@ -137,44 +162,23 @@ export function adoptDocument(ddom: DocumentSpec) {
  * ```
  */
 export function adoptNode(ddom: DOMSpec, el: DOMNode, css: boolean = true, ignoreKeys: string[] = []): void {
-	const renderXPath = ['textContent', 'innerHTML', 'className'];
-	let allIgnoreKeys = [...ignoreKeys, ...renderXPath];
+	// const renderXPath = ['className',
+	// 	'dir',
+	// 	'innerHTML',
+	// 	'lang',
+	// 	'name',
+	// 	'role',
+	// 	'tabIndex',
+	// 	'textContent',
+	// 	'title'
+	// ];
+	// let allIgnoreKeys = [...ignoreKeys, ...renderXPath];
+	let allIgnoreKeys = [...ignoreKeys];
 	const reactiveProps = Object.entries(ddom).filter(([key, value]) => key.startsWith('$') && !ignoreKeys.includes(key));
 	if (reactiveProps.length > 0) {
 		reactiveProps.forEach(([key, initialValue]) => {
-			// if they property already exists, set its value
-			if (key in el) {
-				const property = (el as any)[key];
-				if (Signal.isState(property)) {
-					if (typeof initialValue === 'function') {
-						// If the initial value is a function, evaluate it to get the signal
-						// const evaluatedValue = initialValue();
-						// if (Signal.isState(evaluatedValue) || Signal.isComputed(evaluatedValue)) {
-						// 	// If it's already a signal, set its value
-						// 	property.set(evaluatedValue.get());
-						// } else {
-						// 	// Otherwise, set the initial value directly
-						// 	property.set(evaluatedValue);
-						// }
-						// // debug
-						// console.log(`[adoptNode] Updated existing signal property '${key}' with evaluated value:`, evaluatedValue);
-					} else if (Signal.isComputed(initialValue) || Signal.isState(initialValue)) {
-						// If the initial value is already a signal, set its value
-						property.set(initialValue.get());
-						// debug
-						console.log(`[adoptNode] Updated existing signal property '${key}' with signal value:`, initialValue.get());
-					} else {
-						// property.set(initialValue);
-						// debug
-						// console.log(`[adoptNode] Updated existing signal property '${key}' with value:`, initialValue);
-					}
-				} else if (Signal.isComputed(property)) {
-					// If it's a computed signal, skip it
-				} else {
-					// Otherwise, create a new signal with the initial value
-					(el as any)[key] = initialValue;
-				}
-			} else {
+			// if they property does not exist on the element, create it
+			if (!(key in el)) {
 				// Create a reactive property on the element
 				createReactiveProperty(el, key, initialValue);
 			}
@@ -196,12 +200,12 @@ export function adoptNode(ddom: DOMSpec, el: DOMNode, css: boolean = true, ignor
 		handler(ddom, el, key, value, css);
 	}
 
-	// Handle textContent and innerHTML with XPath transformation
-	for (const key of renderXPath) {
-		if (ddom[key as keyof DOMSpec]) {
-			(el as any)[key] = transform(ddom[key as keyof DOMSpec] as string, (el as Node));
-		}
-	}
+	// // Handle textContent and innerHTML with XPath transformation
+	// for (const key of renderXPath) {
+	// 	if (ddom[key as keyof DOMSpec]) {
+	// 		(el as any)[key] = transform(ddom[key as keyof DOMSpec] as string, (el as Node));
+	// 	}
+	// }
 }
 
 
@@ -347,44 +351,56 @@ function adoptStyles(el: Element, styles: StyleExpr): void {
  * @param css - Whether to process CSS styles (default: true)
  */
 export function adoptArray<T>(
-	arrayExpr: ArrayExpr<T, any>, 
+	arrayExpr: ArrayExpr<T, any>,
 	parentElement: Element,
 	css = true,
 ): void {
 	// Create the reactive ArrayExpr instance
 	const reactiveArray = new DeclarativeArray(arrayExpr, parentElement);
-	
+
+	const reactiveProps = Object.keys(arrayExpr?.map || {}).filter(key => key.startsWith('$'));
+
 	// Function to render the current array state
 	const renderArray = () => {
 		// Clear existing children
 		parentElement.innerHTML = '';
-		
+
 		// Get current processed items
 		const items = reactiveArray.get();
-		
+
 		// Render each mapped item
 		items.forEach((item: any) => {
 			if (item && typeof item === 'object' && item.tagName) {
 				// append the element
-				appendChild(item, (parentElement as HTMLElement), css);
+				const el = appendChild(item, (parentElement as HTMLElement), css);
+				// assign reactive properties if they exist
+				reactiveProps.forEach(key => {
+					const property: Signal.State<any> = (el as any)[key];
+					if (Signal.isState(property)) {
+						// If it's a state signal, set its value
+						// debvug
+						console.log(`[adoptArray] Setting reactive property ${key} to`, item[key]);
+						property.set(item[key]);
+					}
+				});
 			}
 		});
 	};
-	
+
 	// Initial render
 	renderArray();
-	
+
 	// Set up reactive subscription using the Signal.Computed from the array
 	// This will automatically re-render when the array changes
 	const arraySignal = reactiveArray.getSignal();
-	
+
 	// Create a computed that triggers re-render when array changes
 	const renderComputed = new Signal.Computed(() => {
 		arraySignal.get(); // Access the signal to establish dependency
 		queueMicrotask(renderArray); // Schedule re-render
 		return true;
 	});
-	
+
 	// Trigger the computed to establish the subscription
 	renderComputed.get();
 }
