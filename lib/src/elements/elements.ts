@@ -162,17 +162,6 @@ export function adoptDocument(spec: DocumentSpec) {
  * ```
  */
 export function adoptNode(spec: DOMSpec, el: DOMNode, css: boolean = true, ignoreKeys: string[] = []): void {
-	// const renderXPath = ['className',
-	// 	'dir',
-	// 	'innerHTML',
-	// 	'lang',
-	// 	'name',
-	// 	'role',
-	// 	'tabIndex',
-	// 	'textContent',
-	// 	'title'
-	// ];
-	// let allIgnoreKeys = [...ignoreKeys, ...renderXPath];
 	let allIgnoreKeys = [...ignoreKeys];
 	const reactiveProps = Object.entries(spec).filter(([key, value]) => key.startsWith('$') && !ignoreKeys.includes(key));
 	if (reactiveProps.length > 0) {
@@ -199,13 +188,6 @@ export function adoptNode(spec: DOMSpec, el: DOMNode, css: boolean = true, ignor
 		const handler = ddomHandlers[key] || ddomHandlers.default;
 		handler(spec, el, key, value, css);
 	}
-
-	// // Handle textContent and innerHTML with XPath transformation
-	// for (const key of renderXPath) {
-	// 	if (spec[key as keyof DOMSpec]) {
-	// 		(el as any)[key] = transform(spec[key as keyof DOMSpec] as string, (el as Node));
-	// 	}
-	// }
 }
 
 
