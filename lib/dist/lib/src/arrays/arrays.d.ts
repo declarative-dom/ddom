@@ -34,7 +34,7 @@ export declare function isArrayExpr<T>(value: any): value is ArrayExpr<T, any>;
  * ```
  */
 export declare class DeclarativeArray<T, U = any> {
-    private config;
+    private expr;
     private parentElement?;
     private sourceSignal;
     private computed;
@@ -43,10 +43,10 @@ export declare class DeclarativeArray<T, U = any> {
      * Sets up the reactive pipeline for processing array data through filtering,
      * sorting, mapping, and composition operations.
      *
-     * @param config - The ArrayExpr configuration defining the processing pipeline
+     * @param expr - The ArrayExpr configuration defining the processing pipeline
      * @param parentElement - Optional parent element for context-aware operations
      */
-    constructor(config: ArrayExpr<T, U>, parentElement?: Element | undefined);
+    constructor(expr: ArrayExpr<T, U>, parentElement?: Element | undefined);
     /**
      * Get the current processed array value.
      * Executes the complete processing pipeline and returns the final array.

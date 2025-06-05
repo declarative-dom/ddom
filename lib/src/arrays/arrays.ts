@@ -170,20 +170,20 @@ export class DeclarativeArray<T, U = any> {
    * Sets up the reactive pipeline for processing array data through filtering,
    * sorting, mapping, and composition operations.
    * 
-   * @param config - The ArrayExpr configuration defining the processing pipeline
+   * @param expr - The ArrayExpr configuration defining the processing pipeline
    * @param parentElement - Optional parent element for context-aware operations
    */
   constructor(
-    private config: ArrayExpr<T, U>,
+    private expr: ArrayExpr<T, U>,
     private parentElement?: Element
   ) {    // Handle different source types
-    if (Signal.isState(config.items) || Signal.isComputed(config.items)) {
-      this.sourceSignal = config.items;
-    } else if (Array.isArray(config.items)) {
-      this.sourceSignal = new Signal.State(config.items);    } else if (typeof config.items === 'function') {
+    if (Signal.isState(expr.items) || Signal.isComputed(expr.items)) {
+      this.sourceSignal = expr.items;
+    } else if (Array.isArray(expr.items)) {
+      this.sourceSignal = new Signal.State(expr.items);    } else if (typeof expr.items === 'function') {
       // Handle function that returns array or Signal
       try {
-        const functionResult = config.items(parentElement);
+        const functionResult = expr.items(parentElement);
         
         // Check if the function returned a Signal
         if (Signal.isState(functionResult) || Signal.isComputed(functionResult)) {
@@ -214,35 +214,35 @@ export class DeclarativeArray<T, U = any> {
         let processedArray = [...sourceArray];
 
         // Apply filtering
-        if (config.filter && config.filter.length > 0) {
+        if (expr.filter && expr.filter.length > 0) {
           processedArray = processedArray.filter((item, index) => {
-            return config.filter!.every(filter => evaluateFilter(item, index, filter));
+            return expr.filter!.every(filter => evaluateFilter(item, index, filter));
           });
         }
 
         // Apply sorting
-        if (config.sort && config.sort.length > 0) {
-          processedArray = applySorting(processedArray, config.sort);
+        if (expr.sort && expr.sort.length > 0) {
+          processedArray = applySorting(processedArray, expr.sort);
         }        // Apply mapping
         let mappedArray: U[];
-        if (config.map) {
-          if (typeof config.map === 'function') {
-            mappedArray = processedArray.map(config.map as (item: T, index: number) => U);
-          } else if (typeof config.map === 'string') {
+        if (expr.map) {
+          if (typeof expr.map === 'function') {
+            mappedArray = processedArray.map(expr.map as (item: T, index: number) => U);
+          } else if (typeof expr.map === 'string') {
             // String template mapping
             mappedArray = processedArray.map((item: any, index) => {
               if (typeof item === 'object' && item !== null) {
-                return transform(config.map as string, item);
+                return transform(expr.map as string, item);
               }
               return item;
             }) as U[];
           } else {
             // Static object mapping with template support
             mappedArray = processedArray.map((item: any, index) => {
-              if (typeof config.map === 'object' && config.map !== null) {
-                return transformObjectTemplate(config.map, item, index);
+              if (typeof expr.map === 'object' && expr.map !== null) {
+                return transformObjectTemplate(expr.map, item, index);
               }
-              return config.map;
+              return expr.map;
             }) as U[];
           }
         } else {
@@ -251,9 +251,9 @@ export class DeclarativeArray<T, U = any> {
 
         // Apply prepend/append
         const finalArray: U[] = [
-          ...(config.prepend || []),
+          ...(expr.prepend || []),
           ...mappedArray,
-          ...(config.append || [])
+          ...(expr.append || [])
         ];
 
         return finalArray;
