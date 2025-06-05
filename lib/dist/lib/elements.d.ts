@@ -6,7 +6,7 @@ import { DocumentSpec, DOMSpec, HTMLElementSpec, WindowSpec, DOMNode } from '../
  * Adopts a DocumentSpec into the current document context.
  * This function applies the declarative document properties to the global document object.
  *
- * @param ddom The declarative document object to adopt
+ * @param spec The declarative document object to adopt
  * @example
  * ```typescript
  * adoptDocument({
@@ -15,13 +15,13 @@ import { DocumentSpec, DOMSpec, HTMLElementSpec, WindowSpec, DOMNode } from '../
  * });
  * ```
  */
-export declare function adoptDocument(ddom: DocumentSpec): void;
+export declare function adoptDocument(spec: DocumentSpec): void;
 /**
  * Adopts a declarative DOM structure into an existing DOM node.
  * This function applies properties from the declarative object to the target element,
  * handling children, attributes, styles, and other properties appropriately.
  *
- * @param ddom The declarative DOM object to adopt
+ * @param spec The declarative DOM object to adopt
  * @param el The target DOM node to apply properties to
  * @param css Whether to process CSS styles (default: true)
  * @param ignoreKeys Array of property keys to ignore during adoption
@@ -33,12 +33,12 @@ export declare function adoptDocument(ddom: DocumentSpec): void;
  * }, myElement);
  * ```
  */
-export declare function adoptNode(ddom: DOMSpec, el: DOMNode, css?: boolean, ignoreKeys?: string[]): void;
+export declare function adoptNode(spec: DOMSpec, el: DOMNode, css?: boolean, ignoreKeys?: string[]): void;
 /**
  * Adopts a WindowSpec into the current window context.
  * This function applies the declarative window properties to the global window object.
  *
- * @param ddom The declarative window object to adopt
+ * @param spec The declarative window object to adopt
  * @example
  * ```typescript
  * adoptWindow({
@@ -47,13 +47,13 @@ export declare function adoptNode(ddom: DOMSpec, el: DOMNode, css?: boolean, ign
  * });
  * ```
  */
-export declare function adoptWindow(ddom: WindowSpec): void;
+export declare function adoptWindow(spec: WindowSpec): void;
 /**
  * Creates an HTML element from a declarative element definition.
  * This function constructs a real DOM element based on the provided declarative structure,
  * applying all properties, attributes, children, and event handlers.
  *
- * @param ddom The declarative HTML element definition
+ * @param spec The declarative HTML element definition
  * @param css Whether to process CSS styles (default: true)
  * @returns The created HTML element
  * @example
@@ -65,4 +65,4 @@ export declare function adoptWindow(ddom: WindowSpec): void;
  * });
  * ```
  */
-export declare function createElement(ddom: HTMLElementSpec, css?: boolean): HTMLElement;
+export declare function createElement(spec: HTMLElementSpec, css?: boolean): HTMLElement;

@@ -43,13 +43,13 @@ import {
 export function define(elements: CustomElementSpec[]) {
 	const unregisteredDDOMElements = elements.filter(element => !customElements.get(element.tagName));
 
-	unregisteredDDOMElements.forEach(ddom => {
+	unregisteredDDOMElements.forEach(spec => {
 		// Register styles once during element registration
-		adoptStyles(ddom, ddom.tagName);
+		adoptStyles(spec, spec.tagName);
 
 		// Handle global document modifications from custom element
-		if (ddom.document) {
-			adoptNode(ddom.document as DocumentSpec, document);
+		if (spec.document) {
+			adoptNode(spec.document as DocumentSpec, document);
 		}
 
 		// Apply all properties using the unified dispatch table
@@ -60,21 +60,15 @@ export function define(elements: CustomElementSpec[]) {
 			'formStateRestoreCallback', 'observedAttributes', 'constructor', 'style'
 		];
 
-		const reactiveProps = Object.entries(ddom).filter(([key, value]) => key.startsWith('$'));
-		// debug
-		console.log(`[define] Registering custom element: ${ddom.tagName}`, {
-			reactiveProps,
-			ignoreKeys: customElementIgnoreKeys
-		});
+		const reactiveProps = Object.entries(spec).filter(([key, value]) => key.startsWith('$'));
 
 		// const allIgnoreKeys = [...customElementIgnoreKeys, ...reactiveProps.map(([key]) => key)];
 
-		customElements.define(ddom.tagName, class extends HTMLElement {
+		customElements.define(spec.tagName, class extends HTMLElement {
 			#abortController = new AbortController();
 			#container!: HTMLElement | ShadowRoot | DocumentFragment;
 
 			#adoptNode() {
-				console.log(`[${ddom.tagName}] Starting re-render...`);
 				
 				// Ensure container is initialized
 				if (!this.#container) {
@@ -91,10 +85,8 @@ export function define(elements: CustomElementSpec[]) {
 					}
 				}
 
-				console.log(`[${ddom.tagName}] Calling adoptNode...`);
 				// Apply all properties to the container with reactive context
-				adoptNode(ddom, this.#container, false, customElementIgnoreKeys);
-				console.log(`[${ddom.tagName}] Re-render complete`);
+				adoptNode(spec, this.#container, false, customElementIgnoreKeys);
 			}
 
 			constructor() {
@@ -103,15 +95,12 @@ export function define(elements: CustomElementSpec[]) {
 				// create signals for reactive keys and set up proper signal effect
 				const signals: Signal.State<any>[] = [];
 				reactiveProps.forEach(([key, initialValue]) => {
-					console.log(`[${ddom.tagName}] Processing reactive prop: ${key}`, initialValue);
 					const signal = createReactiveProperty(this, key, initialValue);
 					signals.push(signal);
-					console.log(`[${ddom.tagName}] Added signal for ${key}:`, signal);
 				});
 				
 				// Create a proper effect using the exact pattern from the React example
 				if (signals.length > 0) {
-					console.log(`[${ddom.tagName}] Creating effect for ${signals.length} signals`);
 					
 					// Use the exact effect pattern from the React example
 					const createEffect = (callback: () => void) => {
@@ -133,46 +122,41 @@ export function define(elements: CustomElementSpec[]) {
 					
 					// Create the effect that tracks our reactive properties
 					const effectCleanup = createEffect(() => {
-						console.log(`[${ddom.tagName}] Effect running - tracking dependencies`);
 						
 						// Access all signals directly to establish dependencies
 						signals.forEach((signal, index) => {
 							const value = signal.get(); // Direct signal access - no wrapper
-							console.log(`[${ddom.tagName}] Effect tracking signal ${index}:`, value);
 						});
 						
-						console.log(`[${ddom.tagName}] Effect dependencies established - will trigger re-render on next change`);
 						
 						// Return a cleanup function that triggers re-render
 						return () => {
-							console.log(`[${ddom.tagName}] Effect triggered - scheduling re-render`);
 							this.#triggerAdoptNode();
 						};
 					});
 					
 					// Clean up on disconnect
 					this.#abortController.signal.addEventListener('abort', () => {
-						console.log(`[${ddom.tagName}] Cleaning up effect on disconnect`);
 						effectCleanup();
 					});
 				}
 
 				// Call custom constructor if defined
-				if (ddom.constructor && typeof ddom.constructor === 'function') {
-					ddom.constructor(this);
+				if (spec.constructor && typeof spec.constructor === 'function') {
+					spec.constructor(this);
 				}
 			}
 
 			adoptedCallback() {
-				if (ddom.adoptedCallback && typeof ddom.adoptedCallback === 'function') {
-					ddom.adoptedCallback(this);
+				if (spec.adoptedCallback && typeof spec.adoptedCallback === 'function') {
+					spec.adoptedCallback(this);
 				}
 			}
 
 			attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
 				this.#triggerAdoptNode();
-				if (ddom.attributeChangedCallback && typeof ddom.attributeChangedCallback === 'function') {
-					ddom.attributeChangedCallback(this, name, oldValue, newValue);
+				if (spec.attributeChangedCallback && typeof spec.attributeChangedCallback === 'function') {
+					spec.attributeChangedCallback(this, name, oldValue, newValue);
 				}
 			}
 
@@ -184,61 +168,59 @@ export function define(elements: CustomElementSpec[]) {
 				// Check for a Declarative Shadow Root or existing shadow root
 				this.#container = internals?.shadowRoot || this.shadowRoot || this;
 
-				if (ddom.connectedCallback && typeof ddom.connectedCallback === 'function') {
-					ddom.connectedCallback(this);
+				if (spec.connectedCallback && typeof spec.connectedCallback === 'function') {
+					spec.connectedCallback(this);
 				}
 
 				this.#adoptNode();
 			}
 
 			connectedMoveCallback() {
-				if (ddom.connectedMoveCallback && typeof ddom.connectedMoveCallback === 'function') {
-					ddom.connectedMoveCallback(this);
+				if (spec.connectedMoveCallback && typeof spec.connectedMoveCallback === 'function') {
+					spec.connectedMoveCallback(this);
 				}
 			}
 
 			disconnectedCallback() {
 				this.#abortController.abort();
-				if (ddom.disconnectedCallback && typeof ddom.disconnectedCallback === 'function') {
-					ddom.disconnectedCallback(this);
+				if (spec.disconnectedCallback && typeof spec.disconnectedCallback === 'function') {
+					spec.disconnectedCallback(this);
 				}
 			}
 
 			formAssociatedCallback(form: HTMLFormElement | null) {
-				if (ddom.formAssociatedCallback && typeof ddom.formAssociatedCallback === 'function') {
-					ddom.formAssociatedCallback(this, form);
+				if (spec.formAssociatedCallback && typeof spec.formAssociatedCallback === 'function') {
+					spec.formAssociatedCallback(this, form);
 				}
 			}
 
 			formDisabledCallback(disabled: boolean) {
-				if (ddom.formDisabledCallback && typeof ddom.formDisabledCallback === 'function') {
-					ddom.formDisabledCallback(this, disabled);
+				if (spec.formDisabledCallback && typeof spec.formDisabledCallback === 'function') {
+					spec.formDisabledCallback(this, disabled);
 				}
 			}
 
 			formResetCallback() {
-				if (ddom.formResetCallback && typeof ddom.formResetCallback === 'function') {
-					ddom.formResetCallback(this);
+				if (spec.formResetCallback && typeof spec.formResetCallback === 'function') {
+					spec.formResetCallback(this);
 				}
 			}
 
 			formStateRestoreCallback(state: any, mode: 'restore' | 'autocomplete') {
-				if (ddom.formStateRestoreCallback && typeof ddom.formStateRestoreCallback === 'function') {
-					ddom.formStateRestoreCallback(this, state, mode);
+				if (spec.formStateRestoreCallback && typeof spec.formStateRestoreCallback === 'function') {
+					spec.formStateRestoreCallback(this, state, mode);
 				}
 			}
 
 			static get observedAttributes() {
-				return ddom.observedAttributes || [];
+				return spec.observedAttributes || [];
 			}
 
 			#triggerAdoptNode() {
 				queueMicrotask(() => {
 					if (this.#abortController.signal.aborted) {
-						console.log(`[${ddom.tagName}] Re-render aborted - element disconnected`);
 						return;
 					}
-					console.log(`[${ddom.tagName}] Triggering re-render...`);
 					// Re-render the custom element
 					this.#adoptNode();
 				});
@@ -253,7 +235,7 @@ export function define(elements: CustomElementSpec[]) {
  * generating CSS rules with appropriate selectors. When multiple elements of the same
  * type have different styles, it adds :nth-of-type() selectors for specificity.
  * 
- * @param ddom The declarative DOM element or any object with style and children properties
+ * @param spec The declarative DOM element or any object with style and children properties
  * @param selector The CSS selector to use for this element's styles
  * @example
  * ```typescript
@@ -261,27 +243,27 @@ export function define(elements: CustomElementSpec[]) {
  * // Generates CSS rules for my-component and its children
  * ```
  */
-function adoptStyles(ddom: any, selector: string): void {
+function adoptStyles(spec: any, selector: string): void {
 	// Register styles for the element itself
-	if (ddom.style) {
-		insertRules(ddom.style, selector);
+	if (spec.style) {
+		insertRules(spec.style, selector);
 	}
 
 	// Recursively register styles for children
-	if (ddom.children && Array.isArray(ddom.children)) {
+	if (spec.children && Array.isArray(spec.children)) {
 		// Track occurrences of each tagName to detect duplicates
 		const tagNameCounts = new Map<string, number>();
 		const tagNameIndexes = new Map<string, number>();
 		
 		// Count occurrences of each tagName that has styles
-		ddom.children.forEach((child: HTMLElementSpec) => {
+		spec.children.forEach((child: HTMLElementSpec) => {
 			if (child.style && typeof child.style === 'object' && child.tagName) {
 				const tagName = child.tagName.toLowerCase();
 				tagNameCounts.set(tagName, (tagNameCounts.get(tagName) || 0) + 1);
 			}
 		});
 
-		ddom.children.forEach((child: HTMLElementSpec) => {
+		spec.children.forEach((child: HTMLElementSpec) => {
 			if (child.style && typeof child.style === 'object') {
 				const tagName = child.tagName?.toLowerCase() || '*';
 				const count = tagNameCounts.get(tagName) || 0;

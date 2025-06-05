@@ -48,37 +48,30 @@ export function createReactiveProperty(
 ): Signal.State<any> {
 	let signalInstance: any;
 
-	console.log(`[createReactiveProperty] Creating signal for ${key} with initial value:`, initialValue);
 
 	// Check if this is a function that should return a signal object
 	if (typeof initialValue === 'function') {
 		// Evaluate the function to see what it returns
 		const referencedValue = initialValue();
-		console.log(`[createReactiveProperty] Function evaluated to:`, referencedValue);
 		
 		// Use the proper Signal polyfill type checking
 		if (Signal.isState(referencedValue) || Signal.isComputed(referencedValue)) {
 			// This is already a signal object - use it directly
-			console.log(`[createReactiveProperty] Function returned a signal object, using directly`);
 			signalInstance = referencedValue;
 		} else {
 			// Function returned a value, create a new signal with that value
-			console.log(`[createReactiveProperty] Function returned a value, creating new signal`);
 			signalInstance = new Signal.State(referencedValue);
 		}
 	} else if (Signal.isState(initialValue) || Signal.isComputed(initialValue)) {
 		// This is already a signal object
-		console.log(`[createReactiveProperty] Using existing signal object for ${key}`);
 		signalInstance = initialValue;
 	} else {
 		// Regular reactive property - create new signal
-		console.log(`[createReactiveProperty] Creating new Signal.State for ${key} with value:`, initialValue);
 		signalInstance = new Signal.State(initialValue);
 	}
 
 	// Store the signal directly on the element
 	(el as any)[key] = signalInstance;
 
-	console.log(`[createReactiveProperty] Created signal instance for ${key}:`, signalInstance);
 	return signalInstance;
 }

@@ -33,7 +33,6 @@ export default {
 					// Access the example property from the custom element
 					const customElement = this.parentElement;
 					const example = customElement.example;
-					console.log('Switching to example:', example);
 					if (example) {
 						window.switchExample(example);
 					}

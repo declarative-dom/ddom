@@ -31,9 +31,9 @@ import {
 } from '../xpath';
 
 const ddomHandlers: {
-	[key: string]: (ddom: DOMSpec, el: DOMNode, key: string, value: any, css?: boolean) => void;
+	[key: string]: (spec: DOMSpec, el: DOMNode, key: string, value: any, css?: boolean) => void;
 } = {
-	children: (ddom, el, key, value, css) => {
+	children: (spec, el, key, value, css) => {
 		// Handle function-based children (for reactive/computed children)
 		if (isArrayExpr(value)) {
 			try {
@@ -49,7 +49,7 @@ const ddomHandlers: {
 			console.warn(`Invalid children value for key "${key}":`, value);
 		}
 	},
-	attributes: (ddom, el, key, value) => {
+	attributes: (spec, el, key, value) => {
 		if (value && typeof value === 'object') {
 			for (const [attrName, attrValue] of Object.entries(value)) {
 				let value = attrValue;
@@ -75,27 +75,27 @@ const ddomHandlers: {
 			}
 		}
 	},
-	style: (ddom, el, key, value, css) => {
+	style: (spec, el, key, value, css) => {
 		if (css && value && typeof value === 'object') {
 			adoptStyles((el as Element), value);
 		}
 	},
-	document: (ddom, el, key, value) => {
+	document: (spec, el, key, value) => {
 		if (value && el === window) {
 			adoptNode(value as DocumentSpec, document);
 		}
 	},
-	body: (ddom, el, key, value) => {
+	body: (spec, el, key, value) => {
 		if (value && (el === document || 'documentElement' in el)) {
 			adoptNode(value as HTMLElementSpec, document.body);
 		}
 	},
-	head: (ddom, el, key, value) => {
+	head: (spec, el, key, value) => {
 		if (value && (el === document || 'documentElement' in el)) {
 			adoptNode(value as HTMLElementSpec, document.head);
 		}
 	},
-	customElements: (ddom, el, key, value) => {
+	customElements: (spec, el, key, value) => {
 		if (value) {
 			// Import define dynamically to avoid circular dependency
 			import('../customElements').then(({ define }) => {
@@ -103,7 +103,7 @@ const ddomHandlers: {
 			});
 		}
 	},
-	default: (ddom, el, key, value) => {
+	default: (spec, el, key, value) => {
 		// Handle functions properties
 		if (typeof value === 'function') {
 			if (key.startsWith('on') && el instanceof Element) {
@@ -131,7 +131,7 @@ const ddomHandlers: {
  * Adopts a DocumentSpec into the current document context.
  * This function applies the declarative document properties to the global document object.
  * 
- * @param ddom The declarative document object to adopt
+ * @param spec The declarative document object to adopt
  * @example
  * ```typescript
  * adoptDocument({
@@ -140,16 +140,16 @@ const ddomHandlers: {
  * });
  * ```
  */
-export function adoptDocument(ddom: DocumentSpec) {
-	adoptNode(ddom, document);
+export function adoptDocument(spec: DocumentSpec) {
+	adoptNode(spec, document);
 }
 
 /**
- * Adopts a declarative DOM structure into an existing DOM node.
+ * Renders a declarative DOM specification on an existing DOM node.
  * This function applies properties from the declarative object to the target element,
  * handling children, attributes, styles, and other properties appropriately.
  * 
- * @param ddom The declarative DOM object to adopt
+ * @param spec The declarative DOM object to adopt
  * @param el The target DOM node to apply properties to
  * @param css Whether to process CSS styles (default: true)
  * @param ignoreKeys Array of property keys to ignore during adoption
@@ -161,7 +161,7 @@ export function adoptDocument(ddom: DocumentSpec) {
  * }, myElement);
  * ```
  */
-export function adoptNode(ddom: DOMSpec, el: DOMNode, css: boolean = true, ignoreKeys: string[] = []): void {
+export function adoptNode(spec: DOMSpec, el: DOMNode, css: boolean = true, ignoreKeys: string[] = []): void {
 	// const renderXPath = ['className',
 	// 	'dir',
 	// 	'innerHTML',
@@ -174,7 +174,7 @@ export function adoptNode(ddom: DOMSpec, el: DOMNode, css: boolean = true, ignor
 	// ];
 	// let allIgnoreKeys = [...ignoreKeys, ...renderXPath];
 	let allIgnoreKeys = [...ignoreKeys];
-	const reactiveProps = Object.entries(ddom).filter(([key, value]) => key.startsWith('$') && !ignoreKeys.includes(key));
+	const reactiveProps = Object.entries(spec).filter(([key, value]) => key.startsWith('$') && !ignoreKeys.includes(key));
 	if (reactiveProps.length > 0) {
 		reactiveProps.forEach(([key, initialValue]) => {
 			// if they property does not exist on the element, create it
@@ -186,24 +186,24 @@ export function adoptNode(ddom: DOMSpec, el: DOMNode, css: boolean = true, ignor
 		});
 	}
 	// set id using XPath if it's defined
-	if ('id' in ddom && ddom.id !== undefined && el instanceof HTMLElement) {
-		el.id = transform(ddom.id as string, el as Node);
+	if ('id' in spec && spec.id !== undefined && el instanceof HTMLElement) {
+		el.id = transform(spec.id as string, el as Node);
 		allIgnoreKeys.push('id');
 	}
 	// Apply all properties
-	for (const [key, value] of Object.entries(ddom)) {
+	for (const [key, value] of Object.entries(spec)) {
 		if (allIgnoreKeys.includes(key)) {
 			continue;
 		}
 
 		const handler = ddomHandlers[key] || ddomHandlers.default;
-		handler(ddom, el, key, value, css);
+		handler(spec, el, key, value, css);
 	}
 
 	// // Handle textContent and innerHTML with XPath transformation
 	// for (const key of renderXPath) {
-	// 	if (ddom[key as keyof DOMSpec]) {
-	// 		(el as any)[key] = transform(ddom[key as keyof DOMSpec] as string, (el as Node));
+	// 	if (spec[key as keyof DOMSpec]) {
+	// 		(el as any)[key] = transform(spec[key as keyof DOMSpec] as string, (el as Node));
 	// 	}
 	// }
 }
@@ -213,7 +213,7 @@ export function adoptNode(ddom: DOMSpec, el: DOMNode, css: boolean = true, ignor
  * Adopts a WindowSpec into the current window context.
  * This function applies the declarative window properties to the global window object.
  * 
- * @param ddom The declarative window object to adopt
+ * @param spec The declarative window object to adopt
  * @example
  * ```typescript
  * adoptWindow({
@@ -222,8 +222,8 @@ export function adoptNode(ddom: DOMSpec, el: DOMNode, css: boolean = true, ignor
  * });
  * ```
  */
-export function adoptWindow(ddom: WindowSpec) {
-	adoptNode(ddom, window);
+export function adoptWindow(spec: WindowSpec) {
+	adoptNode(spec, window);
 }
 
 /**
@@ -232,7 +232,7 @@ export function adoptWindow(ddom: WindowSpec) {
  * applying all properties, attributes, children, and event handlers, then immediately appends
  * it to the specified parent node.
  * 
- * @param ddom The declarative HTML element definition
+ * @param spec The declarative HTML element definition
  * @param parentNode The parent node to append the created element to
  * @param css Whether to process CSS styles (default: true)
  * @returns The created HTML element
@@ -245,8 +245,8 @@ export function adoptWindow(ddom: WindowSpec) {
  * }, document.body);
  * ```
  */
-export function appendChild(ddom: HTMLElementSpec, parentNode: DOMNode, css: boolean = true): HTMLElement {
-	const el = document.createElement(ddom.tagName) as HTMLElement;
+export function appendChild(spec: HTMLElementSpec, parentNode: DOMNode, css: boolean = true): HTMLElement {
+	const el = document.createElement(spec.tagName) as HTMLElement;
 
 	// Append the element to the provided parent node
 	if ('appendChild' in parentNode) {
@@ -254,7 +254,7 @@ export function appendChild(ddom: HTMLElementSpec, parentNode: DOMNode, css: boo
 	}
 
 	// Apply all properties using the unified dispatch table
-	adoptNode(ddom, el, css, ['id', 'parentNode', 'tagName']);
+	adoptNode(spec, el, css, ['id', 'parentNode', 'tagName']);
 
 	return el;
 }
@@ -264,7 +264,7 @@ export function appendChild(ddom: HTMLElementSpec, parentNode: DOMNode, css: boo
  * This function constructs a real DOM element based on the provided declarative structure,
  * applying all properties, attributes, children, and event handlers.
  * 
- * @param ddom The declarative HTML element definition
+ * @param spec The declarative HTML element definition
  * @param css Whether to process CSS styles (default: true)
  * @returns The created HTML element
  * @example
@@ -276,11 +276,11 @@ export function appendChild(ddom: HTMLElementSpec, parentNode: DOMNode, css: boo
  * });
  * ```
  */
-export function createElement(ddom: HTMLElementSpec, css: boolean = true): HTMLElement {
-	const el = document.createElement(ddom.tagName) as HTMLElement;
+export function createElement(spec: HTMLElementSpec, css: boolean = true): HTMLElement {
+	const el = document.createElement(spec.tagName) as HTMLElement;
 
 	// Apply all properties using the unified dispatch table
-	adoptNode(ddom, el, css, ['id', 'parentNode', 'tagName']);
+	adoptNode(spec, el, css, ['id', 'parentNode', 'tagName']);
 
 	return el;
 }
@@ -379,7 +379,6 @@ export function adoptArray<T>(
 					if (Signal.isState(property)) {
 						// If it's a state signal, set its value
 						// debvug
-						console.log(`[adoptArray] Setting reactive property ${key} to`, item[key]);
 						property.set(item[key]);
 					}
 				});
