@@ -9,7 +9,7 @@ export default {
 	customElements: [
 		{
 			tagName: 'nav-button',
-			connectedCallback: function(element) {
+			connectedCallback: function (element) {
 				// Get the label from the element's properties
 				const label = element.label || 'Button';
 				const button = element.querySelector('button');
@@ -29,7 +29,7 @@ export default {
 					fontSize: '0.9em',
 					transition: 'all 0.2s'
 				},
-				onclick: function() {
+				onclick: function () {
 					// Access the example property from the custom element
 					const customElement = this.parentElement;
 					const example = customElement.example;
@@ -41,7 +41,7 @@ export default {
 		}
 	],
 
-	loadExamples: async function() {
+	loadExamples: async function () {
 		const basicModule = await import('./basic.js');
 		const customElementsModule = await import('./custom-elements.js');
 		const interactiveFormModule = await import('./interactive-form.js');
@@ -54,20 +54,19 @@ export default {
 	},
 	currentExample: 'basic',
 
-	switchExample: function(exampleKey) {
+	switchExample: function (exampleKey) {
 		this.currentExample = exampleKey;
 		this.createElementCurrentExample();
 		this.updateNavButtons();
 	},
-
-	createElementCurrentExample: function() {
+	createElementCurrentExample: function () {
 		const exampleContainer = document.getElementById('example-container');
 		if (exampleContainer && this.examples[this.currentExample]?.config) {
 			const example = this.examples[this.currentExample];
-			
+
 			// Register custom elements if they exist
 			if (example.config.customElements) {
-				DDOM.define(example.config.customElements);
+				window.DDOM.customElements.define(example.config.customElements);
 			}
 
 			// Create split layout using pure DDOM
@@ -79,8 +78,7 @@ export default {
 					gap: '1px',
 					backgroundColor: '#dee2e6'
 				},
-				children: [
-					// Left side - createElemented example
+				children: [					// Left side - rendered example
 					{
 						tagName: 'div',
 						style: {
@@ -136,11 +134,9 @@ export default {
 						]
 					}
 				]
-			};
-
-			// Clear and createElement using pure DDOM
+			};			// Clear and createElement using pure DDOM
 			exampleContainer.innerHTML = '';
-			DDOM.createElement(splitLayout, exampleContainer);
+			window.DDOM.createElement(splitLayout, exampleContainer);
 
 			// Call oncreateElement if it exists
 			if (example.config.oncreateElement) {
@@ -149,7 +145,7 @@ export default {
 		}
 	},
 
-	updateNavButtons: function() {
+	updateNavButtons: function () {
 		Object.keys(this.examples).forEach(key => {
 			const button = document.getElementById(`nav-${key}`);
 			if (button) {
@@ -251,11 +247,18 @@ export default {
 			]
 		}
 	},
-
-	oncreateElement: async function() {
+	oncreateElement: async function () {
 		await this.loadExamples();
-		// Expose switchExample function globally for navigation buttons
+
+		// Expose functions globally for navigation buttons and examples
 		window.switchExample = this.switchExample.bind(this);
+
+		// Ensure DDOM is available globally (it should already be from index.ts)
+		if (!window.DDOM) {
+			console.error('DDOM not available globally. Make sure index.js is loaded properly.');
+			return;
+		}
+
 		this.createElementCurrentExample();
 	}
 };
