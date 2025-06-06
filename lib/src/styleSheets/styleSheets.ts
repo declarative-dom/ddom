@@ -59,6 +59,11 @@ export function clearStyleSheet(): void {
  * ```
  */
 function isCSSProperty(key: string): boolean {
+	// CSS custom properties (variables) are valid CSS properties
+	if (key.startsWith('--')) {
+		return true;
+	}
+	
 	return !key.startsWith(':') && !key.startsWith('@') && !key.includes(' ') &&
 		!key.startsWith('.') && !key.startsWith('#') && !key.startsWith('[');
 }
@@ -97,10 +102,10 @@ function flattenRules(styles: StyleExpr, baseSelector: string): Array<{ selector
 			let nestedSelector: string;
 
 			if (key.startsWith(':') || key.startsWith('[')) {
-				// Pseudo-selectors
+				// Pseudo-selectors and attribute selectors
 				nestedSelector = `${baseSelector}${key}`;
 			} else {
-				// Element, Class, ID, or attribute selectors
+				// Element, Class, ID, or other selectors
 				nestedSelector = `${baseSelector} ${key}`;
 			}
 
@@ -145,7 +150,12 @@ export function insertRules(styles: StyleExpr, selector: string): void {
 
 			// Apply properties using camelCase directly
 			for (const [property, value] of Object.entries(rule.properties)) {
-				cssRule.style[property as any] = value;
+				if (property.startsWith('--')) {
+					// CSS custom properties need special handling
+					cssRule.style.setProperty(property, value);
+				} else {
+					cssRule.style[property as any] = value;
+				}
 			}
 		} catch (e) {
 			console.warn('Failed to add CSS rule:', rule.selector, e);

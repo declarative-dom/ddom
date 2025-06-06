@@ -122,7 +122,7 @@ ArrayExprs excel at:
 
 ## Integration with Templates
 
-ArrayExprs work seamlessly with XPath Attribute Value Templates for even more dynamic content:
+ArrayExprs work seamlessly with JavaScript template literals for even more dynamic content:
 
 ```javascript
 {
@@ -131,9 +131,9 @@ ArrayExprs work seamlessly with XPath Attribute Value Templates for even more dy
     items: userData,
     map: {
       tagName: 'div',
-      textContent: 'User: {name}',
-      className: 'user-card user-{status}',
-      style: { color: '{themeColor}' }
+      textContent: 'User: ${this.name}',
+      className: 'user-card user-${this.status}',
+      style: { color: '${this.themeColor}' }
     }
   }
 }

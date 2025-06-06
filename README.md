@@ -83,13 +83,13 @@ Unlike string-only *attributes*, web component standards don't currently provide
 
 #### 4. Template Expressions
 
-DDOM supports dynamic content through W3C XSLT Attribute Value Templates (`{expression}` syntax) because:
+DDOM supports dynamic content through JavaScript template literals (`${expression}` syntax) because:
 
 * Template expressions are essential for dynamic, data-driven UIs
-* AVT is an official W3C standard, not a framework invention
-* XPath provides powerful DOM querying capabilities
-* The syntax has been stable and proven for over 20 years
-* It maintains alignment with web standards while enabling declarative data binding
+* Template literals are native JavaScript ES6+ syntax, not a framework invention
+* JavaScript expressions provide unlimited flexibility and power
+* The syntax is familiar to all JavaScript developers
+* It maintains alignment with native JavaScript while enabling declarative data binding
 
 ### Design Constraints
 

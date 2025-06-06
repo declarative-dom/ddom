@@ -32,8 +32,8 @@ export default {
       children: [
         {
           tagName: 'h3',
-          // Using Attribute Value Templates for dynamic content
-          textContent: 'Count: {parentNode.$count}',
+          // Using JavaScript template literals for dynamic content
+          textContent: 'Count: ${this.parentNode.$count.get()}',
           style: {
             margin: '0 0 1em 0',
             fontSize: '1.5em'
@@ -122,7 +122,7 @@ export default {
         },
         {
           tagName: 'p',
-          textContent: 'Current theme: {parentNode.$theme}',
+          textContent: 'Current theme: ${this.parentNode.$theme.get()}',
           style: {
             margin: '1em 0 0 0',
             fontSize: '0.9em',
@@ -178,7 +178,7 @@ export default {
         {
           tagName: 'input',
           type: 'checkbox',
-          name: 'todo-item-checkbox-{parentNode.$index}',
+          name: 'todo-item-checkbox-${this.parentNode.$index.get()}',
           attributes: {
             checked: function (el) {
               return el.parentNode.$item.get().completed ? true : false;
@@ -198,8 +198,8 @@ export default {
         {
           tagName: 'input',
           type: 'text',
-          name: 'todo-item-text-{parentNode.$index}',
-          value: '{parentNode.$item.text}',
+          name: 'todo-item-text-${this.parentNode.$index.get()}',
+          value: '${this.parentNode.$item.get().text}',
           style: {
             flex: '1',
             FlexGrow: '1',
@@ -378,7 +378,7 @@ export default {
         },
         {
           tagName: 'p',
-          textContent: 'This example demonstrates reactive custom elements using the $ prefix for reactive properties and Attribute Value Templates for dynamic content. Changes to reactive properties automatically trigger re-renders.',
+          textContent: 'This example demonstrates reactive custom elements using the $ prefix for reactive properties and JavaScript template literals for dynamic content. Changes to reactive properties automatically trigger re-renders.',
           style: {
             maxWidth: '600px',
             margin: '0 auto 2em',
@@ -417,7 +417,7 @@ export default {
                 },
                 {
                   tagName: 'li',
-                  textContent: 'Attribute Value Templates ({property}) enable dynamic content'
+                  textContent: 'JavaScript template literals (${property}) enable dynamic content'
                 },
                 {
                   tagName: 'li',

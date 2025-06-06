@@ -1,6 +1,10 @@
 // Re-export the standard Signal implementation
 import { Signal } from 'signal-polyfill';
 
+import {
+	DOMSpec,
+} from '../../../types/src';
+
 /**
  * Type representing a Signal node, which can be either a State or Computed signal.
  * This is used to ensure type safety when working with reactive properties.

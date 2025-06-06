@@ -16,6 +16,16 @@ import {
 } from '../elements';
 
 import {
+	createEffect,
+	createReactiveProperty,
+	Signal
+} from '../events';
+
+import {
+	insertRules,
+} from '../styleSheets';
+
+import {
 	Signal,
 	createEffect,
 	createReactiveProperty,
@@ -53,24 +63,88 @@ export function define(elements: CustomElementSpec[]) {
 			adoptNode(spec.document as DocumentSpec, document);
 		}
 
+		// Get computed properties (getters/setters) from the spec
+		const specDescriptors = Object.getOwnPropertyDescriptors(spec);
+		const computedProps = Object.entries(specDescriptors).filter(([key, descriptor]) => 
+			descriptor.get || descriptor.set
+		);
+		const reactiveProps = Object.entries(specDescriptors).filter(([key, descriptor]) =>
+			key.startsWith('$')
+		);
+
+		// debug
+		if (computedProps.length > 0) {
+			console.debug(`Registering computed properties for ${spec.tagName}:`, computedProps);
+		}
+		if (reactiveProps.length > 0) {
+			console.debug(`Registering reactive properties for ${spec.tagName}:`, reactiveProps);
+		}
+
 		// Apply all properties using the unified dispatch table
-		const customElementIgnoreKeys = [
+		const ignoreKeys = [
 			'tagName', 'document', 'adoptedCallback', 'attributeChangedCallback',
 			'connectedCallback', 'connectedMoveCallback', 'disconnectedCallback',
 			'formAssociatedCallback', 'formDisabledCallback', 'formResetCallback',
-			'formStateRestoreCallback', 'observedAttributes', 'constructor', 'style'
+			'formStateRestoreCallback', 'observedAttributes', 'constructor', 'style',
+			...reactiveProps.map(([key]) => key),
+			...computedProps.map(([key]) => key)
 		];
-
-		const reactiveProps = Object.entries(spec).filter(([key, value]) => key.startsWith('$'));
-
-		// const allIgnoreKeys = [...customElementIgnoreKeys, ...reactiveProps.map(([key]) => key)];
 
 		customElements.define(spec.tagName, class extends HTMLElement {
 			#abortController = new AbortController();
 			#container!: HTMLElement | ShadowRoot | DocumentFragment;
+			#cleanupFunctions: (() => void)[] = [];
 
-			#adoptNode() {
+			constructor() {
+				super();
+
+				// Set up computed properties (getters/setters) from the spec
+				computedProps.forEach(([key, descriptor]) => {
+					Object.defineProperty(this, key, descriptor);
+				});
+
+				// Create reactive properties (signals) from the spec
+				reactiveProps.forEach(([key, descriptor]) => {
+					createReactiveProperty(this, key, descriptor.value);
+				});
+
+				// Call custom constructor if defined
+				if (spec.constructor && typeof spec.constructor === 'function') {
+					spec.constructor(this);
+				}
+			}
+
+			connectedCallback() {
+				// Check for existing shadow root (declarative or programmatic)
+				const supportsDeclarative = HTMLElement.prototype.hasOwnProperty("attachInternals");
+				const internals = supportsDeclarative ? this.attachInternals() : undefined;
+
+				// Check for a Declarative Shadow Root or existing shadow root
+				this.#container = internals?.shadowRoot || this.shadowRoot || this;
+
+				// Create the DOM structure once - no reactivity at component level
+				this.#createDOMStructure();
+
+				// Set up fine-grained reactivity for template expressions
+				this.#setupFineGrainedReactivity();
+
+				if (spec.connectedCallback && typeof spec.connectedCallback === 'function') {
+					spec.connectedCallback(this);
+				}
+			}
+
+			disconnectedCallback() {
+				// Clean up all fine-grained reactive bindings
+				this.#cleanupFunctions.forEach(cleanup => cleanup());
+				this.#cleanupFunctions = [];
 				
+				this.#abortController.abort();
+				if (spec.disconnectedCallback && typeof spec.disconnectedCallback === 'function') {
+					spec.disconnectedCallback(this);
+				}
+			}
+
+			#createDOMStructure() {
 				// Ensure container is initialized
 				if (!this.#container) {
 					this.#container = this;
@@ -86,47 +160,28 @@ export function define(elements: CustomElementSpec[]) {
 					}
 				}
 
-				// Apply all properties to the container with reactive context
-				adoptNode(spec, this.#container, false, customElementIgnoreKeys);
+				// Create a cleanup collector to gather all reactive binding cleanup functions
+				const cleanupCollector: (() => void)[] = [];
+				
+				// Temporarily monkey-patch the global cleanup collector so adoptNode can contribute to it
+				(globalThis as any).__ddom_cleanup_collector = cleanupCollector;
+
+				try {
+					// Create the DOM structure with fine-grained reactivity
+					adoptNode(spec, this.#container, false, ignoreKeys);
+				} finally {
+					// Clean up the temporary collector
+					delete (globalThis as any).__ddom_cleanup_collector;
+				}
+
+				// Store all cleanup functions for later disposal
+				this.#cleanupFunctions.push(...cleanupCollector);
 			}
 
-			constructor() {
-				super();
-
-				// create signals for reactive keys and set up proper signal effect
-				const signals: Signal.State<any>[] = [];
-				reactiveProps.forEach(([key, initialValue]) => {
-					const signal = createReactiveProperty(this, key, initialValue);
-					signals.push(signal);
-				});
-						// Create a proper effect using the exact pattern from the React example
-				if (signals.length > 0) {
-					
-					// Create the effect that tracks our reactive properties
-					const effectCleanup = createEffect(() => {
-						
-						// Access all signals directly to establish dependencies
-						signals.forEach((signal, index) => {
-							const value = signal.get(); // Direct signal access - no wrapper
-						});
-						
-						
-						// Return a cleanup function that triggers re-render
-						return () => {
-							this.#triggerAdoptNode();
-						};
-					});
-					
-					// Clean up on disconnect
-					this.#abortController.signal.addEventListener('abort', () => {
-						effectCleanup();
-					});
-				}
-
-				// Call custom constructor if defined
-				if (spec.constructor && typeof spec.constructor === 'function') {
-					spec.constructor(this);
-				}
+			#setupFineGrainedReactivity() {
+				// This method is now mostly handled by the updated adoptNode function
+				// which automatically sets up fine-grained reactivity for template expressions
+				// The cleanup functions are collected during #createDOMStructure()
 			}
 
 			adoptedCallback() {
@@ -136,37 +191,15 @@ export function define(elements: CustomElementSpec[]) {
 			}
 
 			attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
-				this.#triggerAdoptNode();
+				// No automatic re-rendering - attribute changes should be handled by fine-grained reactivity
 				if (spec.attributeChangedCallback && typeof spec.attributeChangedCallback === 'function') {
 					spec.attributeChangedCallback(this, name, oldValue, newValue);
 				}
 			}
 
-			connectedCallback() {
-				// Check for existing shadow root (declarative or programmatic)
-				const supportsDeclarative = HTMLElement.prototype.hasOwnProperty("attachInternals");
-				const internals = supportsDeclarative ? this.attachInternals() : undefined;
-
-				// Check for a Declarative Shadow Root or existing shadow root
-				this.#container = internals?.shadowRoot || this.shadowRoot || this;
-
-				if (spec.connectedCallback && typeof spec.connectedCallback === 'function') {
-					spec.connectedCallback(this);
-				}
-
-				this.#adoptNode();
-			}
-
 			connectedMoveCallback() {
 				if (spec.connectedMoveCallback && typeof spec.connectedMoveCallback === 'function') {
 					spec.connectedMoveCallback(this);
-				}
-			}
-
-			disconnectedCallback() {
-				this.#abortController.abort();
-				if (spec.disconnectedCallback && typeof spec.disconnectedCallback === 'function') {
-					spec.disconnectedCallback(this);
 				}
 			}
 
@@ -197,16 +230,6 @@ export function define(elements: CustomElementSpec[]) {
 			static get observedAttributes() {
 				return spec.observedAttributes || [];
 			}
-
-			#triggerAdoptNode() {
-				queueMicrotask(() => {
-					if (this.#abortController.signal.aborted) {
-						return;
-					}
-					// Re-render the custom element
-					this.#adoptNode();
-				});
-			}
 		});
 	});
 }
@@ -236,7 +259,7 @@ function adoptStyles(spec: any, selector: string): void {
 		// Track occurrences of each tagName to detect duplicates
 		const tagNameCounts = new Map<string, number>();
 		const tagNameIndexes = new Map<string, number>();
-		
+
 		// Count occurrences of each tagName that has styles
 		spec.children.forEach((child: HTMLElementSpec) => {
 			if (child.style && typeof child.style === 'object' && child.tagName) {
@@ -246,25 +269,23 @@ function adoptStyles(spec: any, selector: string): void {
 		});
 
 		spec.children.forEach((child: HTMLElementSpec) => {
-			if (child.style && typeof child.style === 'object') {
-				const tagName = child.tagName?.toLowerCase() || '*';
-				const count = tagNameCounts.get(tagName) || 0;
-				
-				let childSelector: string;
-				
-				if (count > 1) {
-					// Multiple elements of same type - use nth-of-type selector (consistent with elements.ts)
-					const currentIndex = (tagNameIndexes.get(tagName) || 0) + 1;
-					tagNameIndexes.set(tagName, currentIndex);
-					
-					childSelector = `${selector} ${tagName}:nth-of-type(${currentIndex})`;
-				} else {
-					// Single element of this type - use simple descendant selector
-					childSelector = `${selector} ${tagName}`;
-				}
-				
-				adoptStyles(child, childSelector);
+			let childSelector: string = selector;
+
+			const tagName = child.tagName?.toLowerCase() || '*';
+			const count = tagNameCounts.get(tagName) || 0;
+
+			if (count > 1) {
+				// Multiple elements of same type - use nth-of-type selector (consistent with elements.ts)
+				const currentIndex = (tagNameIndexes.get(tagName) || 0) + 1;
+				tagNameIndexes.set(tagName, currentIndex);
+
+				childSelector = `${selector} > ${tagName}:nth-of-type(${currentIndex})`;
+			} else {
+				// Single element of this type - use simple descendant selector
+				childSelector = `${selector} > ${tagName}`;
 			}
+
+			adoptStyles(child, childSelector);
 		});
 	}
 }

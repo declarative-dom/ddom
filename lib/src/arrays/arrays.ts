@@ -12,8 +12,8 @@ import {
 } from '../events';
 
 import {
-  transform
-} from '../xpath';
+  evalTemplate
+} from '../templates';
 
 /**
  * Evaluates a filter expression against an item in an array.
@@ -232,7 +232,7 @@ export class DeclarativeArray<T, U = any> {
             // String template mapping
             mappedArray = processedArray.map((item: any, index) => {
               if (typeof item === 'object' && item !== null) {
-                return transform(expr.map as string, item);
+                return evalTemplate(expr.map as string, item);
               }
               return item;
             }) as U[];
@@ -321,7 +321,7 @@ function transformObjectTemplate(template: any, context: any, index: number = 0)
     // Function values are evaluated immediately with item and index
     return template(context, index);
   } else if (typeof template === 'string') {
-    return transform(template, context);
+    return evalTemplate(template, context);
   } else if (Array.isArray(template)) {
     return template.map((item, itemIndex) => transformObjectTemplate(item, context, itemIndex));
   } else if (template && typeof template === 'object') {

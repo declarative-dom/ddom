@@ -28,13 +28,17 @@ import {
 } from '../styleSheets';
 
 import {
-	transform
-} from '../xpath';
+	evalTemplate,
+	hasReactiveExpressions,
+	bindReactiveProperty,
+	bindReactiveAttribute
+} from '../templates';
 
 const ddomHandlers: {
-	[key: string]: (spec: DOMSpec, el: DOMNode, key: string, value: any, css?: boolean) => void;
+	[key: string]: (spec: DOMSpec, el: DOMNode, key: string, descriptor: PropertyDescriptor, css?: boolean) => void;
 } = {
-	children: (spec, el, key, value, css) => {
+	children: (spec, el, key, descriptor, css) => {
+		const value = descriptor.value;
 		// Handle function-based children (for reactive/computed children)
 		if (isArrayExpr(value)) {
 			try {
@@ -50,53 +54,93 @@ const ddomHandlers: {
 			console.warn(`Invalid children value for key "${key}":`, value);
 		}
 	},
-	attributes: (spec, el, key, value) => {
+	attributes: (spec, el, key, descriptor) => {
+		const value = descriptor.value;
 		if (value && typeof value === 'object') {
 			for (const [attrName, attrValue] of Object.entries(value)) {
-				let value = attrValue;
 				if (typeof attrValue === 'string') {
-					value = transform(attrValue, el as Node);
+					// Check if this is a reactive template expression
+					if (hasReactiveExpressions(attrValue) && el instanceof Element) {
+						// Set up fine-grained reactivity for this attribute
+						bindReactiveAttribute(el, attrName, attrValue);
+					} else {
+						// Static string - evaluate once and set
+						const evaluatedValue = evalTemplate(attrValue, el as Node);
+						if (el instanceof Element) {
+							if (typeof evaluatedValue === 'boolean') {
+								// Handle boolean attributes
+								if (evaluatedValue) {
+									el.setAttribute(attrName, '');
+								} else {
+									el.removeAttribute(attrName);
+								}
+							} else {
+								// Set other attributes directly
+								el.setAttribute(attrName, evaluatedValue as string);
+							}
+						}
+					}
 				} else if (typeof attrValue === 'function') {
 					// eval function attributes
-					value = attrValue(el);
-				}
-				if (el instanceof Element) {
-					if (typeof value === 'boolean') {
-						// Handle boolean attributes
-						if (value) {
-							el.setAttribute(attrName, '');
+					const evaluatedValue = attrValue(el);
+					if (el instanceof Element) {
+						if (typeof evaluatedValue === 'boolean') {
+							// Handle boolean attributes
+							if (evaluatedValue) {
+								el.setAttribute(attrName, '');
+							} else {
+								el.removeAttribute(attrName);
+							}
 						} else {
-							el.removeAttribute(attrName);
+							// Set other attributes directly
+							el.setAttribute(attrName, evaluatedValue as string);
 						}
-					} else {
-						// Set other attributes directly
-						el.setAttribute(attrName, value as string);
+					}
+				} else {
+					// Direct value assignment
+					if (el instanceof Element) {
+						if (typeof attrValue === 'boolean') {
+							// Handle boolean attributes
+							if (attrValue) {
+								el.setAttribute(attrName, '');
+							} else {
+								el.removeAttribute(attrName);
+							}
+						} else {
+							// Set other attributes directly
+							el.setAttribute(attrName, attrValue as string);
+						}
 					}
 				}
 			}
 		}
 	},
-	style: (spec, el, key, value, css) => {
+	style: (spec, el, key, descriptor, css) => {
+		const value = descriptor.value;
 		if (css && value && typeof value === 'object') {
 			adoptStyles((el as Element), value);
 		}
 	},
-	document: (spec, el, key, value) => {
+	document: (spec, el, key, descriptor) => {
+		const value = descriptor.value;
 		if (value && el === window) {
 			adoptNode(value as DocumentSpec, document);
 		}
 	},
-	body: (spec, el, key, value) => {
+	body: (spec, el, key, descriptor) => {
+		const value = descriptor.value;
 		if (value && (el === document || 'documentElement' in el)) {
 			adoptNode(value as HTMLElementSpec, document.body);
 		}
 	},
-	head: (spec, el, key, value) => {
+	head: (spec, el, key, descriptor) => {
+		const value = descriptor.value;
 		if (value && (el === document || 'documentElement' in el)) {
 			adoptNode(value as HTMLElementSpec, document.head);
 		}
 	},
-	customElements: (spec, el, key, value) => {
+	customElements: (spec, el, key, descriptor) => {
+		const value = descriptor.value;
 		if (value) {
 			// Import define dynamically to avoid circular dependency
 			import('../customElements').then(({ define }) => {
@@ -104,23 +148,33 @@ const ddomHandlers: {
 			});
 		}
 	},
-	default: (spec, el, key, value) => {
-		// Handle functions properties
-		if (typeof value === 'function') {
-			if (key.startsWith('on') && el instanceof Element) {
-				// Handle event listeners (properties starting with 'on')
-				const eventName = key.slice(2).toLowerCase();
-				el.addEventListener(eventName, value as EventListener);
-			} else {
-				// set property as a function
-				(el as any)[key] = value;
+	default: (spec, el, key, descriptor) => {
+		// Handle event listeners first - they should always be added regardless of precedence
+		if (key.startsWith('on') && typeof descriptor.value === 'function' && el instanceof Element) {
+			const eventName = key.slice(2).toLowerCase();
+			el.addEventListener(eventName, descriptor.value as EventListener);
+		}
+		// For all other properties, only proceed if the property doesn't exist as an instance property
+		else if (!Object.prototype.hasOwnProperty.call(el, key)) {
+			// Handle native getter/setter properties (ES6+ syntax)
+			if (descriptor.get || descriptor.set) {
+				Object.defineProperty(el, key, descriptor);
 			}
-		} else if (typeof value === 'string') {
-			// evalute xpath expressions
-			(el as any)[key] = transform(value, el as Node);
-		} else {
-			// Set all other properties directly on the element
-			(el as any)[key] = value;
+			// Handle non-event function properties
+			else if (typeof descriptor.value === 'function') {
+				(el as any)[key] = descriptor.value;
+			} else if (typeof descriptor.value === 'string') {
+				// Check if this is a reactive template expression
+				if (hasReactiveExpressions(descriptor.value)) {
+					// Set up fine-grained reactivity - the template will auto-update when dependencies change
+					bindReactiveProperty(el, key, descriptor.value);
+				} else {
+					// Static string - evaluate once and set
+					(el as any)[key] = evalTemplate(descriptor.value, el as Node);
+				}
+			} else {
+				(el as any)[key] = descriptor.value;
+			}
 		}
 	}
 };
@@ -164,31 +218,54 @@ export function adoptDocument(spec: DocumentSpec) {
  */
 export function adoptNode(spec: DOMSpec, el: DOMNode, css: boolean = true, ignoreKeys: string[] = []): void {
 	let allIgnoreKeys = [...ignoreKeys];
-	const reactiveProps = Object.entries(spec).filter(([key, value]) => key.startsWith('$') && !ignoreKeys.includes(key));
+
+	// Process all properties using descriptors - handles both values and native getters/setters
+	const specDescriptors = Object.getOwnPropertyDescriptors(spec);
+
+	const reactiveProps = Object.entries(specDescriptors).filter(([key, descriptor]) =>
+		key.startsWith('$') && !ignoreKeys.includes(key)
+	);
 	if (reactiveProps.length > 0) {
-		reactiveProps.forEach(([key, initialValue]) => {
+		reactiveProps.forEach(([key, descriptor]) => {
 			// if they property does not exist on the element, create it
 			if (!(key in el)) {
 				// Create a reactive property on the element
-				createReactiveProperty(el, key, initialValue);
+				createReactiveProperty(el, key, descriptor.value);
+			} else {
+				// If the property already exists, we assume it's a Signal.State or similar
+				const existingProperty = (el as any)[key];
+				if (Signal.isState(existingProperty)) {
+					// If it's a Signal, set its value directly
+					if (typeof descriptor.value === 'function') {
+						// If the value is a function, call it to get the initial value
+						existingProperty.set(descriptor.value(el));
+					} else if (typeof descriptor.value === 'string') {
+						// If the value is a string, use evalTemplate to process it
+						existingProperty.set(evalTemplate(descriptor.value, el as Node));
+					} else {
+						// Otherwise, set the value directly
+						existingProperty.set(descriptor.value);
+					}
+				}
 			}
 			allIgnoreKeys.push(key);
 		});
 	}
-	// set id using XPath if it's defined
+
+	// set id using template literals if it's defined
 	if ('id' in spec && spec.id !== undefined && el instanceof HTMLElement) {
-		el.id = transform(spec.id as string, el as Node);
+		el.id = evalTemplate(spec.id as string, el as Node);
 		allIgnoreKeys.push('id');
 	}
-	// Apply all properties
-	for (const [key, value] of Object.entries(spec)) {
+
+	Object.entries(specDescriptors).forEach(([key, descriptor]) => {
 		if (allIgnoreKeys.includes(key)) {
-			continue;
+			return;
 		}
 
 		const handler = ddomHandlers[key] || ddomHandlers.default;
-		handler(spec, el, key, value, css);
-	}
+		handler(spec, el, key, descriptor, css);
+	});
 }
 
 
@@ -340,8 +417,6 @@ export function adoptArray<T>(
 ): void {	// Create the reactive ArrayExpr instance
 	const reactiveArray = new DeclarativeArray(arrayExpr, parentElement);
 
-	const reactiveProps = Object.keys(arrayExpr?.map || {}).filter(key => key.startsWith('$'));
-
 	// Function to render the current array state
 	const renderArray = () => {
 		// Clear existing children
@@ -355,14 +430,6 @@ export function adoptArray<T>(
 			if (item && typeof item === 'object' && item.tagName) {
 				// append the element
 				const el = appendChild(item, (parentElement as HTMLElement), css);
-				// assign reactive properties if they exist
-				reactiveProps.forEach(key => {
-					const property: Signal.State<any> = (el as any)[key];
-					if (Signal.isState(property)) {
-						// If it's a state signal, set its value
-						property.set(item[key]);
-					}
-				});
 			}
 		});
 	};
@@ -375,7 +442,7 @@ export function adoptArray<T>(
 	const effectCleanup = createEffect(() => {
 		// Access the array signal to establish dependencies
 		reactiveArray.get();
-		
+
 		// Return cleanup function that triggers re-render
 		return () => {
 			queueMicrotask(renderArray);

@@ -21,7 +21,7 @@ export default {
 					attributes: {
 						text: 'Click Me!',
 					},
-					textContent: '{@text}',
+					textContent: '${this.getAttribute("text")}',
 					style: {
 						padding: '0.5em 1em',
 						backgroundColor: '#007bff',

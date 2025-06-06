@@ -3,7 +3,8 @@ export default {
 		basic: { name: 'Basic Example', config: null },
 		'custom-elements': { name: 'Custom Elements', config: null },
 		'interactive-form': { name: 'Interactive Form', config: null },
-		'dynamic-list': { name: 'Dynamic List', config: null }
+		'dynamic-list': { name: 'Dynamic List', config: null },
+		'computed-properties': { name: 'Computed Properties', config: null }
 	},
 
 	customElements: [
@@ -42,15 +43,23 @@ export default {
 	],
 
 	loadExamples: async function () {
-		const basicModule = await import('./basic.js');
-		const customElementsModule = await import('./custom-elements.js');
-		const interactiveFormModule = await import('./interactive-form.js');
-		const dynamicListModule = await import('./dynamic-list.js');
+		try {
+			console.log('Loading examples...');
+			const basicModule = await import('./basic.js');
+			const customElementsModule = await import('./custom-elements.js');
+			const interactiveFormModule = await import('./interactive-form.js');
+			const dynamicListModule = await import('./dynamic-list.js');
+			const computedPropertiesModule = await import('./computed-properties/computed-properties.js');
 
-		this.examples.basic.config = basicModule.default;
-		this.examples['custom-elements'].config = customElementsModule.default;
-		this.examples['interactive-form'].config = interactiveFormModule.default;
-		this.examples['dynamic-list'].config = dynamicListModule.default;
+			this.examples.basic.config = basicModule.default;
+			this.examples['custom-elements'].config = customElementsModule.default;
+			this.examples['interactive-form'].config = interactiveFormModule.default;
+			this.examples['dynamic-list'].config = dynamicListModule.default;
+			this.examples['computed-properties'].config = computedPropertiesModule.default;
+			console.log('Examples loaded successfully:', this.examples);
+		} catch (error) {
+			console.error('Error loading examples:', error);
+		}
 	},
 	currentExample: 'basic',
 
@@ -60,7 +69,11 @@ export default {
 		this.updateNavButtons();
 	},
 	createElementCurrentExample: function () {
+		console.log('Creating example for:', this.currentExample);
 		const exampleContainer = document.getElementById('example-container');
+		console.log('Example container:', exampleContainer);
+		console.log('Current example config:', this.examples[this.currentExample]?.config);
+		
 		if (exampleContainer && this.examples[this.currentExample]?.config) {
 			const example = this.examples[this.currentExample];
 
@@ -69,6 +82,10 @@ export default {
 				window.DDOM.customElements.define(example.config.customElements);
 			}
 
+			// Clear and render using pure DDOM
+			exampleContainer.innerHTML = '';
+			console.log('About to render split layout with children:', example.config.document?.body?.children);
+			
 			// Create split layout using pure DDOM
 			const splitLayout = {
 				tagName: 'div',
@@ -78,7 +95,8 @@ export default {
 					gap: '1px',
 					backgroundColor: '#dee2e6'
 				},
-				children: [					// Left side - rendered example
+				children: [
+					// Left side - rendered example
 					{
 						tagName: 'div',
 						style: {
@@ -134,9 +152,10 @@ export default {
 						]
 					}
 				]
-			};			// Clear and createElement using pure DDOM
-			exampleContainer.innerHTML = '';
-			window.DDOM.createElement(splitLayout, exampleContainer);
+			};
+
+			// Render the split layout
+			window.DDOM.appendChild(splitLayout, exampleContainer);
 
 			// Call oncreateElement if it exists
 			if (example.config.oncreateElement) {
@@ -224,6 +243,12 @@ export default {
 									id: 'nav-dynamic-list',
 									label: 'Dynamic List',
 									example: 'dynamic-list'
+								},
+								{
+									tagName: 'nav-button',
+									id: 'nav-computed-properties',
+									label: 'Computed Properties',
+									example: 'computed-properties'
 								}
 							]
 						}
