@@ -17,19 +17,7 @@ import {
 
 import {
 	createEffect,
-	createReactiveProperty,
 	Signal
-} from '../events';
-
-import {
-	insertRules,
-} from '../styleSheets';
-
-import {
-	Signal,
-	createEffect,
-	createReactiveProperty,
-	globalSignalWatcher,
 } from '../events';
 
 import {
@@ -41,12 +29,19 @@ import {
  * This function creates new custom element classes that extend HTMLElement and
  * implement the declarative DOM structure and behavior specified in the definitions.
  * 
+ * Uses the new reactivity model:
+ * - Template literals with ${...} get computed signals + effects automatically
+ * - Non-function, non-templated properties get transparent signal proxies
+ * - No component-level reactivity - only property-level reactivity
+ * 
  * @param elements Array of declarative custom element definitions to register
  * @example
  * ```typescript
  * define([{
  *   tagName: 'my-component',
- *   children: [{ tagName: 'p', textContent: 'Hello World' }],
+ *   textContent: 'Hello ${this.name}', // Template literal - automatic reactivity
+ *   count: 0, // Non-templated - gets transparent signal proxy
+ *   children: [{ tagName: 'p', textContent: 'Content' }],
  *   connectedCallback: (el) => console.log('Component connected')
  * }]);
  * ```
@@ -68,25 +63,19 @@ export function define(elements: CustomElementSpec[]) {
 		const computedProps = Object.entries(specDescriptors).filter(([key, descriptor]) => 
 			descriptor.get || descriptor.set
 		);
-		const reactiveProps = Object.entries(specDescriptors).filter(([key, descriptor]) =>
-			key.startsWith('$')
-		);
 
 		// debug
 		if (computedProps.length > 0) {
 			console.debug(`Registering computed properties for ${spec.tagName}:`, computedProps);
 		}
-		if (reactiveProps.length > 0) {
-			console.debug(`Registering reactive properties for ${spec.tagName}:`, reactiveProps);
-		}
 
 		// Apply all properties using the unified dispatch table
+		// No more DSL-based reactive props - all reactivity is now property-level
 		const ignoreKeys = [
 			'tagName', 'document', 'adoptedCallback', 'attributeChangedCallback',
 			'connectedCallback', 'connectedMoveCallback', 'disconnectedCallback',
 			'formAssociatedCallback', 'formDisabledCallback', 'formResetCallback',
 			'formStateRestoreCallback', 'observedAttributes', 'constructor', 'style',
-			...reactiveProps.map(([key]) => key),
 			...computedProps.map(([key]) => key)
 		];
 
@@ -103,11 +92,6 @@ export function define(elements: CustomElementSpec[]) {
 					Object.defineProperty(this, key, descriptor);
 				});
 
-				// Create reactive properties (signals) from the spec
-				reactiveProps.forEach(([key, descriptor]) => {
-					createReactiveProperty(this, key, descriptor.value);
-				});
-
 				// Call custom constructor if defined
 				if (spec.constructor && typeof spec.constructor === 'function') {
 					spec.constructor(this);
@@ -122,11 +106,8 @@ export function define(elements: CustomElementSpec[]) {
 				// Check for a Declarative Shadow Root or existing shadow root
 				this.#container = internals?.shadowRoot || this.shadowRoot || this;
 
-				// Create the DOM structure once - no reactivity at component level
+				// Create the DOM structure with automatic property-level reactivity
 				this.#createDOMStructure();
-
-				// Set up fine-grained reactivity for template expressions
-				this.#setupFineGrainedReactivity();
 
 				if (spec.connectedCallback && typeof spec.connectedCallback === 'function') {
 					spec.connectedCallback(this);
@@ -134,7 +115,7 @@ export function define(elements: CustomElementSpec[]) {
 			}
 
 			disconnectedCallback() {
-				// Clean up all fine-grained reactive bindings
+				// Clean up all property-level reactive bindings
 				this.#cleanupFunctions.forEach(cleanup => cleanup());
 				this.#cleanupFunctions = [];
 				
@@ -167,7 +148,9 @@ export function define(elements: CustomElementSpec[]) {
 				(globalThis as any).__ddom_cleanup_collector = cleanupCollector;
 
 				try {
-					// Create the DOM structure with fine-grained reactivity
+					// Create the DOM structure with automatic property-level reactivity
+					// Template literals get computed signals + effects automatically
+					// Non-templated properties get transparent signal proxies
 					adoptNode(spec, this.#container, false, ignoreKeys);
 				} finally {
 					// Clean up the temporary collector
@@ -176,12 +159,6 @@ export function define(elements: CustomElementSpec[]) {
 
 				// Store all cleanup functions for later disposal
 				this.#cleanupFunctions.push(...cleanupCollector);
-			}
-
-			#setupFineGrainedReactivity() {
-				// This method is now mostly handled by the updated adoptNode function
-				// which automatically sets up fine-grained reactivity for template expressions
-				// The cleanup functions are collected during #createDOMStructure()
 			}
 
 			adoptedCallback() {

@@ -4,5 +4,7 @@ export {
 	computedTemplate,
 	hasReactiveExpressions,
 	bindReactiveProperty,
-	bindReactiveAttribute
+	bindReactiveAttribute,
+	createReactiveProperty,
+	resolveSignalAddress
 } from './templates';

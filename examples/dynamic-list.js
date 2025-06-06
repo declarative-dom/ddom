@@ -1,3 +1,6 @@
+// New Reactivity Model - Dynamic List Example
+// No more $-prefixed properties! Uses transparent signal proxies and template literals.
+
 export default {
   document: {
     body: {
@@ -10,11 +13,21 @@ export default {
       children: [
         {
           tagName: 'h1',
-          textContent: 'Dynamic List Example',
+          textContent: 'Dynamic List - New Reactivity Model',
           style: {
             color: '#333',
             textAlign: 'center',
-            marginBottom: '1em'
+            marginBottom: '0.5em'
+          }
+        },
+        {
+          tagName: 'p',
+          textContent: 'No more $-prefixed properties! Template literals with ${...} get automatic reactivity.',
+          style: {
+            textAlign: 'center',
+            color: '#666',
+            marginBottom: '2em',
+            fontStyle: 'italic'
           }
         },
         {
@@ -58,44 +71,41 @@ export default {
     {
       tagName: 'dynamic-list-items',
 
-      // Reactive array using $ prefix
-      $items: ['Apple', 'Banana', 'Cherry'],
+      // No more $ prefix! This is a transparent signal proxy
+      items: ['Apple', 'Banana', 'Cherry'],
 
       addItem: function () {
-        // debug. what is this in this context?
         console.log('addItem called - this:', this);
-
+        
         const newItem = prompt('Enter a new item:');
-        if (newItem && this.$items?.get) {
-          // Update the reactive array - this will automatically trigger re-render
-          this.$items.set([...this.$items.get(), newItem]);
+        if (newItem) {
+          // The 'items' property is now a transparent signal proxy
+          // We can access it like a normal property, but it's reactive
+          this.items = [...this.items, newItem];
         }
       },
 
       removeItem: function (index) {
-        if (this.$items?.get) {
-          // Update the reactive array - this will automatically trigger re-render
-          const currentItems = this.$items.get();
-          this.$items.set(currentItems.filter((_, i) => i !== index));
-        }
+        // Transparent signal proxy allows normal array operations
+        this.items = this.items.filter((_, i) => i !== index);
       },
 
       updateItem: function (index, newText) {
-        if (newText && newText.trim() && this.$items?.get) {
-          const currentItems = this.$items.get();
-          const updatedItems = [...currentItems];
+        if (newText && newText.trim()) {
+          const updatedItems = [...this.items];
           updatedItems[index] = newText.trim();
-          this.$items.set(updatedItems);
+          this.items = updatedItems;
         }
       },
 
       children: {
-        // Use DeclarativeArray syntax for reactive list rendering  
-        items: (el) => el.$items,
+        // Use string address for signal resolution - much cleaner!
+        items: 'this.items', // String address instead of function
         map: {
           tagName: 'dynamic-list-item',
-          $item: (item, index) => item,
-          $index: (item, index) => index,
+          // These are also transparent signal proxies now
+          item: (item, index) => item,
+          index: (item, index) => index,
         }
       },
       style: {
@@ -107,8 +117,9 @@ export default {
 
     {
       tagName: 'dynamic-list-item',
-      $item: {},
-      $index: 0,
+      // No $ prefix - transparent signal proxies
+      item: '',
+      index: 0,
 
       children: [
         {
@@ -127,7 +138,8 @@ export default {
           children: [
             {
               tagName: 'span',
-              textContent: '${this.parentNode.parentNode.$item}',
+              // Template literal automatically gets computed signal + effect!
+              textContent: '${this.parentNode.parentNode.item}',
               contentEditable: true,
               style: {
                 flex: '1',
@@ -142,8 +154,8 @@ export default {
               onblur: function (event) {
                 const newText = this.textContent.trim();
                 const listItem = this.parentNode.parentNode;
-                const index = listItem.$index.get();
-                const originalItem = listItem.$item.get();
+                const index = listItem.index; // No .get() needed - transparent proxy!
+                const originalItem = listItem.item;
 
                 if (newText && newText !== originalItem) {
                   listItem.parentNode.updateItem(index, newText);
@@ -160,7 +172,7 @@ export default {
                 if (event.key === 'Escape') {
                   // Reset to original value
                   const listItem = this.parentNode.parentNode;
-                  this.textContent = listItem.$item.get();
+                  this.textContent = listItem.item; // No .get() needed!
                   this.blur();
                 }
               }
@@ -179,8 +191,8 @@ export default {
               },
               onclick: function (event) {
                 const listItem = this.parentNode.parentNode;
-                const index = listItem.$index.get();
-                if (confirm(`Are you sure you want to remove "${listItem.$item.get()}"?`)) {
+                const index = listItem.index; // No .get() needed!
+                if (confirm(`Are you sure you want to remove "${listItem.item}"?`)) {
                   listItem.parentNode.removeItem(index);
                 }
               }

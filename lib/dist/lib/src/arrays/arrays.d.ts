@@ -43,6 +43,8 @@ export declare class DeclarativeArray<T, U = any> {
      * Sets up the reactive pipeline for processing array data through filtering,
      * sorting, mapping, and composition operations.
      *
+     * Supports string addresses like "window.todos" or "this.parentNode.items" for signal resolution.
+     *
      * @param expr - The ArrayExpr configuration defining the processing pipeline
      * @param parentElement - Optional parent element for context-aware operations
      */

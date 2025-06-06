@@ -12,7 +12,8 @@ import {
 } from '../events';
 
 import {
-  evalTemplate
+  evalTemplate,
+  resolveSignalAddress
 } from '../templates';
 
 /**
@@ -170,17 +171,30 @@ export class DeclarativeArray<T, U = any> {
    * Sets up the reactive pipeline for processing array data through filtering,
    * sorting, mapping, and composition operations.
    * 
+   * Supports string addresses like "window.todos" or "this.parentNode.items" for signal resolution.
+   * 
    * @param expr - The ArrayExpr configuration defining the processing pipeline
    * @param parentElement - Optional parent element for context-aware operations
    */
   constructor(
     private expr: ArrayExpr<T, U>,
     private parentElement?: Element
-  ) {    // Handle different source types
+  ) {
+    // Handle different source types
     if (Signal.isState(expr.items) || Signal.isComputed(expr.items)) {
       this.sourceSignal = expr.items;
     } else if (Array.isArray(expr.items)) {
-      this.sourceSignal = new Signal.State(expr.items);    } else if (typeof expr.items === 'function') {
+      this.sourceSignal = new Signal.State(expr.items);
+    } else if (typeof expr.items === 'string') {
+      // Handle string address resolution (new feature)
+      const resolvedSignal = resolveSignalAddress(expr.items, parentElement || document.body);
+      if (resolvedSignal) {
+        this.sourceSignal = resolvedSignal;
+      } else {
+        console.error('DeclarativeArray: Failed to resolve string address:', expr.items);
+        throw new Error(`Cannot resolve signal address: ${expr.items}`);
+      }
+    } else if (typeof expr.items === 'function') {
       // Handle function that returns array or Signal
       try {
         const functionResult = expr.items(parentElement);
@@ -200,7 +214,7 @@ export class DeclarativeArray<T, U = any> {
         throw error;
       }
     } else {
-      throw new Error('ArrayExpr items must be an array, Signal, or function');
+      throw new Error('ArrayExpr items must be an array, Signal, string address, or function');
     }    // Create computed that processes the array through the full pipeline
     this.computed = new Signal.Computed(() => {
       try {

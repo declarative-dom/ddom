@@ -2,13 +2,14 @@ import { adoptDocument, adoptNode, adoptWindow, appendChild, createElement } fro
 import { adoptStyleSheet, clearStyleSheet } from './styleSheets/styleSheets';
 import { define } from './customElements/customElements';
 import { DeclarativeArray } from './arrays/arrays';
-import { createEffect, createReactiveProperty } from './events/Signal';
+import { createEffect } from './events/Signal';
 import { Signal } from 'signal-polyfill';
-import { evalTemplate, bindTemplate, computedTemplate, hasReactiveExpressions, bindReactiveProperty, bindReactiveAttribute } from './templates/templates';
+import { evalTemplate, bindTemplate, computedTemplate, hasReactiveExpressions, bindReactiveProperty, bindReactiveAttribute, createReactiveProperty } from './templates/templates';
 export { adoptDocument, adoptNode, adoptWindow, createElement } from './elements/elements';
 export { adoptStyleSheet, clearStyleSheet } from './styleSheets/styleSheets';
 export { define } from './customElements/customElements';
-export { createEffect, createReactiveProperty } from './events/Signal';
+export { createEffect } from './events/Signal';
+export { createReactiveProperty } from './templates/templates';
 export { Signal } from 'signal-polyfill';
 export { DeclarativeArray } from './arrays/arrays';
 export { evalTemplate, bindTemplate, computedTemplate, hasReactiveExpressions, bindReactiveProperty, bindReactiveAttribute } from './templates/templates';

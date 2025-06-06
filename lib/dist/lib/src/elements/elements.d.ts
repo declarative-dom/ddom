@@ -21,6 +21,11 @@ export declare function adoptDocument(spec: DocumentSpec): void;
  * This function applies properties from the declarative object to the target element,
  * handling children, attributes, styles, and other properties appropriately.
  *
+ * Uses the new reactivity model:
+ * - Template literals with ${...} get computed signals + effects
+ * - Non-function, non-templated properties get transparent signal proxies
+ * - Protected properties (id, tagName) are set once and never reactive
+ *
  * @param spec The declarative DOM object to adopt
  * @param el The target DOM node to apply properties to
  * @param css Whether to process CSS styles (default: true)
@@ -28,7 +33,9 @@ export declare function adoptDocument(spec: DocumentSpec): void;
  * @example
  * ```typescript
  * adoptNode({
- *   textContent: 'Hello',
+ *   textContent: 'Hello ${this.name}', // Template literal - creates computed signal
+ *   count: 0, // Non-templated - gets transparent signal proxy
+ *   id: 'my-element', // Protected - set once, never reactive
  *   style: { color: 'red' }
  * }, myElement);
  * ```

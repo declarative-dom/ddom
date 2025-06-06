@@ -1,104 +1,73 @@
-# Declarative DOM Examples
+# DDOM Examples
 
-This directory contains example files demonstrating various features and use cases of the Declarative DOM library.
+This directory contains examples demonstrating the DDOM transparent reactivity model.
 
-## Main Example Viewer
+## Core Examples
 
-The easiest way to explore all examples is through the **main example viewer**:
+These examples showcase the current DDOM features:
 
-- Open `index.html` in your browser
-- Use the navigation buttons to switch between different examples
-- All examples are defined as declarative DOM configurations in separate JS modules
+- **`basic-reactivity.html`** - Basic test of reactivity features
+- **`complete-demo.html`** - Comprehensive demonstration of all features  
+- **`dynamic-list.html`** - Dynamic list with transparent reactivity
+- **`reactive-custom-elements.html`** - Custom elements with new reactivity model
+- **`validation-test.html`** - Full test suite validating all features
+- **`performance-test.html`** - Performance benchmarking
 
-## Examples
+## Additional Examples
 
-### 1. Basic Example (`basic.js`)
-A simple introduction showing:
-- Basic element creation
-- Styling with CSS-in-JS
-- Simple event handling
-- Text content and layout
+- **`basic.html`** - Basic declarative DOM example (no reactivity)
+- **`custom-elements.js`** - Custom elements example
+- **`interactive-form.html`** - Form handling example
+- **`template-literal-test.html`** - Template literal testing
 
-### 2. Custom Elements (`custom-elements.js`)
-Demonstrates the power of custom elements:
-- Defining reusable components
-- Component composition
-- Custom element styling
-- Creating component libraries
+## Key Features
 
-### 3. Interactive Form (`interactive-form.js`)
-Shows form handling and interactivity:
-- Form inputs and validation
-- Event handling for user input
-- State management
-- Form submission
-
-### 4. Dynamic List (`dynamic-list.js`)
-Advanced example with dynamic content:
-- Adding and removing items
-- Dynamic DOM updates
-- List createElementing patterns
-- Interactive user interface
-
-## Running the Examples
-
-To run these examples:
-
-1. Make sure you have the declarative-dom library built and available
-2. Install dependencies and start the development server:
-
-```bash
-cd examples
-npm install
-npm run dev
-```
-
-3. Open the URL shown in the terminal (typically `http://localhost:5173/`)
-
-### Alternative: Using any web server
-
-You can also serve the examples directory with any local web server:
-
-```bash
-# Example using Python's built-in server
-cd examples
-python -m http.server 8000
-
-# Then visit http://localhost:8000/
-```
-
-## Structure
-
-- `index.html` - Main entry point with the example switcher
-- `index.js` - Main application logic using declarative DOM
-- `basic.js` - Basic example configuration
-- `custom-elements.js` - Custom elements example configuration
-- `interactive-form.js` - Interactive form example configuration  
-- `dynamic-list.js` - Dynamic list example configuration
-- Legacy HTML files (individual examples) - Available for reference
-
-## Creating Your Own Examples
-
-Each example follows a similar pattern:
-1. Export a default object with declarative DOM configuration
-2. Include any necessary helper functions and state
-3. Use the `oncreateElement` callback for post-createElement setup if needed
-
-Example structure:
-```js
-export default {
-  document: {
-    body: {
-      style: { /* styles */ },
-      children: [
-        { /* declarative elements */ }
-      ]
-    }
-  },
-  oncreateElement: () => {
-    // Optional post-createElement logic
-  }
+### 1. Transparent Signal Proxies
+Properties automatically become reactive without special syntax:
+```javascript
+{
+  count: 0,  // Automatically reactive
+  name: 'John'  // Automatically reactive
 }
 ```
 
-Feel free to modify these examples or create new ones to explore the capabilities of Declarative DOM!
+### 2. Template Literal Reactivity
+Template literals with `${...}` automatically get computed signals:
+```javascript
+{
+  textContent: 'Hello ${this.name}!',
+  className: 'status-${this.status}'
+}
+```
+
+### 3. String Address Resolution
+Use string addresses for signal resolution:
+```javascript
+{
+  items: 'window.todos',  // Resolves to window.todos
+  items: 'this.parentNode.items'  // Resolves to parent element's items
+}
+```
+
+### 4. Protected Properties
+`id` and `tagName` are protected from reactivity and set only once.
+
+## Running the Examples
+
+1. Start a local server:
+   ```bash
+   python3 -m http.server 8080
+   ```
+
+2. Open your browser to:
+   ```
+   http://localhost:8080/examples/
+   ```
+
+3. Navigate to any of the `.html` files to see the examples in action.
+
+## Migration
+
+If you have existing DDOM code using the old DSL syntax, see `../MIGRATION.md` for a complete guide on updating to the new reactivity model.
+
+The new model is more powerful, uses standard JavaScript syntax, and provides better performance through property-level reactivity.

@@ -19,7 +19,6 @@ import {
 
 import {
 	createEffect,
-	createReactiveProperty,
 	Signal
 } from '../events';
 
@@ -31,8 +30,12 @@ import {
 	evalTemplate,
 	hasReactiveExpressions,
 	bindReactiveProperty,
-	bindReactiveAttribute
+	bindReactiveAttribute,
+	createReactiveProperty
 } from '../templates';
+
+// Protected properties that should never be reactive
+const PROTECTED_PROPERTIES = new Set(['id', 'tagName']);
 
 const ddomHandlers: {
 	[key: string]: (spec: DOMSpec, el: DOMNode, key: string, descriptor: PropertyDescriptor, css?: boolean) => void;
@@ -173,7 +176,14 @@ const ddomHandlers: {
 					(el as any)[key] = evalTemplate(descriptor.value, el as Node);
 				}
 			} else {
-				(el as any)[key] = descriptor.value;
+				// For non-function, non-templated properties, wrap in transparent signal proxy
+				// but only if not protected (id, tagName)
+				if (!PROTECTED_PROPERTIES.has(key)) {
+					createReactiveProperty(el, key, descriptor.value);
+				} else {
+					// Protected properties are set once and never reactive
+					(el as any)[key] = descriptor.value;
+				}
 			}
 		}
 	}
@@ -204,6 +214,11 @@ export function adoptDocument(spec: DocumentSpec) {
  * This function applies properties from the declarative object to the target element,
  * handling children, attributes, styles, and other properties appropriately.
  * 
+ * Uses the new reactivity model:
+ * - Template literals with ${...} get computed signals + effects
+ * - Non-function, non-templated properties get transparent signal proxies
+ * - Protected properties (id, tagName) are set once and never reactive
+ * 
  * @param spec The declarative DOM object to adopt
  * @param el The target DOM node to apply properties to
  * @param css Whether to process CSS styles (default: true)
@@ -211,7 +226,9 @@ export function adoptDocument(spec: DocumentSpec) {
  * @example
  * ```typescript
  * adoptNode({
- *   textContent: 'Hello',
+ *   textContent: 'Hello ${this.name}', // Template literal - creates computed signal
+ *   count: 0, // Non-templated - gets transparent signal proxy
+ *   id: 'my-element', // Protected - set once, never reactive
  *   style: { color: 'red' }
  * }, myElement);
  * ```
@@ -222,42 +239,13 @@ export function adoptNode(spec: DOMSpec, el: DOMNode, css: boolean = true, ignor
 	// Process all properties using descriptors - handles both values and native getters/setters
 	const specDescriptors = Object.getOwnPropertyDescriptors(spec);
 
-	const reactiveProps = Object.entries(specDescriptors).filter(([key, descriptor]) =>
-		key.startsWith('$') && !ignoreKeys.includes(key)
-	);
-	if (reactiveProps.length > 0) {
-		reactiveProps.forEach(([key, descriptor]) => {
-			// if they property does not exist on the element, create it
-			if (!(key in el)) {
-				// Create a reactive property on the element
-				createReactiveProperty(el, key, descriptor.value);
-			} else {
-				// If the property already exists, we assume it's a Signal.State or similar
-				const existingProperty = (el as any)[key];
-				if (Signal.isState(existingProperty)) {
-					// If it's a Signal, set its value directly
-					if (typeof descriptor.value === 'function') {
-						// If the value is a function, call it to get the initial value
-						existingProperty.set(descriptor.value(el));
-					} else if (typeof descriptor.value === 'string') {
-						// If the value is a string, use evalTemplate to process it
-						existingProperty.set(evalTemplate(descriptor.value, el as Node));
-					} else {
-						// Otherwise, set the value directly
-						existingProperty.set(descriptor.value);
-					}
-				}
-			}
-			allIgnoreKeys.push(key);
-		});
-	}
-
-	// set id using template literals if it's defined
+	// Handle protected properties first (id, tagName) - set once, never reactive
 	if ('id' in spec && spec.id !== undefined && el instanceof HTMLElement) {
 		el.id = evalTemplate(spec.id as string, el as Node);
 		allIgnoreKeys.push('id');
 	}
 
+	// Process all other properties with new reactivity model
 	Object.entries(specDescriptors).forEach(([key, descriptor]) => {
 		if (allIgnoreKeys.includes(key)) {
 			return;

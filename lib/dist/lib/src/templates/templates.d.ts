@@ -1,72 +1,72 @@
 import { Signal } from '../events';
 /**
-* Creates a template function bound to a specific context.
-* This is the core building block for fine-grained reactivity.
-*
-* @param template - The template string to bind
-* @returns A function that evaluates the template with the given context
-*/
-export declare const bindTemplate: (template: string) => (context: any) => any;
+ * Resolves a signal address string to the actual signal object.
+ * Supports addresses like "window.todos", "this.parentNode.items", etc.
+ *
+ * @param address - The signal address string
+ * @param contextNode - The context node for resolving "this" references
+ * @returns The resolved signal object or null if not found
+ */
+export declare function resolveSignalAddress(address: string, contextNode: Node): Signal.State<any> | Signal.Computed<any> | null;
 /**
-* Creates a Computed Signal that automatically re-evaluates a template
-* when its dependencies change. This enables fine-grained reactivity.
-*
-* @param template - The template string to make reactive
-* @param contextNode - The DOM node to use as context
-* @returns A Computed Signal that re-evaluates the template when dependencies change
-*/
-export declare function computedTemplate(template: string, contextNode: Node): Signal.Computed<string>;
+ * Creates a reactive property using a transparent signal wrapper.
+ * This makes the property feel like a normal property while being reactive.
+ *
+ * @param el - The element to attach the property to
+ * @param property - The property name
+ * @param initialValue - The initial value for the property
+ * @returns The SignalProperty instance
+ */
+export declare function createReactiveProperty(el: any, property: string, initialValue: any): any;
 /**
-* Evaluates JavaScript template literals using DOM nodes as context.
-* Uses native JavaScript template literal syntax with the context node as 'this'.
-* Supports direct property access, method calls, and complex expressions.
-*
-* @param template - The template string to evaluate as a JavaScript template literal
-* @param contextNode - The DOM node to use as the context ('this') for template evaluation
-* @returns The template string evaluated with the context
-*
-* @example
-* ```typescript
-* const element = document.querySelector('#myElement') as HTMLElement;
-* element.firstName = 'John';
-* element.getAttribute = (attr) => attr === 'id' ? 'myElement' : null;
-*
-* // Property access
-* evalTemplate('Hello, ${this.firstName}', element); // "Hello, John"
-*
-* // Method calls
-* evalTemplate('ID: ${this.getAttribute("id")}', element); // "ID: myElement"
-*
-* // Complex expressions
-* evalTemplate('${this.firstName.toUpperCase()}', element); // "JOHN"
-* ```
-*/
+ * Evaluates JavaScript template literals using DOM nodes as context.
+ * Uses native JavaScript template literal syntax with the context node as 'this'.
+ *
+ * @param template - The template string to evaluate as a JavaScript template literal
+ * @param contextNode - The DOM node to use as the context ('this') for template evaluation
+ * @returns The template string evaluated with the context
+ */
 export declare function evalTemplate(template: string, contextNode: Node): string;
 /**
-* Detects if a template string contains reactive expressions (${...}).
-* Used to determine if fine-grained reactivity should be applied.
-*
-* @param template - The template string to check
-* @returns True if the template contains reactive expressions
-*/
+ * Detects if a template string contains reactive expressions (${...}).
+ *
+ * @param template - The template string to check
+ * @returns True if the template contains reactive expressions
+ */
 export declare function hasReactiveExpressions(template: string): boolean;
 /**
-* Sets up fine-grained reactivity for a property by creating a Computed Signal
-* and an effect that updates the specific DOM property when the template changes.
-*
-* @param el - The DOM element
-* @param property - The property name to bind
-* @param template - The template string
-* @returns A cleanup function to dispose of the effect
-*/
+ * Creates a template function bound to a specific context.
+ *
+ * @param template - The template string to bind
+ * @returns A function that evaluates the template with the given context
+ */
+export declare const bindTemplate: (template: string) => (context: any) => any;
+/**
+ * Creates a Computed Signal that automatically re-evaluates a template
+ * when its dependencies change.
+ *
+ * @param template - The template string to make reactive
+ * @param contextNode - The DOM node to use as context
+ * @returns A Computed Signal that re-evaluates the template when dependencies change
+ */
+export declare function computedTemplate(template: string, contextNode: Node): Signal.Computed<string>;
+/**
+ * Sets up reactive template binding for a property.
+ * Creates a computed signal and effect that updates the property when template dependencies change.
+ *
+ * @param el - The DOM element
+ * @param property - The property name to bind
+ * @param template - The template string
+ * @returns A cleanup function to dispose of the effect
+ */
 export declare function bindReactiveProperty(el: any, property: string, template: string): () => void;
 /**
-* Sets up fine-grained reactivity for an attribute by creating a Computed Signal
-* and an effect that updates the specific DOM attribute when the template changes.
-*
-* @param el - The DOM element
-* @param attribute - The attribute name to bind
-* @param template - The template string
-* @returns A cleanup function to dispose of the effect
-*/
+ * Sets up reactive template binding for an attribute.
+ * Creates a computed signal and effect that updates the attribute when template dependencies change.
+ *
+ * @param el - The DOM element
+ * @param attribute - The attribute name to bind
+ * @param template - The template string
+ * @returns A cleanup function to dispose of the effect
+ */
 export declare function bindReactiveAttribute(el: Element, attribute: string, template: string): () => void;

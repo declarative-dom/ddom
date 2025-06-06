@@ -1,20 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Reactive Custom Elements Example</title>
-	<script type="module">
-		import { adoptWindow } from '../lib/dist/index.js';
-		import example from './reactive-custom-elements.js';
-
-		// Basic example with simple elements
-		adoptWindow(example);
-	</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reactive Custom Elements - New Model</title>
 </head>
-
 <body>
+    <script type="module">
+        import DDOM from '../lib/dist/index.js';
+        import config from './reactive-custom-elements-new.js';
+        
+        console.log('Loading Reactive Custom Elements with new reactivity model...');
+        
+        // Create the DDOM application
+        const app = DDOM(config);
+        console.log('DDOM Application created:', app);
+        
+        // Make todos globally accessible for easier debugging
+        window.todos = app.todos;
+        console.log('Initial todos:', window.todos);
+    </script>
 </body>
-
 </html>
