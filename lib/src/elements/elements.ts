@@ -19,6 +19,7 @@ import {
 
 import {
 	createEffect,
+	createReactiveProperty,
 	Signal
 } from '../events';
 
@@ -29,16 +30,15 @@ import {
 import {
 	parseTemplateLiteral,
 	isTemplateLiteral,
-	bindReactiveProperty,
-	bindReactiveAttribute,
-	createReactiveProperty
+	bindPropertyTemplate,
+	bindAttributeTemplate,
 } from '../templates';
 
 // Properties that are immutable after element creation (structural identity)
 const IMMUTABLE_PROPERTIES = new Set(['id', 'tagName']);
 
 // Properties that should use imperative updates rather than signal assignment (mutable state)
-const IMPERATIVE_PROPERTIES = new Set(['textContent', 'innerHTML', 'outerHTML', 'className', 'contentEditable', 'style']);
+const IMPERATIVE_PROPERTIES = new Set(Object.getOwnPropertyNames(HTMLElement.prototype));
 
 const ddomHandlers: {
 	[key: string]: (spec: DOMSpec, el: DOMNode, key: string, descriptor: PropertyDescriptor, css?: boolean) => void;
@@ -68,7 +68,7 @@ const ddomHandlers: {
 					// Check if this is a reactive template expression
 					if (isTemplateLiteral(attrValue) && el instanceof Element) {
 						// Set up fine-grained reactivity for this attribute
-						bindReactiveAttribute(el, attrName, attrValue);
+						bindAttributeTemplate(el, attrName, attrValue);
 					} else {
 						// Static string - evaluate once and set
 						const evaluatedValue = parseTemplateLiteral(attrValue, el as Node);
@@ -155,13 +155,7 @@ const ddomHandlers: {
 		}
 	},
 	default: (spec, el, key, descriptor) => {
-		// Handle event listeners first - they should always be added regardless of precedence
-		if (key.startsWith('on') && typeof descriptor.value === 'function' && el instanceof Element) {
-			const eventName = key.slice(2).toLowerCase();
-			el.addEventListener(eventName, descriptor.value as EventListener);
-		}
-		// For all other properties, proceed if the property doesn't exist as an instance property
-		else if (!Object.prototype.hasOwnProperty.call(el, key)) {
+		if (!Object.prototype.hasOwnProperty.call(el, key)) {
 			// Handle native getter/setter properties (ES6+ syntax)
 			if (descriptor.get || descriptor.set) {
 				Object.defineProperty(el, key, descriptor);
@@ -173,14 +167,18 @@ const ddomHandlers: {
 				// Set up fine-grained reactivity - the template will auto-update when dependencies change
 				// debug
 				console.debug(`Binding reactive property for key "${key}" with template:`, descriptor.value);
-				bindReactiveProperty(el, key, descriptor.value);
+				bindPropertyTemplate(el, key, descriptor.value);
 			} else {
 				// For non-function, non-templated properties, wrap in transparent signal proxy
 				// but only if not protected (id, tagName)
 				if (!IMPERATIVE_PROPERTIES.has(key)) {
-					// debug
-					console.debug(`Creating signal for key "${key}" with value:`, descriptor.value);
-					createReactiveProperty(el, key, descriptor.value);
+					// check to see if it's a signal already
+					if (Signal.isState(descriptor.value)) {
+						// If it's already a signal, just set it directly
+						(el as any)[key] = descriptor.value;
+					} else {
+						createReactiveProperty(el, key, descriptor.value);
+					}
 				} else {
 					// Protected properties are set once and never reactive
 					(el as any)[key] = descriptor.value;
@@ -189,10 +187,10 @@ const ddomHandlers: {
 		} else {
 			// if the property already exists on the element, update it if it's a signal
 			const existingValue = (el as any)[key];
-			if (Signal.isState(existingValue)) {
+			if (Signal.isState(existingValue) && !Signal.isState(descriptor.value)) {
 				// If it's a signal, update its value
-				(el as any)[key].set(descriptor.value);
-			} else {
+				existingValue.set(descriptor.value);
+			} else if (!Signal.isComputed(existingValue)) {
 				// Otherwise, just set the value directly
 				(el as any)[key] = descriptor.value;
 			}
@@ -200,9 +198,7 @@ const ddomHandlers: {
 	}
 };
 
-/**
- * Adopts a WindowSpec into the current document context.
- */
+
 /**
  * Adopts a DocumentSpec into the current document context.
  * This function applies the declarative document properties to the global document object.
@@ -219,6 +215,7 @@ const ddomHandlers: {
 export function adoptDocument(spec: DocumentSpec) {
 	adoptNode(spec, document);
 }
+
 
 /**
  * Renders a declarative DOM specification on an existing DOM node.
@@ -303,6 +300,7 @@ export function adoptWindow(spec: WindowSpec) {
 	adoptNode(spec, window);
 }
 
+
 /**
  * Creates an HTML element from a declarative element definition and appends it to a parent node.
  * This function constructs a real DOM element based on the provided declarative structure,
@@ -336,6 +334,7 @@ export function appendChild(spec: HTMLElementSpec, parentNode: DOMNode, css: boo
 	return el;
 }
 
+
 /**
  * Creates an HTML element from a declarative element definition.
  * This function constructs a real DOM element based on the provided declarative structure,
@@ -361,6 +360,7 @@ export function createElement(spec: HTMLElementSpec, css: boolean = true): HTMLE
 
 	return el;
 }
+
 
 /**
  * Inserts CSS rules for a given element based on its declarative styles.
@@ -415,6 +415,7 @@ function adoptStyles(el: Element, styles: StyleExpr): void {
 	}
 	insertRules(styles as StyleExpr, selector);
 }
+
 
 /**
  * Adopts a MappedArrayExpr and renders its items as DOM elements in the parent container
@@ -493,7 +494,7 @@ export function adoptArray<T>(
 				if (key !== 'tagName' && key !== 'children' && key !== 'style' && key !== 'attributes') {
 					// Set up reactive properties on the element
 					if (typeof value === 'string' && isTemplateLiteral(value)) {
-						bindReactiveProperty(element, key, value);
+						bindPropertyTemplate(element, key, value);
 					} else {
 						createReactiveProperty(element, key, value);
 					}

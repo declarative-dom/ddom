@@ -3,8 +3,7 @@ export {
 	bindTemplate,
 	computedTemplate,
 	isTemplateLiteral,
-	bindReactiveProperty,
-	bindReactiveAttribute,
-	createReactiveProperty,
+	bindPropertyTemplate,
+	bindAttributeTemplate,
 	resolveSignalAddress
 } from './templates';

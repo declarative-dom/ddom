@@ -29,7 +29,7 @@ export default {
 						cursor: 'pointer',
 						':hover': { backgroundColor: '#007acc', color: 'white' }
 					},
-					onclick: (event) => { alert(`You clicked on the ${event.target.text} button!`); }
+					onclick: (event) => { alert(`You clicked on the ${event.target.text.get()} button!`); }
 				}
 			]
 		}

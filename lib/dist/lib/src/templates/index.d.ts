@@ -1,1 +1,1 @@
-export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindReactiveProperty, bindReactiveAttribute, createReactiveProperty, resolveSignalAddress } from './templates';
+export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate, resolveSignalAddress } from './templates';

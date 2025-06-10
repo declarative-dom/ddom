@@ -29,6 +29,7 @@ export const globalSignalWatcher = new Signal.subtle.Watcher(() => {
 	}
 });
 
+
 /**
  * Creates a reactive effect that integrates with the global signal watcher system.
  * This provides consistent reactive behavior across the entire DDOM system.
@@ -51,4 +52,20 @@ export function createEffect(callback: () => void | (() => void)): () => void {
 	globalSignalWatcher.unwatch(computed);
 	cleanup?.();
   };
+}
+
+
+/**
+ * Creates a reactive property using a direct Signal.State object.
+ * This ensures proper dependency tracking with the TC39 Signals polyfill.
+ * 
+ * @param el - The element to attach the property to
+ * @param property - The property name
+ * @param initialValue - The initial value for the property
+ * @returns The Signal.State instance
+ */
+export function createReactiveProperty(el: any, property: string, initialValue: any): Signal.State<any> {
+  const signal = new Signal.State(initialValue);
+  el[property] = signal;
+  return signal;
 }

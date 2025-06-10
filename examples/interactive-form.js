@@ -31,23 +31,29 @@ export default {
     {
       tagName: 'form-field',
 
-      // properties
-      $value: '',
+      // Props passed from parent
       label: '',
       type: 'text',
       placeholder: '',
       validator: () => true, // Default validator always returns true
       errorMessage: '',
       rows: 1,
+      valueSignalName: '', // Name of the signal property on parent (e.g., '$name')
 
-      // Computed validation
+      // Runtime signal reference (established in connectedCallback)
+      valueSignal: {},
+
+      // Computed validation using the passed signal
       get isValid() {
-        const value = this.$value.get();
-        return this.validator ? this.validator(value) : true;
+        if (!this.valueSignal) return true;
+        const value = this.valueSignal.get();
+        const validator = this.validator;
+        return validator ? validator(value) : true;
       },
 
       get shouldShowError() {
-        const value = this.$value.get();
+        if (!this.valueSignal) return false;
+        const value = this.valueSignal.get();
         return value.length > 0 && !this.isValid;
       },
 
@@ -57,52 +63,32 @@ export default {
 
       // Computed properties for conditional rendering
       get isInputField() {
-        return this.type !== 'textarea';
+        return this.type.get() !== 'textarea';
       },
 
       get isTextareaField() {
-        return this.type === 'textarea';
+        return this.type.get() === 'textarea';
       },
 
       // Methods
       updateValue: function (newValue) {
-        this.$value.set(newValue);
-        // Also update the parent's signal if it exists
-        if (this.parentSignal) {
-          this.parentSignal.set(newValue);
+        // Direct signal binding - update the passed signal
+        if (this.valueSignal) {
+          this.valueSignal.set(newValue);
         }
       },
 
-      // Set up parent signal binding when connected
       connectedCallback: function () {
-        // Debug: log the properties to see what's actually set
-        console.log('Form field connected with properties:', {
-          label: this.label.get(),
-          type: this.type.get(),
-          placeholder: this.placeholder.get()
-        });
-
-        // Find and bind to parent form's corresponding signal
-        const parentForm = this.closest('contact-form');
-        if (parentForm) {
-          if (this.type === 'text' && parentForm.$name) {
-            this.parentSignal = parentForm.$name;
-            // Sync initial value
-            this.$value.set(parentForm.$name.get());
-          } else if (this.type === 'email' && parentForm.$email) {
-            this.parentSignal = parentForm.$email;
-            this.$value.set(parentForm.$email.get());
-          } else if (this.type === 'textarea' && parentForm.$message) {
-            this.parentSignal = parentForm.$message;
-            this.$value.set(parentForm.$message.get());
-          }
+        // Establish signal connection with parent
+        if (this.valueSignalName && this.parentNode && this.parentNode[this.valueSignalName.get()]) {
+          this.valueSignal = this.parentNode[this.valueSignalName.get()];
         }
 
         // Set up reactive attributes for CSS styling
         DDOM.createEffect(() => {
           this.setAttribute('data-valid', this.isValid);
           this.setAttribute('data-show-error', this.shouldShowError);
-          this.setAttribute('data-field-type', this.type);
+          this.setAttribute('data-field-type', this.type.get());
           this.setAttribute('data-is-input', this.isInputField);
           this.setAttribute('data-is-textarea', this.isTextareaField);
         });
@@ -156,7 +142,7 @@ export default {
           name: '${this.parentNode.label.get()}',
           type: '${this.parentNode.type.get()}',
           placeholder: '${this.parentNode.placeholder.get()}',
-          value: '${this.parentNode.$value.get()}',
+          value: '${(this.parentNode.valueSignal && this.parentNode.valueSignal.get()) ? this.parentNode.valueSignal.get() : ""}',
           className: 'field-input input-field',
           style: {
             width: '100%',
@@ -173,7 +159,7 @@ export default {
           tagName: 'textarea',
           name: '${this.parentNode.label.get()}',
           placeholder: '${this.parentNode.placeholder.get()}',
-          value: '${this.parentNode.$value.get()}',
+          value: '${(this.parentNode.valueSignal && this.parentNode.valueSignal.get()) ? this.parentNode.valueSignal.get() : ""}',
           rows: '${this.parentNode.rows.get()}',
           className: 'field-input textarea-field',
           style: {
@@ -228,18 +214,10 @@ export default {
         return this.isNameValid && this.isEmailValid && this.isMessageValid;
       },
 
-      get formData() {
-        return {
-          name: this.$name.get(),
-          email: this.$email.get(),
-          message: this.$message.get()
-        };
-      },
-
       // Form methods
       submitForm: function () {
         if (this.isFormValid) {
-          alert(`Form submitted!\nName: ${this.formData.name.get()}\nEmail: ${this.formData.email.get()}\nMessage: ${this.formData.message.get()}`);
+          alert(`Form submitted!\nName: ${this.$name.get()}\nEmail: ${this.$email.get()}\nMessage: ${this.$message.get()}`);
           this.resetForm();
         } else {
           alert('Please fill out all fields correctly before submitting.');
@@ -292,7 +270,8 @@ export default {
           type: 'text',
           placeholder: 'Enter your name (minimum 2 characters)',
           validator: (value) => value.trim().length >= 2,
-          errorMessage: 'Name must be at least 2 characters'
+          errorMessage: 'Name must be at least 2 characters',
+          valueSignalName: '$name'
         },
         {
           tagName: 'form-field',
@@ -300,7 +279,8 @@ export default {
           type: 'email',
           placeholder: 'Enter your email address',
           validator: (value) => value.includes('@') && value.includes('.') && value.length > 5,
-          errorMessage: 'Please enter a valid email address'
+          errorMessage: 'Please enter a valid email address',
+          valueSignalName: '$email'
         },
         {
           tagName: 'form-field',
@@ -309,7 +289,8 @@ export default {
           rows: 4,
           placeholder: 'Enter your message (minimum 10 characters)',
           validator: (value) => value.trim().length >= 10,
-          errorMessage: 'Message must be at least 10 characters'
+          errorMessage: 'Message must be at least 10 characters',
+          valueSignalName: '$message'
         },
         {
           tagName: 'div',
@@ -380,34 +361,15 @@ export default {
               children: [
                 {
                   tagName: 'div',
-                  value: function () {
-                    // debug
-                    console.log('this.value() called in live preview');
-                    console.log('this: ', this);
-                    const form = this.parentElement.parentElement.parentElement;
-                    console.log('form: ', form);
-                    console.log('form.$name: ', form.$name.get());
-                    return form.$name;
-                  },
-                  textContent: 'Name: ${this.value().get()}'
+                  textContent: 'Name: ${this.parentElement.parentElement.parentElement.$name.get()}'
                 },
                 {
                   tagName: 'div',
-                  value: function () {
-                    // debug
-                    console.log('this.value() called in live preview');
-                    return this.parentElement.parentElement.parentElement.$email;
-                  },
-                  textContent: 'Email: ${this.value().get()}'
+                  textContent: 'Email: ${this.parentElement.parentElement.parentElement.$email.get()}'
                 },
                 {
                   tagName: 'div',
-                  value: function () {
-                    // debug
-                    console.log('this.value() called in live preview');
-                    return this.parentElement.parentElement.parentElement.$message;
-                  },
-                  textContent: 'Message: ${this.value().get()}'
+                  textContent: 'Message: ${this.parentElement.parentElement.parentElement.$message.get()}'
                 },
                 {
                   tagName: 'div',

@@ -2,19 +2,18 @@ import { adoptDocument, adoptNode, adoptWindow, appendChild, createElement } fro
 import { adoptStyleSheet, clearStyleSheet } from './styleSheets/styleSheets';
 import { define } from './customElements/customElements';
 import { MappedArray } from './arrays/arrays';
-import { createEffect } from './events/Signal';
+import { createEffect, createReactiveProperty } from './events/Signal';
 import { Signal } from 'signal-polyfill';
-import { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindReactiveProperty, bindReactiveAttribute, createReactiveProperty } from './templates/templates';
+import { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate } from './templates/templates';
 
 // Named exports for compatibility
 export { adoptDocument, adoptNode, adoptWindow, createElement } from './elements/elements';
 export { adoptStyleSheet, clearStyleSheet } from './styleSheets/styleSheets';
 export { define } from './customElements/customElements';
-export { createEffect } from './events/Signal';
-export { createReactiveProperty } from './templates/templates';
+export { createEffect, createReactiveProperty } from './events/Signal';
 export { Signal } from 'signal-polyfill';
 export { MappedArray } from './arrays/arrays';
-export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindReactiveProperty, bindReactiveAttribute } from './templates/templates';
+export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate } from './templates/templates';
 
 // Default export: DDOM function with namespace properties
 function DDOM(spec: any) {
@@ -41,8 +40,8 @@ Object.assign(DDOM, {
 	bindTemplate,
 	computedTemplate,
 	isTemplateLiteral,
-	bindReactiveProperty,
-	bindReactiveAttribute
+	bindPropertyTemplate,
+	bindAttributeTemplate
 });
 
 export default DDOM;

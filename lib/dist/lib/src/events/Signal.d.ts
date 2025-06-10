@@ -13,3 +13,13 @@ export declare const globalSignalWatcher: Signal.subtle.Watcher;
  * @returns A cleanup function to dispose of the effect
  */
 export declare function createEffect(callback: () => void | (() => void)): () => void;
+/**
+ * Creates a reactive property using a direct Signal.State object.
+ * This ensures proper dependency tracking with the TC39 Signals polyfill.
+ *
+ * @param el - The element to attach the property to
+ * @param property - The property name
+ * @param initialValue - The initial value for the property
+ * @returns The Signal.State instance
+ */
+export declare function createReactiveProperty(el: any, property: string, initialValue: any): Signal.State<any>;

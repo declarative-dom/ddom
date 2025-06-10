@@ -28,21 +28,6 @@ export function resolveSignalAddress(address: string, contextNode: Node): Signal
 }
 
 /**
- * Creates a reactive property using a direct Signal.State object.
- * This ensures proper dependency tracking with the TC39 Signals polyfill.
- * 
- * @param el - The element to attach the property to
- * @param property - The property name
- * @param initialValue - The initial value for the property
- * @returns The Signal.State instance
- */
-export function createReactiveProperty(el: any, property: string, initialValue: any): Signal.State<any> {
-  const signal = new Signal.State(initialValue);
-  el[property] = signal;
-  return signal;
-}
-
-/**
  * Evaluates JavaScript template literals using DOM nodes as context.
  * Uses native JavaScript template literal syntax with the context node as 'this'.
  * 
@@ -111,7 +96,7 @@ export function computedTemplate(template: string, contextNode: Node): Signal.Co
  * @param template - The template string
  * @returns A cleanup function to dispose of the effect
  */
-export function bindReactiveProperty(
+export function bindPropertyTemplate(
   el: any, 
   property: string, 
   template: string
@@ -146,7 +131,7 @@ export function bindReactiveProperty(
  * @param template - The template string
  * @returns A cleanup function to dispose of the effect
  */
-export function bindReactiveAttribute(
+export function bindAttributeTemplate(
   el: Element, 
   attribute: string, 
   template: string

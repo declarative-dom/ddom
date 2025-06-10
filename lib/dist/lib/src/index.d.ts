@@ -3,11 +3,10 @@ import { Signal } from 'signal-polyfill';
 export { adoptDocument, adoptNode, adoptWindow, createElement } from './elements/elements';
 export { adoptStyleSheet, clearStyleSheet } from './styleSheets/styleSheets';
 export { define } from './customElements/customElements';
-export { createEffect } from './events/Signal';
-export { createReactiveProperty } from './templates/templates';
+export { createEffect, createReactiveProperty } from './events/Signal';
 export { Signal } from 'signal-polyfill';
 export { MappedArray } from './arrays/arrays';
-export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindReactiveProperty, bindReactiveAttribute } from './templates/templates';
+export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate } from './templates/templates';
 declare function DDOM(spec: any): void;
 export default DDOM;
 declare global {

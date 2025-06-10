@@ -1,8 +1,5 @@
 import { MappedArrayExpr, DocumentSpec, DOMSpec, HTMLElementSpec, WindowSpec, DOMNode } from '../../../types/src';
 /**
- * Adopts a WindowSpec into the current document context.
- */
-/**
  * Adopts a DocumentSpec into the current document context.
  * This function applies the declarative document properties to the global document object.
  *
