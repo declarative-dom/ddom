@@ -66,7 +66,7 @@ export type SortExpr<T = any> = {
 };
 
 /**
- * ArrayExpr Type Definition
+ * MappedArrayExpr Type Definition
  * Provides a declarative way to define arrays with built-in filtering, sorting, and mapping capabilities.
  * This type enables complex data transformations without imperative code.
  * @template T - The type of items in the source array.
@@ -82,7 +82,7 @@ export type SortExpr<T = any> = {
  * @property prepend - Optional array of items to add at the beginning of the result.
  * @property append - Optional array of items to add at the end of the result.
  */
-export type ArrayExpr<T = any, R = any> = {
+export type MappedArrayExpr<T = any, R = any> = {
 	items: T[] | ((contextNode?: Node) => T[]) | Signal.State<T[]> | Signal.Computed<T[]> | string;
 	map: string | R | ((item: T, index: number) => R);
 	filter?: FilterExpr<T>[];
@@ -124,7 +124,7 @@ export type StyleExpr = {
 type WritableOverrides = {
 	tagName?: string;
 	attributes?: Record<string, string>;
-	children?: HTMLElementSpec[] | ArrayExpr<any[], CustomElementSpec>;
+	children?: HTMLElementSpec[] | MappedArrayExpr<any[], CustomElementSpec>;
 	document?: Partial<DocumentSpec>
 	customElements?: CustomElementSpec[];
 	style?: StyleExpr;

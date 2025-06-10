@@ -1,21 +1,21 @@
-import { ArrayExpr } from '../../../types/src';
+import { MappedArrayExpr } from '../../../types/src';
 import { Signal } from '../events';
 /**
- * Type guard to check if a value is an ArrayExpr.
- * Validates that the object has the required 'items' property to be considered an ArrayExpr.
+ * Type guard to check if a value is an MappedArrayExpr.
+ * Validates that the object has the required 'items' property to be considered an MappedArrayExpr.
  *
  * @template T - The type of items in the array
  * @param value - The value to check
- * @returns True if the value is an ArrayExpr, false otherwise
+ * @returns True if the value is an MappedArrayExpr, false otherwise
  * @example
  * ```typescript
- * if (isArrayExpr(someValue)) {
- *   // TypeScript now knows someValue is ArrayExpr<T, any>
+ * if (isMappedArrayExpr(someValue)) {
+ *   // TypeScript now knows someValue is MappedArrayExpr<T, any>
  *   console.log(someValue.items);
  * }
  * ```
  */
-export declare function isArrayExpr<T>(value: any): value is ArrayExpr<T, any>;
+export declare function isMappedArrayExpr<T>(value: any): value is MappedArrayExpr<T, any>;
 /**
  * Reactive array implementation that integrates with the Signal system.
  * Processes arrays through a complete pipeline of filtering, sorting, mapping, and composition.
@@ -25,7 +25,7 @@ export declare function isArrayExpr<T>(value: any): value is ArrayExpr<T, any>;
  * @template U - The type of items after mapping transformation
  * @example
  * ```typescript
- * const reactiveArray = new DeclarativeArray({
+ * const reactiveArray = new MappedArray({
  *   items: userSignal,
  *   filter: [{ leftOperand: 'active', operator: '===', rightOperand: true }],
  *   sort: [{ sortBy: 'name', direction: 'asc' }],
@@ -33,22 +33,22 @@ export declare function isArrayExpr<T>(value: any): value is ArrayExpr<T, any>;
  * });
  * ```
  */
-export declare class DeclarativeArray<T, U = any> {
+export declare class MappedArray<T, U = any> {
     private expr;
     private parentElement?;
     private sourceSignal;
     private computed;
     /**
-     * Creates a new DeclarativeArray instance with the specified configuration.
+     * Creates a new MappedArray instance with the specified configuration.
      * Sets up the reactive pipeline for processing array data through filtering,
      * sorting, mapping, and composition operations.
      *
      * Supports string addresses like "window.todos" or "this.parentNode.items" for signal resolution.
      *
-     * @param expr - The ArrayExpr configuration defining the processing pipeline
+     * @param expr - The MappedArrayExpr configuration defining the processing pipeline
      * @param parentElement - Optional parent element for context-aware operations
      */
-    constructor(expr: ArrayExpr<T, U>, parentElement?: Element | undefined);
+    constructor(expr: MappedArrayExpr<T, U>, parentElement?: Element | undefined);
     /**
      * Get the current processed array value.
      * Executes the complete processing pipeline and returns the final array.

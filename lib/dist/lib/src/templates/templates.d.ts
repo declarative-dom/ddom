@@ -26,14 +26,14 @@ export declare function createReactiveProperty(el: any, property: string, initia
  * @param contextNode - The DOM node to use as the context ('this') for template evaluation
  * @returns The template string evaluated with the context
  */
-export declare function evalTemplate(template: string, contextNode: Node): string;
+export declare function parseTemplateLiteral(template: string, contextNode: Node): string;
 /**
  * Detects if a template string contains reactive expressions (${...}).
  *
  * @param template - The template string to check
  * @returns True if the template contains reactive expressions
  */
-export declare function hasReactiveExpressions(template: string): boolean;
+export declare function isTemplateLiteral(template: string): boolean;
 /**
  * Creates a template function bound to a specific context.
  *

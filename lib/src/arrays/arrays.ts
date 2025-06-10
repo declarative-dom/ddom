@@ -1,5 +1,5 @@
 import {
-  ArrayExpr,
+  MappedArrayExpr,
   FilterExpr,
   SortExpr,
   FilterOper
@@ -12,7 +12,7 @@ import {
 } from '../events';
 
 import {
-  evalTemplate,
+  parseTemplateLiteral,
   resolveSignalAddress
 } from '../templates';
 
@@ -128,21 +128,21 @@ function applySorting<T>(array: T[], sortExpressions: SortExpr<T>[]): T[] {
 }
 
 /**
- * Type guard to check if a value is an ArrayExpr.
- * Validates that the object has the required 'items' property to be considered an ArrayExpr.
+ * Type guard to check if a value is an MappedArrayExpr.
+ * Validates that the object has the required 'items' property to be considered an MappedArrayExpr.
  * 
  * @template T - The type of items in the array
  * @param value - The value to check
- * @returns True if the value is an ArrayExpr, false otherwise
+ * @returns True if the value is an MappedArrayExpr, false otherwise
  * @example
  * ```typescript
- * if (isArrayExpr(someValue)) {
- *   // TypeScript now knows someValue is ArrayExpr<T, any>
+ * if (isMappedArrayExpr(someValue)) {
+ *   // TypeScript now knows someValue is MappedArrayExpr<T, any>
  *   console.log(someValue.items);
  * }
  * ```
  */
-export function isArrayExpr<T>(value: any): value is ArrayExpr<T, any> {
+export function isMappedArrayExpr<T>(value: any): value is MappedArrayExpr<T, any> {
   return value && typeof value === 'object' && 'items' in value;
 }
 
@@ -155,7 +155,7 @@ export function isArrayExpr<T>(value: any): value is ArrayExpr<T, any> {
  * @template U - The type of items after mapping transformation
  * @example
  * ```typescript
- * const reactiveArray = new DeclarativeArray({
+ * const reactiveArray = new MappedArray({
  *   items: userSignal,
  *   filter: [{ leftOperand: 'active', operator: '===', rightOperand: true }],
  *   sort: [{ sortBy: 'name', direction: 'asc' }],
@@ -163,21 +163,21 @@ export function isArrayExpr<T>(value: any): value is ArrayExpr<T, any> {
  * });
  * ```
  */
-export class DeclarativeArray<T, U = any> {
+export class MappedArray<T, U = any> {
   private sourceSignal: SignalNode<T[]>;
   private computed: Signal.Computed<U[]>;
   /**
-   * Creates a new DeclarativeArray instance with the specified configuration.
+   * Creates a new MappedArray instance with the specified configuration.
    * Sets up the reactive pipeline for processing array data through filtering,
    * sorting, mapping, and composition operations.
    * 
    * Supports string addresses like "window.todos" or "this.parentNode.items" for signal resolution.
    * 
-   * @param expr - The ArrayExpr configuration defining the processing pipeline
+   * @param expr - The MappedArrayExpr configuration defining the processing pipeline
    * @param parentElement - Optional parent element for context-aware operations
    */
   constructor(
-    private expr: ArrayExpr<T, U>,
+    private expr: MappedArrayExpr<T, U>,
     private parentElement?: Element
   ) {
     // Handle different source types
@@ -191,7 +191,7 @@ export class DeclarativeArray<T, U = any> {
       if (resolvedSignal) {
         this.sourceSignal = resolvedSignal;
       } else {
-        console.error('DeclarativeArray: Failed to resolve string address:', expr.items);
+        console.error('MappedArray: Failed to resolve string address:', expr.items);
         throw new Error(`Cannot resolve signal address: ${expr.items}`);
       }
     } else if (typeof expr.items === 'function') {
@@ -206,22 +206,22 @@ export class DeclarativeArray<T, U = any> {
           // Function returned a plain array
           this.sourceSignal = new Signal.State(functionResult);
         } else {
-          console.error('DeclarativeArray: Function returned unexpected value:', functionResult);
+          console.error('MappedArray: Function returned unexpected value:', functionResult);
           throw new Error('Function must return an array or Signal');
         }
       } catch (error) {
-        console.error('DeclarativeArray: Error calling items function:', error);
+        console.error('MappedArray: Error calling items function:', error);
         throw error;
       }
     } else {
-      throw new Error('ArrayExpr items must be an array, Signal, string address, or function');
+      throw new Error('MappedArrayExpr items must be an array, Signal, string address, or function');
     }    // Create computed that processes the array through the full pipeline
     this.computed = new Signal.Computed(() => {
       try {
         const sourceArray = this.sourceSignal.get();
         
         if (!Array.isArray(sourceArray)) {
-          console.error('DeclarativeArray: sourceSignal.get() did not return an array:', sourceArray);
+          console.error('MappedArray: sourceSignal.get() did not return an array:', sourceArray);
           throw new Error('Source signal must contain an array');
         }
         
@@ -246,7 +246,7 @@ export class DeclarativeArray<T, U = any> {
             // String template mapping
             mappedArray = processedArray.map((item: any, index) => {
               if (typeof item === 'object' && item !== null) {
-                return evalTemplate(expr.map as string, item);
+                return parseTemplateLiteral(expr.map as string, item);
               }
               return item;
             }) as U[];
@@ -272,7 +272,7 @@ export class DeclarativeArray<T, U = any> {
 
         return finalArray;
       } catch (error) {
-        console.error('DeclarativeArray processing error:', error);
+        console.error('MappedArray processing error:', error);
         return [] as U[];
       }
     });
@@ -335,7 +335,7 @@ function transformObjectTemplate(template: any, context: any, index: number = 0)
     // Function values are evaluated immediately with item and index
     return template(context, index);
   } else if (typeof template === 'string') {
-    return evalTemplate(template, context);
+    return parseTemplateLiteral(template, context);
   } else if (Array.isArray(template)) {
     return template.map((item, itemIndex) => transformObjectTemplate(item, context, itemIndex));
   } else if (template && typeof template === 'object') {

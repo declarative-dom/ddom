@@ -1,10 +1,10 @@
-# Dynamic Content with ArrayExprs
+# Dynamic Content with MappedArrayExprs
 
-DDOM provides **ArrayExprs** for dynamic content generation, particularly useful for rendering lists and repeated content. This feature enables data-driven UI construction while maintaining DDOM's declarative philosophy.
+DDOM provides **MappedArrayExprs** for dynamic content generation, particularly useful for rendering lists and repeated content. This feature enables data-driven UI construction while maintaining DDOM's declarative philosophy.
 
 ## Standards Alignment
 
-ArrayExprs are modeled after the ECMAScript `Array.from(items, mapper)` method and chainable array functions. This design ensures familiar syntax for JavaScript developers while providing powerful data transformation capabilities:
+MappedArrayExprs are modeled after the ECMAScript `Array.from(items, mapper)` method and chainable array functions. This design ensures familiar syntax for JavaScript developers while providing powerful data transformation capabilities:
 
 * **`items`** - Source data array (equivalent to `Array.from` first parameter)
 * **`map`** - Transformation function (equivalent to `Array.from` mapper parameter)
@@ -27,7 +27,7 @@ ArrayExprs are modeled after the ECMAScript `Array.from(items, mapper)` method a
 
 ## Use Cases
 
-ArrayExprs excel at:
+MappedArrayExprs excel at:
 
 * **Dynamic Lists**: Rendering data collections as UI elements
 * **Template Mapping**: Converting data objects to UI components using string templates
@@ -122,7 +122,7 @@ ArrayExprs excel at:
 
 ## Integration with Templates
 
-ArrayExprs work seamlessly with JavaScript template literals for even more dynamic content:
+MappedArrayExprs work seamlessly with JavaScript template literals for even more dynamic content:
 
 ```javascript
 {

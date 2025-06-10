@@ -1,1 +1,1 @@
-export { evalTemplate, transform, evaluate } from './xpath';
+export { parseTemplateLiteral, transform, evaluate } from './xpath';

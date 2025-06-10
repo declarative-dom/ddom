@@ -1,8 +1,8 @@
 export { 
-	evalTemplate, 
+	parseTemplateLiteral, 
 	bindTemplate,
 	computedTemplate,
-	hasReactiveExpressions,
+	isTemplateLiteral,
 	bindReactiveProperty,
 	bindReactiveAttribute,
 	createReactiveProperty,

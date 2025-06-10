@@ -14,23 +14,23 @@
 * element.getAttribute = (attr) => attr === 'id' ? 'myElement' : null;
 *
 * // Property access
-* evalTemplate('Hello, ${this.firstName}', element); // "Hello, John"
+* parseTemplateLiteral('Hello, ${this.firstName}', element); // "Hello, John"
 *
 * // Method calls
-* evalTemplate('ID: ${this.getAttribute("id")}', element); // "ID: myElement"
+* parseTemplateLiteral('ID: ${this.getAttribute("id")}', element); // "ID: myElement"
 *
 * // Complex expressions
-* evalTemplate('${this.firstName.toUpperCase()}', element); // "JOHN"
+* parseTemplateLiteral('${this.firstName.toUpperCase()}', element); // "JOHN"
 * ```
 */
-export declare function evalTemplate(template: string, contextNode: Node): string;
+export declare function parseTemplateLiteral(template: string, contextNode: Node): string;
 /**
 * Legacy function kept for backward compatibility.
-* @deprecated Use evalTemplate() instead
+* @deprecated Use parseTemplateLiteral() instead
 */
 export declare function transform(template: string, contextNode: Node): string;
 /**
 * Legacy function kept for backward compatibility.
-* @deprecated Use evalTemplate with template literal syntax instead
+* @deprecated Use parseTemplateLiteral with template literal syntax instead
 */
 export declare function evaluate(xpath: string, contextNode: Node): string | undefined;

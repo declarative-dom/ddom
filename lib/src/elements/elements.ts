@@ -1,5 +1,5 @@
 import {
-	ArrayExpr,
+	MappedArrayExpr,
 	StyleExpr,
 	CustomElementSpec,
 	DocumentSpec,
@@ -13,8 +13,8 @@ import {
 } from '../../../types/src';
 
 import {
-	DeclarativeArray,
-	isArrayExpr,
+	MappedArray,
+	isMappedArrayExpr,
 } from '../arrays';
 
 import {
@@ -27,8 +27,8 @@ import {
 } from '../styleSheets';
 
 import {
-	evalTemplate,
-	hasReactiveExpressions,
+	parseTemplateLiteral,
+	isTemplateLiteral,
 	bindReactiveProperty,
 	bindReactiveAttribute,
 	createReactiveProperty
@@ -43,11 +43,11 @@ const ddomHandlers: {
 	children: (spec, el, key, descriptor, css) => {
 		const value = descriptor.value;
 		// Handle function-based children (for reactive/computed children)
-		if (isArrayExpr(value)) {
+		if (isMappedArrayExpr(value)) {
 			try {
 				adoptArray(value, el as Element);
 			} catch (error) {
-				console.warn(`Failed to process ArrayExpr for children:`, error);
+				console.warn(`Failed to process MappedArrayExpr for children:`, error);
 			}
 		} else if (Array.isArray(value)) {
 			value.forEach((child: HTMLElementSpec) => {
@@ -63,12 +63,12 @@ const ddomHandlers: {
 			for (const [attrName, attrValue] of Object.entries(value)) {
 				if (typeof attrValue === 'string') {
 					// Check if this is a reactive template expression
-					if (hasReactiveExpressions(attrValue) && el instanceof Element) {
+					if (isTemplateLiteral(attrValue) && el instanceof Element) {
 						// Set up fine-grained reactivity for this attribute
 						bindReactiveAttribute(el, attrName, attrValue);
 					} else {
 						// Static string - evaluate once and set
-						const evaluatedValue = evalTemplate(attrValue, el as Node);
+						const evaluatedValue = parseTemplateLiteral(attrValue, el as Node);
 						if (el instanceof Element) {
 							if (typeof evaluatedValue === 'boolean') {
 								// Handle boolean attributes
@@ -168,12 +168,12 @@ const ddomHandlers: {
 				(el as any)[key] = descriptor.value;
 			} else if (typeof descriptor.value === 'string') {
 				// Check if this is a reactive template expression
-				if (hasReactiveExpressions(descriptor.value)) {
+				if (isTemplateLiteral(descriptor.value)) {
 					// Set up fine-grained reactivity - the template will auto-update when dependencies change
 					bindReactiveProperty(el, key, descriptor.value);
 				} else {
 					// Static string - evaluate once and set
-					(el as any)[key] = evalTemplate(descriptor.value, el as Node);
+					(el as any)[key] = parseTemplateLiteral(descriptor.value, el as Node);
 				}
 			} else {
 				// For non-function, non-templated properties, wrap in transparent signal proxy
@@ -241,7 +241,7 @@ export function adoptNode(spec: DOMSpec, el: DOMNode, css: boolean = true, ignor
 
 	// Handle protected properties first (id, tagName) - set once, never reactive
 	if ('id' in spec && spec.id !== undefined && el instanceof HTMLElement) {
-		el.id = evalTemplate(spec.id as string, el as Node);
+		el.id = parseTemplateLiteral(spec.id as string, el as Node);
 		allIgnoreKeys.push('id');
 	}
 
@@ -388,22 +388,22 @@ function adoptStyles(el: Element, styles: StyleExpr): void {
 }
 
 /**
- * Adopts a ArrayExpr and renders its items as DOM elements in the parent container
+ * Adopts a MappedArrayExpr and renders its items as DOM elements in the parent container
  * 
- * This function creates a reactive ArrayExpr instance and renders each mapped item
+ * This function creates a reactive MappedArrayExpr instance and renders each mapped item
  * as a DOM element, properly handling reactive properties and leveraging existing element
  * creation functions.
  * 
- * @param arrayExpr - The DeclarativeArray configuration
+ * @param arrayExpr - The MappedArray configuration
  * @param parentElement - The parent DOM element to render items into
  * @param css - Whether to process CSS styles (default: true)
  */
 export function adoptArray<T>(
-	arrayExpr: ArrayExpr<T, any>,
+	arrayExpr: MappedArrayExpr<T, any>,
 	parentElement: Element,
 	css = true,
-): void {	// Create the reactive ArrayExpr instance
-	const reactiveArray = new DeclarativeArray(arrayExpr, parentElement);
+): void {	// Create the reactive MappedArrayExpr instance
+	const reactiveArray = new MappedArray(arrayExpr, parentElement);
 
 	// Function to render the current array state
 	const renderArray = () => {

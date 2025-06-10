@@ -1,4 +1,4 @@
-import { ArrayExpr, DocumentSpec, DOMSpec, HTMLElementSpec, WindowSpec, DOMNode } from '../../../types/src';
+import { MappedArrayExpr, DocumentSpec, DOMSpec, HTMLElementSpec, WindowSpec, DOMNode } from '../../../types/src';
 /**
  * Adopts a WindowSpec into the current document context.
  */
@@ -94,14 +94,14 @@ export declare function appendChild(spec: HTMLElementSpec, parentNode: DOMNode, 
  */
 export declare function createElement(spec: HTMLElementSpec, css?: boolean): HTMLElement;
 /**
- * Adopts a ArrayExpr and renders its items as DOM elements in the parent container
+ * Adopts a MappedArrayExpr and renders its items as DOM elements in the parent container
  *
- * This function creates a reactive ArrayExpr instance and renders each mapped item
+ * This function creates a reactive MappedArrayExpr instance and renders each mapped item
  * as a DOM element, properly handling reactive properties and leveraging existing element
  * creation functions.
  *
- * @param arrayExpr - The DeclarativeArray configuration
+ * @param arrayExpr - The MappedArray configuration
  * @param parentElement - The parent DOM element to render items into
  * @param css - Whether to process CSS styles (default: true)
  */
-export declare function adoptArray<T>(arrayExpr: ArrayExpr<T, any>, parentElement: Element, css?: boolean): void;
+export declare function adoptArray<T>(arrayExpr: MappedArrayExpr<T, any>, parentElement: Element, css?: boolean): void;

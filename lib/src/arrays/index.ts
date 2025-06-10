@@ -1,1 +1,1 @@
-export { DeclarativeArray, isArrayExpr } from './arrays'
+export { MappedArray, isMappedArrayExpr } from './arrays'

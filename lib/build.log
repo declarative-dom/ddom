@@ -35,7 +35,7 @@ src/index.ts → dist...
 https://rollupjs.org/troubleshooting/#error-name-is-not-exported-by-module
 src/arrays/arrays.ts (2:23)
 1: import { Signal } from '../events';
-2: import { evalTemplate, resolveSignalAddress } from '../templates';
+2: import { parseTemplateLiteral, resolveSignalAddress } from '../templates';
                           ^
 3: /**
 4:  * Evaluates a filter expression against an item in an array.

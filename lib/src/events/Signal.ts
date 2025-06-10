@@ -7,27 +7,48 @@ import { Signal } from 'signal-polyfill';
 export type SignalNode<T = any> = Signal.State<T> | Signal.Computed<T>;
 
 /**
- * Global Signal Watcher for tracking all signal effects.
- * This is primarily used for debugging and development purposes.
+ * Global signal watcher system following the recommended pattern from the Signal polyfill examples.
+ * This creates a single global watcher that processes all signal effects efficiently.
  */
+let needsEnqueue = true;
+
+const processPending = () => {
+	needsEnqueue = true;
+
+	for (const computedSignal of globalSignalWatcher.getPending()) {
+		computedSignal.get();
+	}
+
+	globalSignalWatcher.watch();
+};
+
 export const globalSignalWatcher = new Signal.subtle.Watcher(() => {
-	// Global watcher for debugging - logs all signal changes
-	// console.debug('Signal changed', arguments);
+	if (needsEnqueue) {
+		needsEnqueue = false;
+		queueMicrotask(processPending);
+	}
 });
 
 /**
- * Creates an effect that runs when its signal dependencies change.
- * This is the core reactivity primitive for DDOM.
+ * Creates a reactive effect that integrates with the global signal watcher system.
+ * This provides consistent reactive behavior across the entire DDOM system.
  * 
  * @param callback The effect callback function
  * @returns A cleanup function to dispose of the effect
  */
 export function createEffect(callback: () => void | (() => void)): () => void {
-  const watcher = new Signal.subtle.Watcher(callback);
-  watcher.watch();
-  
-  // Return cleanup function
+  let cleanup: (() => void) | void;
+
+  const computed = new Signal.Computed(() => {
+	cleanup?.();
+	cleanup = callback();
+  });
+
+  globalSignalWatcher.watch(computed);
+  computed.get();
+
   return () => {
-    watcher.unwatch();
+	globalSignalWatcher.unwatch(computed);
+	cleanup?.();
   };
 }
