@@ -2,6 +2,40 @@
 // No more $-prefixed properties! Uses transparent signal proxies and template literals.
 
 export default {
+
+  // No more $ prefix! This is a transparent signal proxy
+  items: ['Apple', 'Banana', 'Cherry'],
+
+  addItem: function () {
+    console.log('addItem called - this:', this);
+    
+    const newItem = prompt('Enter a new item:');
+    if (newItem) {
+      this.items.set([...this.items.get(), newItem]);
+    }
+  },
+
+  removeItem: function (index) {
+    // Transparent signal proxy allows normal array operations
+    const items = this.items.get();
+    if (index < 0 || index >= items.length) {
+      console.error('Index out of bounds:', index);
+      return;
+    }
+    console.log('removeItem called - index:', index, 'items:', items);
+    const updatedItems = [...items].filter((_, i) => i !== index);
+    console.log('Updated items after removal:', updatedItems);
+    this.items.set(updatedItems);
+  },
+
+  updateItem: function (index, newText) {
+    if (newText && newText.trim()) {
+      const updatedItems = [...this.items.get()];
+      updatedItems[index] = newText.trim();
+      this.items.set(updatedItems);
+    }
+  },
+
   document: {
     body: {
       style: {
@@ -22,7 +56,7 @@ export default {
         },
         {
           tagName: 'p',
-          textContent: 'No more $-prefixed properties! Template literals with ${...} get automatic reactivity.',
+          textContent: 'No more $-prefixed properties! Template literals with \\$\{...\} get automatic reactivity.',
           style: {
             textAlign: 'center',
             color: '#666',
@@ -55,7 +89,7 @@ export default {
                 marginBottom: '1em'
               },
               onclick: function () {
-                this.nextElementSibling.addItem();
+                window.addItem();
               }
             },
             {
@@ -71,36 +105,9 @@ export default {
     {
       tagName: 'dynamic-list-items',
 
-      // No more $ prefix! This is a transparent signal proxy
-      items: ['Apple', 'Banana', 'Cherry'],
-
-      addItem: function () {
-        console.log('addItem called - this:', this);
-        
-        const newItem = prompt('Enter a new item:');
-        if (newItem) {
-          // The 'items' property is now a transparent signal proxy
-          // We can access it like a normal property, but it's reactive
-          this.items = [...this.items, newItem];
-        }
-      },
-
-      removeItem: function (index) {
-        // Transparent signal proxy allows normal array operations
-        this.items = this.items.filter((_, i) => i !== index);
-      },
-
-      updateItem: function (index, newText) {
-        if (newText && newText.trim()) {
-          const updatedItems = [...this.items];
-          updatedItems[index] = newText.trim();
-          this.items = updatedItems;
-        }
-      },
-
       children: {
         // Use string address for signal resolution - much cleaner!
-        items: 'this.items', // String address instead of function
+        items: 'items', // String address instead of function
         map: {
           tagName: 'dynamic-list-item',
           // These are also transparent signal proxies now
@@ -117,9 +124,8 @@ export default {
 
     {
       tagName: 'dynamic-list-item',
-      // No $ prefix - transparent signal proxies
-      item: '',
-      index: 0,
+      // item: '',
+      // index: 0,
 
       children: [
         {
@@ -154,14 +160,11 @@ export default {
               onblur: function (event) {
                 const newText = this.textContent.trim();
                 const listItem = this.parentNode.parentNode;
-                const index = listItem.index; // No .get() needed - transparent proxy!
-                const originalItem = listItem.item;
+                const index = listItem.index.get();
+                const originalItem = listItem.item.get();
 
                 if (newText && newText !== originalItem) {
-                  listItem.parentNode.updateItem(index, newText);
-                } else if (!newText) {
-                  // Restore original if empty
-                  this.textContent = originalItem;
+                  window.updateItem(index, newText);
                 }
               },
               onkeydown: function (event) {
@@ -172,7 +175,7 @@ export default {
                 if (event.key === 'Escape') {
                   // Reset to original value
                   const listItem = this.parentNode.parentNode;
-                  this.textContent = listItem.item; // No .get() needed!
+                  this.textContent = listItem.item.get();
                   this.blur();
                 }
               }
@@ -191,9 +194,9 @@ export default {
               },
               onclick: function (event) {
                 const listItem = this.parentNode.parentNode;
-                const index = listItem.index; // No .get() needed!
-                if (confirm(`Are you sure you want to remove "${listItem.item}"?`)) {
-                  listItem.parentNode.removeItem(index);
+                const index = listItem.index.get();
+                if (confirm(`Are you sure you want to remove "${listItem.item.get()}"?`)) {
+                  window.removeItem(index);
                 }
               }
             }

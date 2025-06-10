@@ -14,7 +14,7 @@ export default {
         {
           tagName: 'h1',
           textContent: 'Interactive Form Example',
-          style: { 
+          style: {
             color: '#333',
             textAlign: 'center',
             marginBottom: '2em'
@@ -31,14 +31,12 @@ export default {
     {
       tagName: 'form-field',
 
-      // Reactive properties (only for runtime-changeable values)
+      // properties
       $value: '',
-
-      // Static configuration properties
       label: '',
       type: 'text',
       placeholder: '',
-      validator: null,
+      validator: () => true, // Default validator always returns true
       errorMessage: '',
       rows: 1,
 
@@ -54,7 +52,7 @@ export default {
       },
 
       get currentErrorMessage() {
-        return this.shouldShowError ? this.errorMessage : '';
+        return this.shouldShowError ? this.errorMessage.get() : '';
       },
 
       // Computed properties for conditional rendering
@@ -67,7 +65,7 @@ export default {
       },
 
       // Methods
-      updateValue: function(newValue) {
+      updateValue: function (newValue) {
         this.$value.set(newValue);
         // Also update the parent's signal if it exists
         if (this.parentSignal) {
@@ -76,37 +74,37 @@ export default {
       },
 
       // Set up parent signal binding when connected
-      connectedCallback: function(el) {
+      connectedCallback: function () {
         // Debug: log the properties to see what's actually set
         console.log('Form field connected with properties:', {
-          label: el.label,
-          type: el.type,
-          placeholder: el.placeholder
+          label: this.label.get(),
+          type: this.type.get(),
+          placeholder: this.placeholder.get()
         });
 
         // Find and bind to parent form's corresponding signal
-        const parentForm = el.closest('contact-form');
+        const parentForm = this.closest('contact-form');
         if (parentForm) {
-          if (el.type === 'text' && parentForm.$name) {
-            el.parentSignal = parentForm.$name;
+          if (this.type === 'text' && parentForm.$name) {
+            this.parentSignal = parentForm.$name;
             // Sync initial value
-            el.$value.set(parentForm.$name.get());
-          } else if (el.type === 'email' && parentForm.$email) {
-            el.parentSignal = parentForm.$email;
-            el.$value.set(parentForm.$email.get());
-          } else if (el.type === 'textarea' && parentForm.$message) {
-            el.parentSignal = parentForm.$message;
-            el.$value.set(parentForm.$message.get());
+            this.$value.set(parentForm.$name.get());
+          } else if (this.type === 'email' && parentForm.$email) {
+            this.parentSignal = parentForm.$email;
+            this.$value.set(parentForm.$email.get());
+          } else if (this.type === 'textarea' && parentForm.$message) {
+            this.parentSignal = parentForm.$message;
+            this.$value.set(parentForm.$message.get());
           }
         }
 
         // Set up reactive attributes for CSS styling
         DDOM.createEffect(() => {
-          el.setAttribute('data-valid', el.isValid);
-          el.setAttribute('data-show-error', el.shouldShowError);
-          el.setAttribute('data-field-type', el.type);
-          el.setAttribute('data-is-input', el.isInputField);
-          el.setAttribute('data-is-textarea', el.isTextareaField);
+          this.setAttribute('data-valid', this.isValid);
+          this.setAttribute('data-show-error', this.shouldShowError);
+          this.setAttribute('data-field-type', this.type);
+          this.setAttribute('data-is-input', this.isInputField);
+          this.setAttribute('data-is-textarea', this.isTextareaField);
         });
       },
 
@@ -146,7 +144,7 @@ export default {
       children: [
         {
           tagName: 'label',
-          textContent: '${this.parentNode.label}',
+          textContent: '${this.parentNode.label.get()}',
           style: {
             display: 'block',
             marginBottom: '0.5em',
@@ -155,8 +153,9 @@ export default {
         },
         {
           tagName: 'input',
-          type: '${this.parentNode.type}',
-          placeholder: '${this.parentNode.placeholder}',
+          name: '${this.parentNode.label.get()}',
+          type: '${this.parentNode.type.get()}',
+          placeholder: '${this.parentNode.placeholder.get()}',
           value: '${this.parentNode.$value.get()}',
           className: 'field-input input-field',
           style: {
@@ -166,15 +165,16 @@ export default {
             borderRadius: '4px',
             fontSize: '1em'
           },
-          oninput: function(e) {
+          oninput: function (e) {
             this.parentNode.updateValue(e.target.value);
           }
         },
         {
           tagName: 'textarea',
-          placeholder: '${this.parentNode.placeholder}',
+          name: '${this.parentNode.label.get()}',
+          placeholder: '${this.parentNode.placeholder.get()}',
           value: '${this.parentNode.$value.get()}',
-          rows: '${this.parentNode.rows}',
+          rows: '${this.parentNode.rows.get()}',
           className: 'field-input textarea-field',
           style: {
             width: '100%',
@@ -183,7 +183,7 @@ export default {
             borderRadius: '4px',
             fontSize: '1em'
           },
-          oninput: function(e) {
+          oninput: function (e) {
             this.parentNode.updateValue(e.target.value);
           }
         },
@@ -237,25 +237,25 @@ export default {
       },
 
       // Form methods
-      submitForm: function() {
+      submitForm: function () {
         if (this.isFormValid) {
-          alert(`Form submitted!\nName: ${this.formData.name}\nEmail: ${this.formData.email}\nMessage: ${this.formData.message}`);
+          alert(`Form submitted!\nName: ${this.formData.name.get()}\nEmail: ${this.formData.email.get()}\nMessage: ${this.formData.message.get()}`);
           this.resetForm();
         } else {
           alert('Please fill out all fields correctly before submitting.');
         }
       },
 
-      resetForm: function() {
+      resetForm: function () {
         this.$name.set('');
         this.$email.set('');
         this.$message.set('');
       },
 
       // Set up reactive attributes for CSS styling
-      connectedCallback: function(el) {
+      connectedCallback: function () {
         DDOM.createEffect(() => {
-          el.setAttribute('data-form-valid', el.isFormValid);
+          this.setAttribute('data-form-valid', this.isFormValid);
         });
       },
 
@@ -332,7 +332,7 @@ export default {
                 borderRadius: '4px',
                 fontSize: '1em'
               },
-              onclick: function() { 
+              onclick: function () {
                 this.parentNode.parentNode.submitForm();
               }
             },
@@ -350,7 +350,7 @@ export default {
                 fontSize: '1em',
                 cursor: 'pointer'
               },
-              onclick: function() { 
+              onclick: function () {
                 this.parentNode.parentNode.resetForm();
               }
             }
@@ -380,19 +380,38 @@ export default {
               children: [
                 {
                   tagName: 'div',
-                  textContent: 'Name: ${this.closest("contact-form").$name.get()}'
+                  value: function () {
+                    // debug
+                    console.log('this.value() called in live preview');
+                    console.log('this: ', this);
+                    const form = this.parentElement.parentElement.parentElement;
+                    console.log('form: ', form);
+                    console.log('form.$name: ', form.$name.get());
+                    return form.$name;
+                  },
+                  textContent: 'Name: ${this.value().get()}'
                 },
                 {
                   tagName: 'div',
-                  textContent: 'Email: ${this.closest("contact-form").$email.get()}'
+                  value: function () {
+                    // debug
+                    console.log('this.value() called in live preview');
+                    return this.parentElement.parentElement.parentElement.$email;
+                  },
+                  textContent: 'Email: ${this.value().get()}'
                 },
                 {
                   tagName: 'div',
-                  textContent: 'Message: ${this.closest("contact-form").$message.get()}'
+                  value: function () {
+                    // debug
+                    console.log('this.value() called in live preview');
+                    return this.parentElement.parentElement.parentElement.$message;
+                  },
+                  textContent: 'Message: ${this.value().get()}'
                 },
                 {
                   tagName: 'div',
-                  textContent: 'Valid: ${this.closest("contact-form").isFormValid ? "Yes" : "No"}',
+                  textContent: 'Valid: ${this.parentElement.parentElement.parentElement.isFormValid ? "Yes" : "No"}',
                   className: 'form-status',
                   style: {
                     marginTop: '0.5em',

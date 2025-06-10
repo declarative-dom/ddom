@@ -55,6 +55,7 @@ export declare function computedTemplate(template: string, contextNode: Node): S
 /**
  * Sets up reactive template binding for a property.
  * Creates a computed signal and effect that updates the property when template dependencies change.
+ * Uses AbortController for modern cleanup pattern.
  *
  * @param el - The DOM element
  * @param property - The property name to bind
@@ -65,6 +66,7 @@ export declare function bindReactiveProperty(el: any, property: string, template
 /**
  * Sets up reactive template binding for an attribute.
  * Creates a computed signal and effect that updates the attribute when template dependencies change.
+ * Uses AbortController for modern cleanup pattern.
  *
  * @param el - The DOM element
  * @param attribute - The attribute name to bind

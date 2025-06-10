@@ -100,6 +100,8 @@ export declare function createElement(spec: HTMLElementSpec, css?: boolean): HTM
  * as a DOM element, properly handling reactive properties and leveraging existing element
  * creation functions.
  *
+ * Uses modern fine-grained updates instead of clearing and re-rendering everything.
+ *
  * @param arrayExpr - The MappedArray configuration
  * @param parentElement - The parent DOM element to render items into
  * @param css - Whether to process CSS styles (default: true)

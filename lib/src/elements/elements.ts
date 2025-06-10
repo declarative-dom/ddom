@@ -160,7 +160,7 @@ const ddomHandlers: {
 			const eventName = key.slice(2).toLowerCase();
 			el.addEventListener(eventName, descriptor.value as EventListener);
 		}
-		// For all other properties, only proceed if the property doesn't exist as an instance property
+		// For all other properties, proceed if the property doesn't exist as an instance property
 		else if (!Object.prototype.hasOwnProperty.call(el, key)) {
 			// Handle native getter/setter properties (ES6+ syntax)
 			if (descriptor.get || descriptor.set) {
@@ -185,6 +185,16 @@ const ddomHandlers: {
 					// Protected properties are set once and never reactive
 					(el as any)[key] = descriptor.value;
 				}
+			}
+		} else {
+			// if the property already exists on the element, update it if it's a signal
+			const existingValue = (el as any)[key];
+			if (Signal.isState(existingValue)) {
+				// If it's a signal, update its value
+				(el as any)[key].set(descriptor.value);
+			} else {
+				// Otherwise, just set the value directly
+				(el as any)[key] = descriptor.value;
 			}
 		}
 	}
@@ -235,7 +245,7 @@ export function adoptDocument(spec: DocumentSpec) {
  * ```
  */
 export function adoptNode(spec: DOMSpec, el: DOMNode, css: boolean = true, ignoreKeys: string[] = []): void {
-	let allIgnoreKeys = ['children',...ignoreKeys];
+	let allIgnoreKeys = ['children', ...ignoreKeys];
 
 	// Process all properties using descriptors - handles both values and native getters/setters
 	const specDescriptors = Object.getOwnPropertyDescriptors(spec);
@@ -413,6 +423,8 @@ function adoptStyles(el: Element, styles: StyleExpr): void {
  * as a DOM element, properly handling reactive properties and leveraging existing element
  * creation functions.
  * 
+ * Uses modern fine-grained updates instead of clearing and re-rendering everything.
+ * 
  * @param arrayExpr - The MappedArray configuration
  * @param parentElement - The parent DOM element to render items into
  * @param css - Whether to process CSS styles (default: true)
@@ -421,39 +433,144 @@ export function adoptArray<T>(
 	arrayExpr: MappedArrayExpr<T, any>,
 	parentElement: Element,
 	css = true,
-): void {	// Create the reactive MappedArrayExpr instance
+): void {
+	// Create the reactive MappedArrayExpr instance
 	const reactiveArray = new MappedArray(arrayExpr, parentElement);
 
-	// Function to render the current array state
-	const renderArray = () => {
-		// Clear existing children
-		parentElement.innerHTML = '';
+	// Keep track of rendered elements by index for efficient updates
+	const renderedElements = new Map<number, Element>();
+	let previousItems: any[] = [];
 
-		// Get current processed items
-		const items = reactiveArray.get();
+	// Function to update the current array state with fine-grained updates
+	const updateArray = (items: any[]) => {
+		console.debug('updateArray called with items:', items);
 
-		// Render each mapped item
-		items.forEach((item: any) => {
+		// Build a map of current items by their mapped index for proper tracking
+		const newElementMap = new Map<number, Element>();
+		const elementsToCreate: { item: any; index: number }[] = [];
+
+		// Process items and determine what needs to be created vs. reused
+		items.forEach((item: any, arrayIndex: number) => {
 			if (item && typeof item === 'object' && item.tagName) {
-				// append the element
-				const el = appendChild(item, (parentElement as HTMLElement), css);
+				// Look for an existing element that can be reused
+				let foundElement: Element | undefined;
+				let foundIndex: number | undefined;
+
+				// Try to find an existing element with matching content
+				for (const [existingIndex, existingElement] of renderedElements.entries()) {
+					const existingItem = previousItems[existingIndex];
+					if (existingItem && deepEqual(item, existingItem)) {
+						foundElement = existingElement;
+						foundIndex = existingIndex;
+						break;
+					}
+				}
+
+				if (foundElement && foundIndex !== undefined) {
+					// Reuse existing element
+					newElementMap.set(arrayIndex, foundElement);
+					renderedElements.delete(foundIndex); // Remove from old map
+				} else {
+					// Need to create new element
+					elementsToCreate.push({ item, index: arrayIndex });
+				}
+			}
+		});
+
+		// Remove any remaining unused elements
+		for (const [, element] of renderedElements.entries()) {
+			if (element.parentNode === parentElement) {
+				element.remove();
+			}
+		}
+
+		// Create new elements
+		elementsToCreate.forEach(({ item, index }) => {
+			const element = createElement(item, css);
+
+			// Apply mapped properties as reactive signals to the element
+			Object.entries(item).forEach(([key, value]) => {
+				if (key !== 'tagName' && key !== 'children' && key !== 'style' && key !== 'attributes') {
+					// Set up reactive properties on the element
+					if (typeof value === 'string' && isTemplateLiteral(value)) {
+						bindReactiveProperty(element, key, value);
+					} else {
+						createReactiveProperty(element, key, value);
+					}
+				}
+			});
+
+			newElementMap.set(index, element);
+		});
+
+		// Modern approach: just replace all children with the correct order
+		// Our custom elements now handle re-initialization properly, so this is safe and simple
+		const orderedElements = items
+			.map((_, index) => newElementMap.get(index))
+			.filter((element): element is Element => element !== undefined);
+
+		// Single DOM operation - much simpler and still performant
+		parentElement.replaceChildren(...orderedElements);
+
+		// Update our tracking maps
+		renderedElements.clear();
+		newElementMap.forEach((element, index) => {
+			renderedElements.set(index, element);
+		});
+
+		previousItems = [...items];
+	};
+
+	// Helper function to update element properties efficiently
+	const updateElementProperties = (element: Element, newItem: any, oldItem: any) => {
+		if (!oldItem) return;
+
+		// Compare properties and only update what changed
+		Object.entries(newItem).forEach(([key, newValue]) => {
+			const oldValue = oldItem[key];
+
+			// Use Object.is for better equality checking
+			if (!Object.is(newValue, oldValue) && !deepEqual(newValue, oldValue)) {
+				if (key === 'textContent' || key === 'innerHTML') {
+					(element as any)[key] = newValue;
+				} else if (key === 'style' && typeof newValue === 'object') {
+					Object.assign((element as HTMLElement).style, newValue);
+				} else if (key === 'attributes' && typeof newValue === 'object' && newValue !== null) {
+					Object.entries(newValue).forEach(([attrName, attrValue]) => {
+						element.setAttribute(attrName, String(attrValue));
+					});
+				} else if (key !== 'tagName' && key !== 'children') {
+					// Update other properties
+					(element as any)[key] = newValue;
+				}
 			}
 		});
 	};
 
-	// Initial render
-	renderArray();
+	// Deep equality check for complex objects
+	const deepEqual = (a: any, b: any): boolean => {
+		if (Object.is(a, b)) return true;
+		if (a == null || b == null) return false;
+		if (typeof a !== typeof b || typeof a !== 'object') return false;
 
-	// Set up reactive effect using the integrated createEffect function
-	// This will automatically re-render when the array's dependencies change
+		const keysA = Object.keys(a);
+		const keysB = Object.keys(b);
+
+		return keysA.length === keysB.length &&
+			keysA.every(key => deepEqual(a[key], b[key]));
+	};
+
+	// Set up reactive effect that handles both initial render and updates
 	const effectCleanup = createEffect(() => {
-		// Access the array signal to establish dependencies
-		reactiveArray.get();
+		// Get the current items within the effect to establish dependency tracking
+		const currentItems = reactiveArray.get();
+		console.debug('Effect triggered with items:', currentItems);
 
-		// Return cleanup function that triggers re-render
-		return () => {
-			queueMicrotask(renderArray);
-		};
+		// Call updateArray immediately with the current items
+		updateArray(currentItems);
+
+		// Return empty cleanup since we're not deferring the update
+		return () => { };
 	});
 
 	// Note: effectCleanup could be returned if the caller needs to clean up manually,

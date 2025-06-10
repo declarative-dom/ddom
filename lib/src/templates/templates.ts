@@ -104,6 +104,7 @@ export function computedTemplate(template: string, contextNode: Node): Signal.Co
 /**
  * Sets up reactive template binding for a property.
  * Creates a computed signal and effect that updates the property when template dependencies change.
+ * Uses AbortController for modern cleanup pattern.
  * 
  * @param el - The DOM element
  * @param property - The property name to bind
@@ -126,10 +127,10 @@ export function bindReactiveProperty(
     }
   });
 
-  // If there's a global cleanup collector, add this cleanup to it
-  const globalCollector = (globalThis as any).__ddom_cleanup_collector;
-  if (globalCollector && Array.isArray(globalCollector)) {
-    globalCollector.push(cleanup);
+  // Use AbortController signal for automatic cleanup if available
+  const signal = (globalThis as any).__ddom_abort_signal;
+  if (signal && !signal.aborted) {
+    signal.addEventListener('abort', cleanup, { once: true });
   }
 
   return cleanup;
@@ -138,6 +139,7 @@ export function bindReactiveProperty(
 /**
  * Sets up reactive template binding for an attribute.
  * Creates a computed signal and effect that updates the attribute when template dependencies change.
+ * Uses AbortController for modern cleanup pattern.
  * 
  * @param el - The DOM element
  * @param attribute - The attribute name to bind
@@ -165,10 +167,10 @@ export function bindReactiveAttribute(
     }
   });
 
-  // If there's a global cleanup collector, add this cleanup to it
-  const globalCollector = (globalThis as any).__ddom_cleanup_collector;
-  if (globalCollector && Array.isArray(globalCollector)) {
-    globalCollector.push(cleanup);
+  // Use AbortController signal for automatic cleanup if available
+  const signal = (globalThis as any).__ddom_abort_signal;
+  if (signal && !signal.aborted) {
+    signal.addEventListener('abort', cleanup, { once: true });
   }
 
   return cleanup;
