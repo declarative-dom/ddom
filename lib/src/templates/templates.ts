@@ -4,65 +4,6 @@ import {
 } from '../events';
 
 /**
- * Transparent Signal Property Wrapper
- * Provides getter/setter syntax while maintaining reactivity with the TC39 Signals proposal.
- * This allows properties to feel like normal properties while being reactive underneath.
- */
-class SignalProperty {
-  private _signal: Signal.State<any>;
-
-  constructor(initialValue: any) {
-    this._signal = new Signal.State(initialValue);
-    
-    // Create a proxy that intercepts property access
-    return new Proxy(this, {
-      get(target, prop) {
-        // Special method to access the underlying signal
-        if (prop === '__getSignal') {
-          return () => target._signal;
-        }
-        
-        // Special method to check if this is a SignalProperty
-        if (prop === '__isSignalProperty') {
-          return true;
-        }
-        
-        // For any other property access, return the signal value
-        if (prop === Symbol.toPrimitive || prop === 'valueOf' || prop === 'toString') {
-          return () => target._signal.get();
-        }
-        
-        // Default behavior for other properties
-        return (target as any)[prop];
-      },
-      
-      set(target, prop, value) {
-        // Setting any property on the proxy updates the signal
-        target._signal.set(value);
-        return true;
-      }
-    }) as any;
-  }
-  
-  // Make it work with template literals and string coercion
-  valueOf() {
-    return this._signal.get();
-  }
-  
-  toString() {
-    return String(this._signal.get());
-  }
-  
-  // Symbol.toPrimitive for better type coercion
-  [Symbol.toPrimitive](hint: string) {
-    const value = this._signal.get();
-    if (hint === 'number') return Number(value);
-    if (hint === 'string') return String(value);
-    return value;
-  }
-}
-
-/**
  * Resolves a signal address string to the actual signal object.
  * Supports addresses like "window.todos", "this.parentNode.items", etc.
  * 
@@ -79,11 +20,6 @@ export function resolveSignalAddress(address: string, contextNode: Node): Signal
       return resolved;
     }
     
-    // Check if it's a SignalProperty
-    if (resolved && resolved.__isSignalProperty) {
-      return resolved.__getSignal();
-    }
-    
     return null;
   } catch (error) {
     console.warn(`Failed to resolve signal address "${address}":`, error);
@@ -92,18 +28,18 @@ export function resolveSignalAddress(address: string, contextNode: Node): Signal
 }
 
 /**
- * Creates a reactive property using a transparent signal wrapper.
- * This makes the property feel like a normal property while being reactive.
+ * Creates a reactive property using a direct Signal.State object.
+ * This ensures proper dependency tracking with the TC39 Signals polyfill.
  * 
  * @param el - The element to attach the property to
  * @param property - The property name
  * @param initialValue - The initial value for the property
- * @returns The SignalProperty instance
+ * @returns The Signal.State instance
  */
-export function createReactiveProperty(el: any, property: string, initialValue: any): any {
-  const signalProperty = new SignalProperty(initialValue);
-  el[property] = signalProperty;
-  return signalProperty;
+export function createReactiveProperty(el: any, property: string, initialValue: any): Signal.State<any> {
+  const signal = new Signal.State(initialValue);
+  el[property] = signal;
+  return signal;
 }
 
 /**
@@ -125,12 +61,14 @@ export function parseTemplateLiteral(template: string, contextNode: Node): strin
 
 /**
  * Detects if a template string contains reactive expressions (${...}).
+ * Simple detection - just looks for ${. To display literal ${} in text,
+ * escape the dollar sign with a backslash: \${
  * 
  * @param template - The template string to check
  * @returns True if the template contains reactive expressions
  */
 export function isTemplateLiteral(template: string): boolean {
-  return /\$\{.*?\}/.test(template);
+  return template.includes('${');
 }
 
 /**

@@ -35,7 +35,7 @@ export default {
         {
           tagName: 'h3',
           // Template literals automatically get computed signals + effects
-          textContent: 'Count: ${this.parentNode.count}',
+          textContent: 'Count: ${this.parentNode.count.get()}',
           style: {
             margin: '0 0 1em 0',
             fontSize: '1.5em'
@@ -124,7 +124,7 @@ export default {
         },
         {
           tagName: 'p',
-          textContent: 'Current theme: ${this.parentNode.theme}',
+          textContent: 'Current theme: ${this.parentNode.theme.get()}',
           style: {
             margin: '1em 0 0 0',
             fontSize: '0.9em',
@@ -186,7 +186,7 @@ export default {
           tagName: 'input',
           attributes: {
             type: 'checkbox',
-            checked: '${this.parentNode.item.completed}'
+            checked: '${this.parentNode.item.completed.get()}'
           },
           style: {
             marginRight: '0.5em'
@@ -200,11 +200,11 @@ export default {
         },
         {
           tagName: 'span',
-          textContent: '${this.parentNode.item.text}',
+          textContent: '${this.parentNode.item.text.get()}',
           style: {
             flex: '1',
-            textDecoration: '${this.parentNode.item.completed ? "line-through" : "none"}',
-            color: '${this.parentNode.item.completed ? "#888" : "#333"}'
+            textDecoration: '${this.parentNode.item.completed.get() ? "line-through" : "none"}',
+            color: '${this.parentNode.item.completed.get() ? "#888" : "#333"}'
           }
         },
         {

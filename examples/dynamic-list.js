@@ -139,7 +139,7 @@ export default {
             {
               tagName: 'span',
               // Template literal automatically gets computed signal + effect!
-              textContent: '${this.parentNode.parentNode.item}',
+              textContent: '${this.parentNode.parentNode.item.get()}',
               contentEditable: true,
               style: {
                 flex: '1',

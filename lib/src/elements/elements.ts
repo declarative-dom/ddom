@@ -34,8 +34,11 @@ import {
 	createReactiveProperty
 } from '../templates';
 
-// Protected properties that should never be reactive
-const PROTECTED_PROPERTIES = new Set(['id', 'tagName']);
+// Properties that are immutable after element creation (structural identity)
+const IMMUTABLE_PROPERTIES = new Set(['id', 'tagName']);
+
+// Properties that should use imperative updates rather than signal assignment (mutable state)
+const IMPERATIVE_PROPERTIES = new Set(['textContent', 'innerHTML', 'outerHTML', 'className', 'contentEditable', 'style']);
 
 const ddomHandlers: {
 	[key: string]: (spec: DOMSpec, el: DOMNode, key: string, descriptor: PropertyDescriptor, css?: boolean) => void;
@@ -166,19 +169,17 @@ const ddomHandlers: {
 			// Handle non-event function properties
 			else if (typeof descriptor.value === 'function') {
 				(el as any)[key] = descriptor.value;
-			} else if (typeof descriptor.value === 'string') {
-				// Check if this is a reactive template expression
-				if (isTemplateLiteral(descriptor.value)) {
-					// Set up fine-grained reactivity - the template will auto-update when dependencies change
-					bindReactiveProperty(el, key, descriptor.value);
-				} else {
-					// Static string - evaluate once and set
-					(el as any)[key] = parseTemplateLiteral(descriptor.value, el as Node);
-				}
+			} else if (typeof descriptor.value === 'string' && isTemplateLiteral(descriptor.value) && !IMMUTABLE_PROPERTIES.has(key)) {
+				// Set up fine-grained reactivity - the template will auto-update when dependencies change
+				// debug
+				console.debug(`Binding reactive property for key "${key}" with template:`, descriptor.value);
+				bindReactiveProperty(el, key, descriptor.value);
 			} else {
 				// For non-function, non-templated properties, wrap in transparent signal proxy
 				// but only if not protected (id, tagName)
-				if (!PROTECTED_PROPERTIES.has(key)) {
+				if (!IMPERATIVE_PROPERTIES.has(key)) {
+					// debug
+					console.debug(`Creating signal for key "${key}" with value:`, descriptor.value);
 					createReactiveProperty(el, key, descriptor.value);
 				} else {
 					// Protected properties are set once and never reactive
@@ -234,7 +235,7 @@ export function adoptDocument(spec: DocumentSpec) {
  * ```
  */
 export function adoptNode(spec: DOMSpec, el: DOMNode, css: boolean = true, ignoreKeys: string[] = []): void {
-	let allIgnoreKeys = [...ignoreKeys];
+	let allIgnoreKeys = ['children',...ignoreKeys];
 
 	// Process all properties using descriptors - handles both values and native getters/setters
 	const specDescriptors = Object.getOwnPropertyDescriptors(spec);
@@ -254,6 +255,24 @@ export function adoptNode(spec: DOMSpec, el: DOMNode, css: boolean = true, ignor
 		const handler = ddomHandlers[key] || ddomHandlers.default;
 		handler(spec, el, key, descriptor, css);
 	});
+
+	// Handle children last to ensure all properties are set before appending
+	if ('children' in spec && spec.children) {
+		const children = spec.children;
+		if (isMappedArrayExpr(children)) {
+			try {
+				adoptArray(children, el as Element, css);
+			} catch (error) {
+				console.warn(`Failed to process MappedArrayExpr for children:`, error);
+			}
+		} else if (Array.isArray(children)) {
+			children.forEach((child: HTMLElementSpec) => {
+				appendChild(child, el as DOMNode, css);
+			});
+		} else {
+			console.warn(`Invalid children value for key "children":`, children);
+		}
+	}
 }
 
 

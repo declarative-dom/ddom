@@ -16,8 +16,13 @@ export { Signal } from 'signal-polyfill';
 export { MappedArray } from './arrays/arrays';
 export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindReactiveProperty, bindReactiveAttribute } from './templates/templates';
 
-// Default export with DDOM namespace
-const DDOM = {
+// Default export: DDOM function with namespace properties
+function DDOM(spec: any) {
+	adoptWindow(spec);
+}
+
+// Add all methods as properties on the DDOM function
+Object.assign(DDOM, {
 	adoptDocument,
 	adoptNode,
 	adoptStyleSheet,
@@ -38,33 +43,14 @@ const DDOM = {
 	isTemplateLiteral,
 	bindReactiveProperty,
 	bindReactiveAttribute
-};
+});
 
 export default DDOM;
 
 // Create global DDOM namespace when script loads
 declare global {
 	interface Window {
-		DDOM: {
-			adoptDocument: typeof adoptDocument;
-			adoptNode: typeof adoptNode;
-			adoptStyleSheet: typeof adoptStyleSheet;
-			adoptWindow: typeof adoptWindow;
-			appendChild: typeof appendChild;
-			clearStyleSheet: typeof clearStyleSheet;
-			createEffect: typeof createEffect;
-			createReactiveProperty: typeof createReactiveProperty;
-			createElement: typeof createElement;
-			parseTemplateLiteral: typeof parseTemplateLiteral;
-			bindTemplate: typeof bindTemplate;
-			computedTemplate: typeof computedTemplate;
-			isTemplateLiteral: typeof isTemplateLiteral;
-			bindReactiveProperty: typeof bindReactiveProperty;
-			bindReactiveAttribute: typeof bindReactiveAttribute;
-			customElements: {
-				define: typeof define;
-			};
-		};
+		DDOM: typeof DDOM;
 		MappedArray: typeof MappedArray;
 		Signal: typeof Signal;
 	}

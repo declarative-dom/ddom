@@ -9,15 +9,15 @@ import { Signal } from '../events';
  */
 export declare function resolveSignalAddress(address: string, contextNode: Node): Signal.State<any> | Signal.Computed<any> | null;
 /**
- * Creates a reactive property using a transparent signal wrapper.
- * This makes the property feel like a normal property while being reactive.
+ * Creates a reactive property using a direct Signal.State object.
+ * This ensures proper dependency tracking with the TC39 Signals polyfill.
  *
  * @param el - The element to attach the property to
  * @param property - The property name
  * @param initialValue - The initial value for the property
- * @returns The SignalProperty instance
+ * @returns The Signal.State instance
  */
-export declare function createReactiveProperty(el: any, property: string, initialValue: any): any;
+export declare function createReactiveProperty(el: any, property: string, initialValue: any): Signal.State<any>;
 /**
  * Evaluates JavaScript template literals using DOM nodes as context.
  * Uses native JavaScript template literal syntax with the context node as 'this'.
@@ -29,6 +29,8 @@ export declare function createReactiveProperty(el: any, property: string, initia
 export declare function parseTemplateLiteral(template: string, contextNode: Node): string;
 /**
  * Detects if a template string contains reactive expressions (${...}).
+ * Simple detection - just looks for ${. To display literal ${} in text,
+ * escape the dollar sign with a backslash: \${
  *
  * @param template - The template string to check
  * @returns True if the template contains reactive expressions
