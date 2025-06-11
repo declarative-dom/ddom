@@ -40,20 +40,22 @@ export default {
       rows: 1,
       valueSignalName: '', // Name of the signal property on parent (e.g., '$name')
 
-      // Runtime signal reference (established in connectedCallback)
-      valueSignal: {},
+      // Runtime signal reference (established in connectedCallback after properties are set)
+      valueSignal: null,
 
       // Computed validation using the passed signal
       get isValid() {
-        if (!this.valueSignal) return true;
+        if (!this.valueSignal || !DDOM.Signal.isState(this.valueSignal)) return true;
         const value = this.valueSignal.get();
+        if (typeof value !== 'string') return true; // No validation if not a string
         const validator = this.validator;
         return validator ? validator(value) : true;
       },
 
       get shouldShowError() {
-        if (!this.valueSignal) return false;
+        if (!this.valueSignal || !DDOM.Signal.isState(this.valueSignal)) return false;
         const value = this.valueSignal.get();
+        if (typeof value !== 'string') return false;
         return value.length > 0 && !this.isValid;
       },
 
@@ -72,25 +74,49 @@ export default {
 
       // Methods
       updateValue: function (newValue) {
-        // Direct signal binding - update the passed signal
-        if (this.valueSignal) {
+        // Direct signal binding - update the signal directly
+        if (this.valueSignal && DDOM.Signal.isState(this.valueSignal)) {
           this.valueSignal.set(newValue);
         }
       },
 
       connectedCallback: function () {
-        // Establish signal connection with parent
-        if (this.valueSignalName && this.parentNode && this.parentNode[this.valueSignalName.get()]) {
-          this.valueSignal = this.parentNode[this.valueSignalName.get()];
-        }
-
-        // Set up reactive attributes for CSS styling
+        // Set up reactive attributes for CSS styling  
         DDOM.createEffect(() => {
           this.setAttribute('data-valid', this.isValid);
           this.setAttribute('data-show-error', this.shouldShowError);
           this.setAttribute('data-field-type', this.type.get());
           this.setAttribute('data-is-input', this.isInputField);
           this.setAttribute('data-is-textarea', this.isTextareaField);
+        });
+
+        // Set up effect to connect to parent signal and sync DOM values
+        // This will run after properties are assigned, so valueSignalName will be correct
+        DDOM.createEffect(() => {
+          const signalName = this.valueSignalName.get();
+          if (signalName && this.parentNode && this.parentNode[signalName]) {
+            // Connect to parent signal
+            if (this.valueSignal !== this.parentNode[signalName]) {
+              this.valueSignal = this.parentNode[signalName];
+            }
+
+            // Sync DOM input values with signal
+            if (this.valueSignal && DDOM.Signal.isState(this.valueSignal)) {
+              const value = this.valueSignal.get();
+
+              // Update input field
+              const input = this.children[1];
+              if (input && input.value !== value) {
+                input.value = value;
+              }
+
+              // Update textarea field
+              const textarea = this.children[2];
+              if (textarea && textarea.value !== value) {
+                textarea.value = value;
+              }
+            }
+          }
         });
       },
 
@@ -361,19 +387,20 @@ export default {
               children: [
                 {
                   tagName: 'div',
-                  textContent: 'Name: ${this.parentElement.parentElement.parentElement.$name.get()}'
+                  tag: function () { return this.parent.parent.parent.$name },
+                  textContent: 'Name: ${this.parentNode.parentNode.parentNode.$name.get()}'
                 },
                 {
                   tagName: 'div',
-                  textContent: 'Email: ${this.parentElement.parentElement.parentElement.$email.get()}'
+                  textContent: 'Email: ${this.parentNode.parentNode.parentNode.$email.get()}'
                 },
                 {
                   tagName: 'div',
-                  textContent: 'Message: ${this.parentElement.parentElement.parentElement.$message.get()}'
+                  textContent: 'Message: ${this.parentNode.parentNode.parentNode.$message.get()}'
                 },
                 {
                   tagName: 'div',
-                  textContent: 'Valid: ${this.parentElement.parentElement.parentElement.isFormValid ? "Yes" : "No"}',
+                  textContent: 'Valid: ${this.parentNode.parentNode.parentNode.isFormValid ? "Yes" : "No"}',
                   className: 'form-status',
                   style: {
                     marginTop: '0.5em',

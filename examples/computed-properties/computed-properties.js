@@ -50,18 +50,18 @@ export default {
 			},
 			
 			// Update attributes reactively when score changes
-			connectedCallback: function(el) {
+			connectedCallback: function() {
 				// Set up reactive attribute updates using createEffect
 				DDOM.createEffect(() => {
 					// These .get() calls register dependencies automatically
-					const level = el.levelClass;  // computed property access
-					const score = el.$score.get(); // reactive signal access
-					const progress = el.progressPercentage; // computed property access
+					const level = this.levelClass;  // computed property access
+					const score = this.$score.get(); // reactive signal access
+					const progress = this.progressPercentage; // computed property access
 					
 					// Set attributes on the custom element (el) so CSS selectors work
-					el.setAttribute('data-level', level);
-					el.setAttribute('data-score', score);
-					el.setAttribute('data-progress', progress);
+					this.setAttribute('data-level', level);
+					this.setAttribute('data-score', score);
+					this.setAttribute('data-progress', progress);
 				});
 			},
 

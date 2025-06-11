@@ -52,7 +52,6 @@ export function define(elements: CustomElementSpec[]) {
 			// Properties to ignore during DOM adoption
 			const ignoreKeys = [
 				'tagName', 'document', 'style', 'constructor',
-				...Object.getOwnPropertyNames(HTMLElement.prototype),
 				...getterSetters.map(([key]) => key)
 			];
 
@@ -107,8 +106,18 @@ export function define(elements: CustomElementSpec[]) {
 					(globalThis as any).__ddom_abort_signal = this.#controller.signal;
 
 					try {
+						// Add properties that already exist on the element to ignoreKeys
+						// This prevents the custom element spec from overwriting instance properties
+						const instanceIgnoreKeys = [
+							...ignoreKeys,
+							...Object.keys(this).filter(key => 
+								Object.prototype.hasOwnProperty.call(this, key) && 
+								!ignoreKeys.includes(key)
+							)
+						];
+
 						// Disable CSS processing since styles are already registered at definition time
-						adoptNode(spec, this.#container, false, ignoreKeys);
+						adoptNode(spec, this.#container, false, instanceIgnoreKeys);
 					} finally {
 						delete (globalThis as any).__ddom_abort_signal;
 					}
