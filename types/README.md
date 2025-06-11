@@ -1,54 +1,58 @@
-# Your Types Library
+# Declarative DOM Types
 
-TypeScript type definitions for your library.
+TypeScript type definitions for Declarative DOM (DDOM), a universal syntax for expressing DOM structures using JavaScript object literals. These types serve as the universal source of truth for defining DDOM syntax, enabling type-safe, declarative construction of web interfaces.
 
 ## Installation
 
 ```bash
-npm install @your-org/your-types-library
+npm install @declarative-dom/types
 ```
 
 ## Usage
 
 ```typescript
-import { Config, UserProfile, ApiResponse } from '@your-org/your-types-library';
+import { MappedArrayExpr, FilterExpr, StyleExpr, CustomElementSpec } from '@declarative-dom/types';
 
-// Use the types in your code
-const config: Config = {
-  name: 'my-config',
-  enabled: true,
-  metadata: { version: '1.0.0' }
+// Example: Define a mapped array expression
+const mappedArray: MappedArrayExpr<{ id: number; name: string }, string> = {
+  items: [{ id: 1, name: 'Item 1' }, { id: 2, name: 'Item 2' }],
+  map: (item) => item.name,
+  filter: [{ leftOperand: 'id', operator: '>=', rightOperand: 2 }],
 };
 
-const user: UserProfile = {
-  id: '123',
-  name: 'John Doe',
-  email: 'john@example.com',
-  role: 'user',
-  createdAt: new Date()
+// Example: Define a custom element specification
+const customElement: CustomElementSpec = {
+  tagName: 'my-element',
+  connectedCallback: (element) => {
+    console.log('Element connected:', element);
+  },
 };
 
-const response: ApiResponse<UserProfile> = {
-  success: true,
-  data: user
+// Example: Define a style expression
+const style: StyleExpr = {
+  backgroundColor: 'blue',
+  ':hover': {
+    backgroundColor: 'red',
+  },
 };
 ```
 
 ## Available Types
 
-### Core Interfaces
+### Core Types
 
-- `Config` - Base configuration interface
-- `UserProfile` - User profile interface
-- `ApiResponse<T>` - Generic API response wrapper
-- `PaginationParams` - Pagination parameters
+- `MappedArrayExpr<T, R>` - Defines declarative array mapping, filtering, and sorting.
+- `FilterExpr<T>` - Defines filter expressions for array items.
+- `SortExpr<T>` - Defines sorting expressions for array items.
+- `StyleExpr` - Defines declarative CSS styles with support for nesting.
+- `CustomElementSpec` - Defines specifications for custom elements.
+- `DOMSpec` - Represents the declarative structure of DOM nodes.
+- `ElementSpec` - Represents individual DOM elements.
 
 ### Utility Types
 
-- `UserRole` - Available user roles
-- `EventHandler<T>` - Event handler function type
-- `Optional<T>` - Makes all properties optional
-- `RequireFields<T, K>` - Makes specific properties required
+- `FilterOper` - Supported operators for filter expressions.
+- `Operator` - Supported operators for general expressions.
 
 ## Development
 
@@ -58,7 +62,7 @@ const response: ApiResponse<UserProfile> = {
 npm run build
 ```
 
-### Testing Types
+### Testing
 
 ```bash
 npm test
