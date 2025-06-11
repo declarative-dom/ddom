@@ -152,14 +152,11 @@ const ddomHandlers: {
 				(el as any)[key] = descriptor.value;
 			} else if (typeof descriptor.value === 'string' && isTemplateLiteral(descriptor.value) && !IMMUTABLE_PROPERTIES.has(key)) {
 				// Set up fine-grained reactivity - the template will auto-update when dependencies change
-				console.debug(`Binding reactive property for key "${key}" with template:`, descriptor.value);
 				bindPropertyTemplate(el, key, descriptor.value);
 			} else {
 				// For non-function, non-templated properties, wrap in transparent signal proxy
 				// but only if not protected (id, tagName)
 				if (!IMPERATIVE_PROPERTIES.has(key)) {
-					// debug
-					console.debug(`Creating reactive property for key "${key}" with initial value:`, descriptor.value);
 					// check to see if it's a signal already
 					if (typeof descriptor.value === 'object' && descriptor.value !== null && Signal.isState(descriptor.value)) {
 						// If it's already a signal, just set it directly
@@ -176,28 +173,12 @@ const ddomHandlers: {
 			// if the property already exists on the element, update it if it's a signal
 			const existingValue = (el as any)[key];
 
-			// Debug nav-button properties specifically
-			if (el instanceof HTMLElement && el.tagName === 'NAV-BUTTON' && (key === 'label' || key === 'example' || key === 'active')) {
-				console.debug(`Default handler updating existing nav-button property "${key}":`, {
-					elementId: el.id,
-					existingValue: existingValue,
-					isExistingSignal: existingValue && typeof existingValue === 'object' && existingValue !== null && Signal.isState(existingValue),
-					descriptorValue: descriptor.value,
-					descriptorType: typeof descriptor.value,
-					isDescriptorSignal: descriptor.value && typeof descriptor.value === 'object' && descriptor.value !== null && Signal.isState(descriptor.value)
-				});
-			}
-
 			if (typeof existingValue === 'object' && existingValue !== null && Signal.isState(existingValue)) {
 				// If existing value is a signal, update its value (not replace the signal)
 				existingValue.set(descriptor.value);
-				// debug
-				console.debug(`Updated existing signal property "${key}" on element with value:`, descriptor.value);
 			} else if (typeof existingValue != 'object' || !Signal.isComputed(existingValue)) {
 				// Otherwise, just set the value directly
 				// we're about to overwrite an existing property, so we can set it directly
-				// debug
-				console.debug(`Overwriting existing property "${key}" on element with value:`, descriptor.value);
 				(el as any)[key] = descriptor.value;
 			}
 		}
@@ -264,17 +245,6 @@ export function adoptNode(spec: DOMSpec, el: DOMNode, css: boolean = true, ignor
 		if (allIgnoreKeys.includes(key)) {
 			return;
 		}
-
-		// Debug: Log what we're about to process
-		if (el instanceof HTMLElement && el.tagName === 'NAV-BUTTON' && (key === 'label' || key === 'example' || key === 'active')) {
-			console.debug(`Processing nav-button property "${key}":`, {
-				descriptorValue: descriptor.value,
-				descriptorType: typeof descriptor.value,
-				elementId: el.id,
-				specValue: (spec as any)[key]
-			});
-		}
-
 		const handler = ddomHandlers[key] || ddomHandlers.default;
 		handler(spec, el, key, descriptor, css);
 	});
@@ -460,7 +430,6 @@ export function adoptArray<T>(
 
 	// Function to update the current array state with fine-grained updates
 	const updateArray = (items: any[]) => {
-		console.debug('updateArray called with items:', items);
 
 		// Build a map of current items by their mapped index for proper tracking
 		const newElementMap = new Map<number, Element>();
@@ -581,7 +550,6 @@ export function adoptArray<T>(
 	const effectCleanup = createEffect(() => {
 		// Get the current items within the effect to establish dependency tracking
 		const currentItems = reactiveArray.get();
-		console.debug('Effect triggered with items:', currentItems);
 
 		// Call updateArray immediately with the current items
 		updateArray(currentItems);

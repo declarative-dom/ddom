@@ -73,7 +73,6 @@ export default {
 
 	loadExamples: async function () {
 		try {
-			console.log('Loading examples...');
 			const basicModule = await import('./basic.js');
 			const customElementsModule = await import('./custom-elements.js');
 			const interactiveFormModule = await import('./interactive-form.js');
@@ -85,7 +84,6 @@ export default {
 			this.examples['interactive-form'].config = interactiveFormModule.default;
 			this.examples['dynamic-list'].config = dynamicListModule.default;
 			this.examples['computed-properties'].config = computedPropertiesModule.default;
-			console.log('Examples loaded successfully:', this.examples);
 		} catch (error) {
 			console.error('Error loading examples:', error);
 		}
@@ -98,10 +96,7 @@ export default {
 		this.updateNavButtons();
 	},
 	createElementCurrentExample: function () {
-		console.log('Creating example for:', this.currentExample);
 		const exampleContainer = document.getElementById('example-container');
-		console.log('Example container:', exampleContainer);
-		console.log('Current example config:', this.examples[this.currentExample]?.config);
 		
 		if (exampleContainer && this.examples[this.currentExample]?.config) {
 			const example = this.examples[this.currentExample];
@@ -113,7 +108,6 @@ export default {
 
 			// Clear and render using pure DDOM
 			exampleContainer.innerHTML = '';
-			console.log('About to render split layout with children:', example.config.document?.body?.children);
 			
 			// Create split layout using pure DDOM
 			const splitLayout = {
