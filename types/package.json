@@ -13,7 +13,7 @@
 	"files": [
 		"dist/**/*"
 	],
-	"homepage": "https://github.com/declarative-dom/ddom/types#readme",
+	"homepage": "https://github.com/declarative-dom/ddom/tree/main/types#readme",
 	"keywords": [
 		"typescript",
 		"types",
@@ -27,7 +27,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/declarative-dom/ddom/types.git"
+		"url": "git+https://github.com/declarative-dom/ddom.git"
 	},
 	"scripts": {
 		"build": "tsc",
@@ -37,5 +37,5 @@
 		"upgrade": "npx npm-check-updates -u && npm install"
 	},
 	"types": "dist/index.d.ts",
-	"version": "0.1.1"
+	"version": "0.1.2"
 }

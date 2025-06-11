@@ -22,7 +22,7 @@
       "import": "./dist/*.js"
     }
   },
-  "homepage": "https://github.com/declarative-dom/ddom/lib#readme",
+  "homepage": "https://github.com/declarative-dom/ddom/tree/main/lib#readme",
   "keywords": [
     "declarative",
     "dom",
@@ -41,7 +41,7 @@
 	},
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/declarative-dom/ddom/lib.git"
+    "url": "git+https://github.com/declarative-dom/ddom.git"
   },
   "scripts": {
     "build": "rollup -c",
@@ -51,5 +51,5 @@
   },
   "type": "module",
   "types": "../types/src/index.d.ts",
-  "version": "0.1.1"
+  "version": "0.1.2"
 }
