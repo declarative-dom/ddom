@@ -112,7 +112,7 @@ const page = {
 ## Key Features
 
 - **DOM Conformance:** Object properties mirror standard DOM element properties.
-- **Reactive Signals:** Properties become reactive signals with explicit `.get()` and `.set()` methods.
+- **Reactive Signals:** Custom data properties become reactive signals with explicit `.get()` and `.set()` methods.
 - **Template Literals:** Template literals with `${...}` expressions are automatically reactive.
 - **Declarative Children:** Nested structures mirror the DOM tree using `children` arrays.
 - **Declarative Styles:** Styles are objects with camelCase property names and support CSS nesting.

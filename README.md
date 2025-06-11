@@ -107,9 +107,9 @@ Styles are represented as objects with CSSOM camelCase property names and suppor
 }
 ```
 
-### 🎯 Standardized Reactive Signals
+### 🎯 Signal-based Reactive Properties
 
-Non-standard properties automatically become reactive signals with explicit `.get()` and `.set()` methods:
+Non-DOM-standard data properties are automatically provisioned as reactive signals. Property value access and updates use explicit `.get()` and `.set()` methods:
 
 ```javascript
 const app = DDOM({
@@ -127,13 +127,25 @@ console.log(app.counter);               // Signal { ... }
 
 ### ⚡ Template Literal Reactivity
 
-Strings with `${...}` patterns are converted to template literal expressions with automatically computed signals + effects:
+Strings with `${...}` patterns are provisioned as template literal expressions with automatically computed signals + effects:
 
 ```javascript
 {
   tagName: 'div',
   textContent: 'Count is ${this.parentNode.counter.get()}', // ← Automatically reactive
   className: 'status ${this.parentNode.counter.get() > 10 ? "high" : "low"}' // ← Reactive class names
+}
+```
+
+### 🔒 Protected Properties
+
+DOM immutable properties `id` and `tagName` are automatically protected from reactivity:
+
+```javascript
+{
+  tagName: 'my-element',  // ← Set once, never reactive
+  id: 'unique-id',        // ← Protected property
+  count: 0                // ← This becomes reactive
 }
 ```
 
@@ -152,18 +164,6 @@ Create dynamic lists that automatically update when data changes:
     index: (item, index) => index,    // ← Access the item's index
     textContent: '${this.item.get()}: ${this.index.get()}'
   }
-}
-```
-
-### 🔒 Protected Properties
-
-DOM immutable properties `id` and `tagName` are automatically protected from reactivity:
-
-```javascript
-{
-  tagName: 'my-element',  // ← Set once, never reactive
-  id: 'unique-id',        // ← Protected property
-  count: 0                // ← This becomes reactive
 }
 ```
 
@@ -261,7 +261,7 @@ The `examples/` directory contains comprehensive demonstrations:
 
 ### Standardized Reactive Signals
 
-DDOM automatically wraps custom (non-style, non-immutable, non-function, non-templated) properties in reactive signals. These signals:
+DDOM automatically wraps custom data (non-style, non-immutable, non-function, non-templated) properties in reactive signals. These signals:
 
 - Provide explicit `.get()` and `.set()` methods for predictable access
 - Maintain fine-grained reactivity for property-level updates
