@@ -65,9 +65,3 @@ Use string addresses for signal resolution:
    ```
 
 3. Navigate to any of the `.html` files to see the examples in action.
-
-## Migration
-
-If you have existing DDOM code using the old DSL syntax, see `../MIGRATION.md` for a complete guide on updating to the new reactivity model.
-
-The new model is more powerful, uses standard JavaScript syntax, and provides better performance through property-level reactivity.
