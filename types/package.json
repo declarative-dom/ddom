@@ -1,12 +1,34 @@
 {
-	"name": "@declarative-dom/types",
-	"version": "1.0.0",
+	"author": "Avunu LLC <mail@avu.nu>",
+	"bugs": {
+		"url": "https://github.com/declarative-dom/ddom/issues"
+	},
 	"description": "TypeScript type definitions for Declarative DOM",
-	"main": "dist/index.js",
-	"types": "dist/index.d.ts",
+	"devDependencies": {
+		"typescript": "^5.4.0"
+	},
+	"engines": {
+		"node": ">=16.0.0"
+	},
 	"files": [
 		"dist/**/*"
 	],
+	"homepage": "https://github.com/declarative-dom/ddom/types#readme",
+	"keywords": [
+		"typescript",
+		"types",
+		"definitions"
+	],
+	"license": "MIT",
+	"main": "dist/index.js",
+	"name": "@declarative-dom/types",
+	"publishConfig": {
+		"access": "public"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/declarative-dom/ddom/types.git"
+	},
 	"scripts": {
 		"build": "tsc",
 		"clean": "rm -rf dist",
@@ -14,28 +36,6 @@
 		"test": "tsc --noEmit",
 		"upgrade": "npx npm-check-updates -u && npm install"
 	},
-	"keywords": [
-		"typescript",
-		"types",
-		"definitions"
-	],
-	"author": "Your Name <your.email@example.com>",
-	"license": "MIT",
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/declarative-dom/declarative-dom/types.git"
-	},
-	"bugs": {
-		"url": "https://github.com/declarative-dom/declarative-dom/issues"
-	},
-	"homepage": "https://github.com/declarative-dom/declarative-dom#readme",
-	"devDependencies": {
-		"typescript": "^5.4.0"
-	},
-	"engines": {
-		"node": ">=16.0.0"
-	},
-	"publishConfig": {
-		"access": "public"
-	}
+	"types": "dist/index.d.ts",
+	"version": "0.1.0"
 }
