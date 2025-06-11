@@ -1,3 +1,53 @@
 
 src/index.ts → dist...
-created dist in 525ms
+(!) [plugin typescript] src/arrays/arrays.ts (16:3): @rollup/plugin-typescript TS2305: Module '"../templates"' has no exported member 'resolveSignalAddress'.
+/home/batonac/Development/declarative-dom/lib/src/arrays/arrays.ts:16:3
+
+[7m16[0m   resolveSignalAddress
+[7m  [0m [91m  ~~~~~~~~~~~~~~~~~~~~[0m
+
+(!) [plugin typescript] src/elements/elements.ts (34:2): @rollup/plugin-typescript TS2305: Module '"../templates"' has no exported member 'createReactiveProperty'.
+/home/batonac/Development/declarative-dom/lib/src/elements/elements.ts:34:2
+
+[7m34[0m  createReactiveProperty
+[7m  [0m [91m ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+(!) [plugin typescript] src/index.ts (5:24): @rollup/plugin-typescript TS2305: Module '"./events/Signal"' has no exported member 'createReactiveProperty'.
+/home/batonac/Development/declarative-dom/lib/src/index.ts:5:24
+
+[7m5[0m import { createEffect, createReactiveProperty } from './events/Signal';
+[7m [0m [91m                       ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+(!) [plugin typescript] src/index.ts (13:24): @rollup/plugin-typescript TS2305: Module '"./events/Signal"' has no exported member 'createReactiveProperty'.
+/home/batonac/Development/declarative-dom/lib/src/index.ts:13:24
+
+[7m13[0m export { createEffect, createReactiveProperty } from './events/Signal';
+[7m  [0m [91m                       ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+(!) [plugin typescript] src/templates/templates.ts (36:16): @rollup/plugin-typescript TS7053: Element implicitly has an 'any' type because expression of type 'string | symbol' can't be used to index type 'SignalProperty'.
+  No index signature with a parameter of type 'string' was found on type 'SignalProperty'.
+/home/batonac/Development/declarative-dom/lib/src/templates/templates.ts:36:16
+
+[7m36[0m         return target[prop];
+[7m  [0m [91m               ~~~~~~~~~~~~[0m
+
+[!] RollupError: src/arrays/arrays.ts (2:23): "resolveSignalAddress" is not exported by "src/templates/index.ts", imported by "src/arrays/arrays.ts".
+https://rollupjs.org/troubleshooting/#error-name-is-not-exported-by-module
+src/arrays/arrays.ts (2:23)
+1: import { Signal } from '../events';
+2: import { parseTemplateLiteral, resolveSignalAddress } from '../templates';
+                          ^
+3: /**
+4:  * Evaluates a filter expression against an item in an array.
+    at getRollupError (/home/batonac/Development/declarative-dom/lib/node_modules/rollup/dist/shared/parseAst.js:285:41)
+    at Object.error (/home/batonac/Development/declarative-dom/lib/node_modules/rollup/dist/shared/parseAst.js:281:42)
+    at Module.error (/home/batonac/Development/declarative-dom/lib/node_modules/rollup/dist/shared/rollup.js:18375:28)
+    at Module.traceVariable (/home/batonac/Development/declarative-dom/lib/node_modules/rollup/dist/shared/rollup.js:18824:29)
+    at ModuleScope.findVariable (/home/batonac/Development/declarative-dom/lib/node_modules/rollup/dist/shared/rollup.js:16487:39)
+    at ChildScope.findVariable (/home/batonac/Development/declarative-dom/lib/node_modules/rollup/dist/shared/rollup.js:9373:38)
+    at ClassBodyScope.findVariable (/home/batonac/Development/declarative-dom/lib/node_modules/rollup/dist/shared/rollup.js:9373:38)
+    at ChildScope.findVariable (/home/batonac/Development/declarative-dom/lib/node_modules/rollup/dist/shared/rollup.js:9373:38)
+    at ChildScope.findVariable (/home/batonac/Development/declarative-dom/lib/node_modules/rollup/dist/shared/rollup.js:9373:38)
+    at FunctionScope.findVariable (/home/batonac/Development/declarative-dom/lib/node_modules/rollup/dist/shared/rollup.js:9373:38)
+
+

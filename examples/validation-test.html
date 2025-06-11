@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DDOM Refactor Validation Test</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2em;
+            background: #f8f9fa;
+        }
+        .test-section {
+            background: white;
+            margin: 1em 0;
+            padding: 1.5em;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-header {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 0.5em;
+            margin-bottom: 1em;
+        }
+        .status {
+            padding: 0.5em;
+            border-radius: 4px;
+            margin: 0.5em 0;
+            font-weight: bold;
+        }
+        .status.pass { background: #d4edda; color: #155724; }
+        .status.fail { background: #f8d7da; color: #721c24; }
+        .status.info { background: #d1ecf1; color: #0c5460; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 0.5em 1em;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0.25em;
+        }
+        button:hover { background: #0056b3; }
+        .demo-area {
+            border: 1px solid #dee2e6;
+            padding: 1em;
+            margin: 1em 0;
+            border-radius: 4px;
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔬 DDOM Refactor Validation Test</h1>
+    <p>This test validates that all key features of the refactored DDOM are working correctly.</p>
+    
+    <div class="test-section">
+        <h2 class="test-header">Test 1: Library Loading & Exports</h2>
+        <div id="test1-status" class="status info">Running...</div>
+        <div id="test1-details"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2 class="test-header">Test 2: Transparent Signal Proxies</h2>
+        <div id="test2-status" class="status info">Running...</div>
+        <div id="test2-details"></div>
+        <div class="demo-area">
+            <p>Value: <span id="proxy-display">-</span></p>
+            <button onclick="testTransparentProxy()">Test Proxy Access</button>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2 class="test-header">Test 3: Template Literal Reactivity</h2>
+        <div id="test3-status" class="status info">Running...</div>
+        <div id="test3-details"></div>
+        <div class="demo-area" id="template-demo">
+            <!-- Template reactive element will be inserted here -->
+        </div>
+        <button onclick="testTemplateReactivity()">Test Template Updates</button>
+    </div>
+    
+    <div class="test-section">
+        <h2 class="test-header">Test 4: String Address Resolution</h2>
+        <div id="test4-status" class="status info">Running...</div>
+        <div id="test4-details"></div>
+        <div class="demo-area" id="address-demo">
+            <!-- Address resolution demo will be inserted here -->
+        </div>
+        <button onclick="testAddressResolution()">Test Address Resolution</button>
+    </div>
+    
+    <div class="test-section">
+        <h2 class="test-header">Test 5: Protected Properties</h2>
+        <div id="test5-status" class="status info">Running...</div>
+        <div id="test5-details"></div>
+        <div class="demo-area" id="protected-demo">
+            <!-- Protected properties demo will be inserted here -->
+        </div>
+        <button onclick="testProtectedProperties()">Test Protected Properties</button>
+    </div>
+    
+    <div class="test-section">
+        <h2 class="test-header">Test 6: Performance Benchmark</h2>
+        <div id="test6-status" class="status info">Ready to run...</div>
+        <div id="test6-details"></div>
+        <button onclick="runPerformanceBenchmark()">Run Performance Test</button>
+    </div>
+    
+    <div class="test-section">
+        <h2 class="test-header">Overall Test Results</h2>
+        <div id="overall-status" class="status info">Tests in progress...</div>
+        <div id="overall-summary"></div>
+    </div>
+
+    <script type="module">
+        import DDOM, { createElement, createReactiveProperty, resolveSignalAddress, Signal } from '../lib/dist/index.js';
+        
+        let testResults = {};
+        let testApp = null;
+        
+        // Test 1: Library Loading & Exports
+        function test1_LibraryLoading() {
+            const details = document.getElementById('test1-details');
+            const status = document.getElementById('test1-status');
+            
+            try {
+                const checks = [];
+                
+                // Check main DDOM function
+                checks.push({ name: 'DDOM function', pass: typeof DDOM === 'function' });
+                
+                // Check createElement
+                checks.push({ name: 'createElement', pass: typeof createElement === 'function' });
+                
+                // Check createReactiveProperty
+                checks.push({ name: 'createReactiveProperty', pass: typeof createReactiveProperty === 'function' });
+                
+                // Check resolveSignalAddress
+                checks.push({ name: 'resolveSignalAddress', pass: typeof resolveSignalAddress === 'function' });
+                
+                // Check Signal
+                checks.push({ name: 'Signal.State', pass: typeof Signal?.State === 'function' });
+                checks.push({ name: 'Signal.Computed', pass: typeof Signal?.Computed === 'function' });
+                
+                const passCount = checks.filter(c => c.pass).length;
+                const allPassed = passCount === checks.length;
+                
+                details.innerHTML = checks.map(c => 
+                    `<div>${c.name}: ${c.pass ? '✅ PASS' : '❌ FAIL'}</div>`
+                ).join('');
+                
+                status.className = `status ${allPassed ? 'pass' : 'fail'}`;
+                status.textContent = allPassed ? 'PASS - All exports available' : `FAIL - ${passCount}/${checks.length} exports available`;
+                
+                testResults.test1 = { pass: allPassed, details: `${passCount}/${checks.length} exports` };
+                
+            } catch (error) {
+                status.className = 'status fail';
+                status.textContent = 'FAIL - Error during library loading test';
+                details.innerHTML = `<div>Error: ${error.message}</div>`;
+                testResults.test1 = { pass: false, details: error.message };
+            }
+        }
+        
+        // Test 2: Transparent Signal Proxies
+        function test2_TransparentProxies() {
+            const details = document.getElementById('test2-details');
+            const status = document.getElementById('test2-status');
+            
+            try {
+                // Create a test object with reactive properties
+                testApp = DDOM({
+                    testValue: 42,
+                    testString: 'Hello World'
+                });
+                
+                const checks = [];
+                
+                // Check that properties exist
+                checks.push({ name: 'Property exists', pass: 'testValue' in testApp });
+                
+                // Check that we can read the value normally
+                const initialValue = testApp.testValue;
+                checks.push({ name: 'Can read value', pass: initialValue === 42 });
+                
+                // Check that we can write the value normally
+                testApp.testValue = 100;
+                const newValue = testApp.testValue;
+                checks.push({ name: 'Can write value', pass: newValue === 100 });
+                
+                // Check string property
+                testApp.testString = 'Updated';
+                checks.push({ name: 'String property works', pass: testApp.testString === 'Updated' });
+                
+                // Check if it's actually a signal proxy
+                const hasSignalMethod = testApp.testValue?.__getSignal || testApp.testValue?.__isSignalProperty;
+                checks.push({ name: 'Has signal proxy methods', pass: !!hasSignalMethod });
+                
+                const passCount = checks.filter(c => c.pass).length;
+                const allPassed = passCount === checks.length;
+                
+                details.innerHTML = checks.map(c => 
+                    `<div>${c.name}: ${c.pass ? '✅ PASS' : '❌ FAIL'}</div>`
+                ).join('');
+                
+                status.className = `status ${allPassed ? 'pass' : 'fail'}`;
+                status.textContent = allPassed ? 'PASS - Transparent proxies working' : `PARTIAL - ${passCount}/${checks.length} checks passed`;
+                
+                testResults.test2 = { pass: allPassed, details: `${passCount}/${checks.length} proxy checks` };
+                
+                // Update display
+                document.getElementById('proxy-display').textContent = testApp.testValue;
+                
+            } catch (error) {
+                status.className = 'status fail';
+                status.textContent = 'FAIL - Error testing transparent proxies';
+                details.innerHTML = `<div>Error: ${error.message}</div>`;
+                testResults.test2 = { pass: false, details: error.message };
+            }
+        }
+        
+        // Test 3: Template Literal Reactivity
+        function test3_TemplateReactivity() {
+            const details = document.getElementById('test3-details');
+            const status = document.getElementById('test3-status');
+            const demoArea = document.getElementById('template-demo');
+            
+            try {
+                if (!testApp) {
+                    testApp = DDOM({ templateTest: 'Initial Value' });
+                }
+                
+                // Create an element with template literal reactivity
+                const templateElement = createElement({
+                    tagName: 'div',
+                    textContent: 'Template Value: ${this.parentNode.templateTest}',
+                    style: {
+                        padding: '1em',
+                        background: '#e3f2fd',
+                        borderRadius: '4px',
+                        border: '1px solid #2196f3'
+                    },
+                    templateTest: 'Initial Value'
+                });
+                
+                demoArea.innerHTML = '';
+                demoArea.appendChild(templateElement);
+                
+                const checks = [];
+                
+                // Check initial template rendering
+                const initialText = templateElement.textContent;
+                checks.push({ name: 'Initial template render', pass: initialText.includes('Initial Value') });
+                
+                // Test updating the value
+                testApp.templateTest = 'Updated Value';
+                
+                // Give a moment for reactivity to update
+                setTimeout(() => {
+                    const updatedText = templateElement.textContent;
+                    checks.push({ name: 'Template updates reactively', pass: updatedText.includes('Updated Value') });
+                    
+                    const passCount = checks.filter(c => c.pass).length;
+                    const allPassed = passCount === checks.length;
+                    
+                    details.innerHTML = checks.map(c => 
+                        `<div>${c.name}: ${c.pass ? '✅ PASS' : '❌ FAIL'}</div>`
+                    ).join('');
+                    
+                    status.className = `status ${allPassed ? 'pass' : 'fail'}`;
+                    status.textContent = allPassed ? 'PASS - Template reactivity working' : `PARTIAL - ${passCount}/${checks.length} template checks`;
+                    
+                    testResults.test3 = { pass: allPassed, details: `${passCount}/${checks.length} template checks` };
+                    updateOverallResults();
+                }, 100);
+                
+            } catch (error) {
+                status.className = 'status fail';
+                status.textContent = 'FAIL - Error testing template reactivity';
+                details.innerHTML = `<div>Error: ${error.message}</div>`;
+                testResults.test3 = { pass: false, details: error.message };
+            }
+        }
+        
+        // Test 4: String Address Resolution
+        function test4_AddressResolution() {
+            const details = document.getElementById('test4-details');
+            const status = document.getElementById('test4-status');
+            
+            try {
+                // Set up test data
+                window.testData = new Signal.State(['Item 1', 'Item 2', 'Item 3']);
+                
+                const checks = [];
+                
+                // Test resolveSignalAddress function
+                const resolved = resolveSignalAddress('window.testData');
+                checks.push({ name: 'Resolve window.testData', pass: !!resolved });
+                
+                if (resolved) {
+                    const value = resolved.get ? resolved.get() : resolved;
+                    checks.push({ name: 'Get resolved value', pass: Array.isArray(value) && value.length === 3 });
+                }
+                
+                // Test with object property
+                const testObj = { nested: { value: new Signal.State('nested test') } };
+                window.testObj = testObj;
+                const nestedResolved = resolveSignalAddress('window.testObj.nested.value');
+                checks.push({ name: 'Resolve nested address', pass: !!nestedResolved });
+                
+                const passCount = checks.filter(c => c.pass).length;
+                const allPassed = passCount === checks.length;
+                
+                details.innerHTML = checks.map(c => 
+                    `<div>${c.name}: ${c.pass ? '✅ PASS' : '❌ FAIL'}</div>`
+                ).join('');
+                
+                status.className = `status ${allPassed ? 'pass' : 'fail'}`;
+                status.textContent = allPassed ? 'PASS - Address resolution working' : `PARTIAL - ${passCount}/${checks.length} address checks`;
+                
+                testResults.test4 = { pass: allPassed, details: `${passCount}/${checks.length} address checks` };
+                
+            } catch (error) {
+                status.className = 'status fail';
+                status.textContent = 'FAIL - Error testing address resolution';
+                details.innerHTML = `<div>Error: ${error.message}</div>`;
+                testResults.test4 = { pass: false, details: error.message };
+            }
+        }
+        
+        // Test 5: Protected Properties
+        function test5_ProtectedProperties() {
+            const details = document.getElementById('test5-details');
+            const status = document.getElementById('test5-status');
+            
+            try {
+                // Create element with protected properties
+                const element = createElement({
+                    tagName: 'div',
+                    id: 'test-element',
+                    testProp: 'should be reactive'
+                });
+                
+                const checks = [];
+                
+                // Check that id is set and protected
+                checks.push({ name: 'ID property set', pass: element.id === 'test-element' });
+                checks.push({ name: 'TagName property set', pass: element.tagName === 'DIV' });
+                
+                // Check that id doesn't have signal proxy methods
+                const idHasSignal = element.id?.__getSignal || element.id?.__isSignalProperty;
+                checks.push({ name: 'ID not reactive', pass: !idHasSignal });
+                
+                // Check that other properties are reactive
+                const testPropHasSignal = element.testProp?.__getSignal || element.testProp?.__isSignalProperty;
+                checks.push({ name: 'Other props are reactive', pass: !!testPropHasSignal });
+                
+                const passCount = checks.filter(c => c.pass).length;
+                const allPassed = passCount === checks.length;
+                
+                details.innerHTML = checks.map(c => 
+                    `<div>${c.name}: ${c.pass ? '✅ PASS' : '❌ FAIL'}</div>`
+                ).join('');
+                
+                status.className = `status ${allPassed ? 'pass' : 'fail'}`;
+                status.textContent = allPassed ? 'PASS - Protected properties working' : `PARTIAL - ${passCount}/${checks.length} protection checks`;
+                
+                testResults.test5 = { pass: allPassed, details: `${passCount}/${checks.length} protection checks` };
+                
+            } catch (error) {
+                status.className = 'status fail';
+                status.textContent = 'FAIL - Error testing protected properties';
+                details.innerHTML = `<div>Error: ${error.message}</div>`;
+                testResults.test5 = { pass: false, details: error.message };
+            }
+        }
+        
+        // Test 6: Performance Benchmark
+        function test6_Performance() {
+            const details = document.getElementById('test6-details');
+            const status = document.getElementById('test6-status');
+            
+            try {
+                status.textContent = 'Running performance test...';
+                
+                const iterations = 1000;
+                const startTime = performance.now();
+                
+                // Create test app
+                const perfApp = DDOM({
+                    counter: 0,
+                    name: 'test',
+                    data: { value: 42 }
+                });
+                
+                // Perform many updates
+                for (let i = 0; i < iterations; i++) {
+                    perfApp.counter = i;
+                    perfApp.name = `test-${i}`;
+                    perfApp.data = { value: i * 2 };
+                }
+                
+                const endTime = performance.now();
+                const duration = endTime - startTime;
+                const avgTime = duration / iterations;
+                const updatesPerSecond = iterations / (duration / 1000);
+                
+                const checks = [];
+                checks.push({ name: 'Performance acceptable', pass: avgTime < 1 }); // Less than 1ms per update
+                checks.push({ name: 'High throughput', pass: updatesPerSecond > 500 }); // More than 500 updates/sec
+                
+                const passCount = checks.filter(c => c.pass).length;
+                const allPassed = passCount === checks.length;
+                
+                details.innerHTML = `
+                    <div>Total time: ${duration.toFixed(2)}ms</div>
+                    <div>Average per update: ${avgTime.toFixed(4)}ms</div>
+                    <div>Updates per second: ${updatesPerSecond.toFixed(0)}</div>
+                    <hr>
+                    ${checks.map(c => `<div>${c.name}: ${c.pass ? '✅ PASS' : '❌ FAIL'}</div>`).join('')}
+                `;
+                
+                status.className = `status ${allPassed ? 'pass' : 'fail'}`;
+                status.textContent = allPassed ? 'PASS - Performance acceptable' : 'FAIL - Performance issues detected';
+                
+                testResults.test6 = { pass: allPassed, details: `${avgTime.toFixed(4)}ms avg, ${updatesPerSecond.toFixed(0)} ops/sec` };
+                
+            } catch (error) {
+                status.className = 'status fail';
+                status.textContent = 'FAIL - Error during performance test';
+                details.innerHTML = `<div>Error: ${error.message}</div>`;
+                testResults.test6 = { pass: false, details: error.message };
+            }
+        }
+        
+        function updateOverallResults() {
+            const overallStatus = document.getElementById('overall-status');
+            const overallSummary = document.getElementById('overall-summary');
+            
+            const totalTests = Object.keys(testResults).length;
+            const passedTests = Object.values(testResults).filter(r => r.pass).length;
+            const allPassed = passedTests === totalTests && totalTests === 6; // We expect 6 tests
+            
+            overallStatus.className = `status ${allPassed ? 'pass' : (passedTests > 0 ? 'info' : 'fail')}`;
+            overallStatus.textContent = allPassed ? 'ALL TESTS PASSED ✅' : `${passedTests}/${totalTests} tests passed`;
+            
+            overallSummary.innerHTML = Object.entries(testResults).map(([test, result]) => 
+                `<div><strong>${test}:</strong> ${result.pass ? '✅ PASS' : '❌ FAIL'} - ${result.details}</div>`
+            ).join('');
+        }
+        
+        // Make test functions global for buttons
+        window.testTransparentProxy = () => {
+            if (testApp) {
+                testApp.testValue = Math.floor(Math.random() * 1000);
+                document.getElementById('proxy-display').textContent = testApp.testValue;
+            }
+        };
+        
+        window.testTemplateReactivity = () => {
+            if (testApp) {
+                testApp.templateTest = `Updated at ${new Date().toLocaleTimeString()}`;
+            }
+        };
+        
+        window.testAddressResolution = () => {
+            if (window.testData) {
+                const newItems = [`Item ${Date.now()}`, `Random ${Math.floor(Math.random() * 100)}`];
+                window.testData.set(newItems);
+            }
+        };
+        
+        window.testProtectedProperties = () => {
+            const element = document.querySelector('#test-element');
+            if (element) {
+                // Try to change protected properties (should not work)
+                element.id = 'changed-id';
+                alert(`ID after attempted change: ${element.id} (should still be 'test-element')`);
+            }
+        };
+        
+        window.runPerformanceBenchmark = test6_Performance;
+        
+        // Run all tests automatically
+        console.log('🧪 Starting DDOM Validation Tests...');
+        
+        test1_LibraryLoading();
+        test2_TransparentProxies();
+        test3_TemplateReactivity();
+        test4_AddressResolution();
+        test5_ProtectedProperties();
+        
+        // Update results after a short delay to allow async tests to complete
+        setTimeout(updateOverallResults, 200);
+        
+        console.log('✅ DDOM Validation Tests Complete!');
+        console.log('Test Results:', testResults);
+    </script>
+</body>
+</html>

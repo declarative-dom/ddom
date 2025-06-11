@@ -16,10 +16,8 @@ import {
 } from '../elements';
 
 import {
-	Signal,
 	createEffect,
-	createReactiveProperty,
-	globalSignalWatcher,
+	Signal
 } from '../events';
 
 import {
@@ -28,187 +26,125 @@ import {
 
 /**
  * Registers an array of custom elements with the browser's CustomElementRegistry.
- * This function creates new custom element classes that extend HTMLElement and
- * implement the declarative DOM structure and behavior specified in the definitions.
+ * Modern, simplified implementation using latest JavaScript features.
+ * 
+ * Key features:
+ * - Single initialization per element
+ * - AbortController for automatic cleanup
+ * - Simplified container logic
+ * - No unnecessary feature detection
  * 
  * @param elements Array of declarative custom element definitions to register
- * @example
- * ```typescript
- * define([{
- *   tagName: 'my-component',
- *   children: [{ tagName: 'p', textContent: 'Hello World' }],
- *   connectedCallback: (el) => console.log('Component connected')
- * }]);
- * ```
  */
 export function define(elements: CustomElementSpec[]) {
-	const unregisteredDDOMElements = elements.filter(element => !customElements.get(element.tagName));
+	elements
+		.filter(element => !customElements.get(element.tagName))
+		.forEach(spec => {
+			// Register styles and document modifications once
+			adoptStyles(spec, spec.tagName);
+			if (spec.document) adoptNode(spec.document as DocumentSpec, document);
 
-	unregisteredDDOMElements.forEach(spec => {
-		// Register styles once during element registration
-		adoptStyles(spec, spec.tagName);
+			// Extract computed properties for class definition
+			const computedProps = Object.getOwnPropertyDescriptors(spec);
+			const getterSetters = Object.entries(computedProps)
+				.filter(([, descriptor]) => descriptor.get || descriptor.set);
 
-		// Handle global document modifications from custom element
-		if (spec.document) {
-			adoptNode(spec.document as DocumentSpec, document);
-		}
+			// Properties to ignore during DOM adoption
+			const ignoreKeys = [
+				'tagName', 'document', 'style', 'constructor',
+				...getterSetters.map(([key]) => key)
+			];
 
-		// Apply all properties using the unified dispatch table
-		const customElementIgnoreKeys = [
-			'tagName', 'document', 'adoptedCallback', 'attributeChangedCallback',
-			'connectedCallback', 'connectedMoveCallback', 'disconnectedCallback',
-			'formAssociatedCallback', 'formDisabledCallback', 'formResetCallback',
-			'formStateRestoreCallback', 'observedAttributes', 'constructor', 'style'
-		];
+			customElements.define(spec.tagName, class extends HTMLElement {
+				#controller = new AbortController();
+				#container: HTMLElement | ShadowRoot;
+				#internals?: ElementInternals;
+				#initialized = false;
 
-		const reactiveProps = Object.entries(spec).filter(([key, value]) => key.startsWith('$'));
+				constructor() {
+					super();
 
-		// const allIgnoreKeys = [...customElementIgnoreKeys, ...reactiveProps.map(([key]) => key)];
+					// Set up computed properties
+					getterSetters.forEach(([key, descriptor]) => {
+						Object.defineProperty(this, key, descriptor);
+					});
 
-		customElements.define(spec.tagName, class extends HTMLElement {
-			#abortController = new AbortController();
-			#container!: HTMLElement | ShadowRoot | DocumentFragment;
+					// Initialize internals once
+					try {
+						this.#internals = this.attachInternals();
+					} catch {
+						// Browser doesn't support attachInternals or already called
+					}
 
-			#adoptNode() {
-				
-				// Ensure container is initialized
-				if (!this.#container) {
-					this.#container = this;
+					// Set container preference: shadow root > internals shadow > element
+					this.#container = this.shadowRoot || this.#internals?.shadowRoot || this;
+
+					// Call custom constructor
+					(spec.constructor as any)?.(this);
 				}
 
-				// Clear any existing content
-				if ('innerHTML' in this.#container) {
-					this.#container.innerHTML = '';
-				} else if (this.#container instanceof DocumentFragment) {
-					// For DocumentFragment, remove all children
-					while (this.#container.firstChild) {
-						this.#container.removeChild(this.#container.firstChild);
+				connectedCallback() {
+					if (!this.#initialized) {
+						this.#initializeDOM();
+						this.#initialized = true;
+					}
+					(spec.connectedCallback as any)?.call(this);
+				}
+
+				disconnectedCallback() {
+					this.#controller.abort();
+					(spec.disconnectedCallback as any)?.call(this);
+				}
+
+				#initializeDOM() {
+					// Clear existing content
+					if ('innerHTML' in this.#container) {
+						this.#container.innerHTML = '';
+					}
+
+					// Make abort signal available globally for cleanup
+					(globalThis as any).__ddom_abort_signal = this.#controller.signal;
+
+					try {
+						// Add properties that already exist on the element to ignoreKeys
+						// This prevents the custom element spec from overwriting instance properties
+						const instanceIgnoreKeys = [
+							...ignoreKeys,
+							...Object.keys(this).filter(key => 
+								Object.prototype.hasOwnProperty.call(this, key) && 
+								!ignoreKeys.includes(key)
+							)
+						];
+
+						// Disable CSS processing since styles are already registered at definition time
+						adoptNode(spec, this.#container, false, instanceIgnoreKeys);
+					} finally {
+						delete (globalThis as any).__ddom_abort_signal;
 					}
 				}
 
-				// Apply all properties to the container with reactive context
-				adoptNode(spec, this.#container, false, customElementIgnoreKeys);
-			}
-
-			constructor() {
-				super();
-
-				// create signals for reactive keys and set up proper signal effect
-				const signals: Signal.State<any>[] = [];
-				reactiveProps.forEach(([key, initialValue]) => {
-					const signal = createReactiveProperty(this, key, initialValue);
-					signals.push(signal);
-				});
-						// Create a proper effect using the exact pattern from the React example
-				if (signals.length > 0) {
-					
-					// Create the effect that tracks our reactive properties
-					const effectCleanup = createEffect(() => {
-						
-						// Access all signals directly to establish dependencies
-						signals.forEach((signal, index) => {
-							const value = signal.get(); // Direct signal access - no wrapper
-						});
-						
-						
-						// Return a cleanup function that triggers re-render
-						return () => {
-							this.#triggerAdoptNode();
-						};
-					});
-					
-					// Clean up on disconnect
-					this.#abortController.signal.addEventListener('abort', () => {
-						effectCleanup();
-					});
+				// Standard custom element callbacks with optional spec handlers
+				adoptedCallback() { (spec.adoptedCallback as any)?.call(this); }
+				attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
+					(spec.attributeChangedCallback as any)?.call(this, name, oldValue, newValue);
+				}
+				connectedMoveCallback() { (spec.connectedMoveCallback as any)?.call(this); }
+				formAssociatedCallback(form: HTMLFormElement | null) { 
+					(spec.formAssociatedCallback as any)?.call(this, form); 
+				}
+				formDisabledCallback(disabled: boolean) { 
+					(spec.formDisabledCallback as any)?.call(this, disabled); 
+				}
+				formResetCallback() { (spec.formResetCallback as any)?.call(this); }
+				formStateRestoreCallback(state: any, mode: 'restore' | 'autocomplete') {
+					(spec.formStateRestoreCallback as any)?.call(this, state, mode);
 				}
 
-				// Call custom constructor if defined
-				if (spec.constructor && typeof spec.constructor === 'function') {
-					spec.constructor(this);
+				static get observedAttributes() {
+					return spec.observedAttributes || [];
 				}
-			}
-
-			adoptedCallback() {
-				if (spec.adoptedCallback && typeof spec.adoptedCallback === 'function') {
-					spec.adoptedCallback(this);
-				}
-			}
-
-			attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
-				this.#triggerAdoptNode();
-				if (spec.attributeChangedCallback && typeof spec.attributeChangedCallback === 'function') {
-					spec.attributeChangedCallback(this, name, oldValue, newValue);
-				}
-			}
-
-			connectedCallback() {
-				// Check for existing shadow root (declarative or programmatic)
-				const supportsDeclarative = HTMLElement.prototype.hasOwnProperty("attachInternals");
-				const internals = supportsDeclarative ? this.attachInternals() : undefined;
-
-				// Check for a Declarative Shadow Root or existing shadow root
-				this.#container = internals?.shadowRoot || this.shadowRoot || this;
-
-				if (spec.connectedCallback && typeof spec.connectedCallback === 'function') {
-					spec.connectedCallback(this);
-				}
-
-				this.#adoptNode();
-			}
-
-			connectedMoveCallback() {
-				if (spec.connectedMoveCallback && typeof spec.connectedMoveCallback === 'function') {
-					spec.connectedMoveCallback(this);
-				}
-			}
-
-			disconnectedCallback() {
-				this.#abortController.abort();
-				if (spec.disconnectedCallback && typeof spec.disconnectedCallback === 'function') {
-					spec.disconnectedCallback(this);
-				}
-			}
-
-			formAssociatedCallback(form: HTMLFormElement | null) {
-				if (spec.formAssociatedCallback && typeof spec.formAssociatedCallback === 'function') {
-					spec.formAssociatedCallback(this, form);
-				}
-			}
-
-			formDisabledCallback(disabled: boolean) {
-				if (spec.formDisabledCallback && typeof spec.formDisabledCallback === 'function') {
-					spec.formDisabledCallback(this, disabled);
-				}
-			}
-
-			formResetCallback() {
-				if (spec.formResetCallback && typeof spec.formResetCallback === 'function') {
-					spec.formResetCallback(this);
-				}
-			}
-
-			formStateRestoreCallback(state: any, mode: 'restore' | 'autocomplete') {
-				if (spec.formStateRestoreCallback && typeof spec.formStateRestoreCallback === 'function') {
-					spec.formStateRestoreCallback(this, state, mode);
-				}
-			}
-
-			static get observedAttributes() {
-				return spec.observedAttributes || [];
-			}
-
-			#triggerAdoptNode() {
-				queueMicrotask(() => {
-					if (this.#abortController.signal.aborted) {
-						return;
-					}
-					// Re-render the custom element
-					this.#adoptNode();
-				});
-			}
+			});
 		});
-	});
 }
 
 /**
@@ -236,7 +172,7 @@ function adoptStyles(spec: any, selector: string): void {
 		// Track occurrences of each tagName to detect duplicates
 		const tagNameCounts = new Map<string, number>();
 		const tagNameIndexes = new Map<string, number>();
-		
+
 		// Count occurrences of each tagName that has styles
 		spec.children.forEach((child: HTMLElementSpec) => {
 			if (child.style && typeof child.style === 'object' && child.tagName) {
@@ -246,25 +182,23 @@ function adoptStyles(spec: any, selector: string): void {
 		});
 
 		spec.children.forEach((child: HTMLElementSpec) => {
-			if (child.style && typeof child.style === 'object') {
-				const tagName = child.tagName?.toLowerCase() || '*';
-				const count = tagNameCounts.get(tagName) || 0;
-				
-				let childSelector: string;
-				
-				if (count > 1) {
-					// Multiple elements of same type - use nth-of-type selector (consistent with elements.ts)
-					const currentIndex = (tagNameIndexes.get(tagName) || 0) + 1;
-					tagNameIndexes.set(tagName, currentIndex);
-					
-					childSelector = `${selector} ${tagName}:nth-of-type(${currentIndex})`;
-				} else {
-					// Single element of this type - use simple descendant selector
-					childSelector = `${selector} ${tagName}`;
-				}
-				
-				adoptStyles(child, childSelector);
+			let childSelector: string = selector;
+
+			const tagName = child.tagName?.toLowerCase() || '*';
+			const count = tagNameCounts.get(tagName) || 0;
+
+			if (count > 1) {
+				// Multiple elements of same type - use nth-of-type selector (consistent with elements.ts)
+				const currentIndex = (tagNameIndexes.get(tagName) || 0) + 1;
+				tagNameIndexes.set(tagName, currentIndex);
+
+				childSelector = `${selector} > ${tagName}:nth-of-type(${currentIndex})`;
+			} else {
+				// Single element of this type - use simple descendant selector
+				childSelector = `${selector} > ${tagName}`;
 			}
+
+			adoptStyles(child, childSelector);
 		});
 	}
 }

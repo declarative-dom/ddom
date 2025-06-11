@@ -1,13 +1,8 @@
 export default {
-  formData: { name: '', email: '', message: '' },
-  updateField: function(field, value) {
-    this.formData[field] = value;
-    console.log('Form data updated:', this.formData);
-  },
-  submitForm: function() {
-    alert(`Form submitted!\nName: ${this.formData.name}\nEmail: ${this.formData.email}\nMessage: ${this.formData.message}`);
-  },
   document: {
+    head: {
+      title: 'Interactive Form Example'
+    },
     body: {
       style: {
         fontFamily: 'Arial, sans-serif',
@@ -19,127 +14,404 @@ export default {
         {
           tagName: 'h1',
           textContent: 'Interactive Form Example',
-          style: { 
+          style: {
             color: '#333',
             textAlign: 'center',
             marginBottom: '2em'
           }
         },
         {
-          tagName: 'form',
+          tagName: 'contact-form'
+        }
+      ]
+    }
+  },
+
+  customElements: [
+    {
+      tagName: 'form-field',
+
+      // Props passed from parent
+      label: '',
+      type: 'text',
+      placeholder: '',
+      validator: () => true, // Default validator always returns true
+      errorMessage: '',
+      rows: 1,
+      valueSignalName: '', // Name of the signal property on parent (e.g., '$name')
+
+      // Runtime signal reference (established in connectedCallback after properties are set)
+      valueSignal: null,
+
+      // Computed validation using the passed signal
+      get isValid() {
+        if (!this.valueSignal || !DDOM.Signal.isState(this.valueSignal)) return true;
+        const value = this.valueSignal.get();
+        if (typeof value !== 'string') return true; // No validation if not a string
+        const validator = this.validator;
+        return validator ? validator(value) : true;
+      },
+
+      get shouldShowError() {
+        if (!this.valueSignal || !DDOM.Signal.isState(this.valueSignal)) return false;
+        const value = this.valueSignal.get();
+        if (typeof value !== 'string') return false;
+        return value.length > 0 && !this.isValid;
+      },
+
+      get currentErrorMessage() {
+        return this.shouldShowError ? this.errorMessage.get() : '';
+      },
+
+      // Computed properties for conditional rendering
+      get isInputField() {
+        return this.type.get() !== 'textarea';
+      },
+
+      get isTextareaField() {
+        return this.type.get() === 'textarea';
+      },
+
+      // Methods
+      updateValue: function (newValue) {
+        // Direct signal binding - update the signal directly
+        if (this.valueSignal && DDOM.Signal.isState(this.valueSignal)) {
+          this.valueSignal.set(newValue);
+        }
+      },
+
+      connectedCallback: function () {
+        // Set up reactive attributes for CSS styling  
+        DDOM.createEffect(() => {
+          this.setAttribute('data-valid', this.isValid);
+          this.setAttribute('data-show-error', this.shouldShowError);
+          this.setAttribute('data-field-type', this.type.get());
+          this.setAttribute('data-is-input', this.isInputField);
+          this.setAttribute('data-is-textarea', this.isTextareaField);
+        });
+
+        // Set up effect to connect to parent signal and sync DOM values
+        // This will run after properties are assigned, so valueSignalName will be correct
+        DDOM.createEffect(() => {
+          const signalName = this.valueSignalName.get();
+          if (signalName && this.parentNode && this.parentNode[signalName]) {
+            // Connect to parent signal
+            if (this.valueSignal !== this.parentNode[signalName]) {
+              this.valueSignal = this.parentNode[signalName];
+            }
+
+            // Sync DOM input values with signal
+            if (this.valueSignal && DDOM.Signal.isState(this.valueSignal)) {
+              const value = this.valueSignal.get();
+
+              // Update input field
+              const input = this.children[1];
+              if (input && input.value !== value) {
+                input.value = value;
+              }
+
+              // Update textarea field
+              const textarea = this.children[2];
+              if (textarea && textarea.value !== value) {
+                textarea.value = value;
+              }
+            }
+          }
+        });
+      },
+
+      style: {
+        display: 'block',
+        marginBottom: '1.5em',
+
+        // Validation styling
+        '[data-valid="true"] .field-input': {
+          borderColor: '#28a745'
+        },
+        '[data-valid="false"] .field-input': {
+          borderColor: '#dc3545'
+        },
+        '[data-show-error="true"] .error-message': {
+          opacity: '1'
+        },
+        '[data-show-error="false"] .error-message': {
+          opacity: '0'
+        },
+        // Field type styling
+        '[data-field-type="textarea"] .field-input': {
+          resize: 'vertical'
+        },
+        '[data-field-type="text"] .field-input, [data-field-type="email"] .field-input': {
+          resize: 'none'
+        },
+        // Conditional display using attributes
+        '[data-is-input="false"] .input-field': {
+          display: 'none'
+        },
+        '[data-is-textarea="false"] .textarea-field': {
+          display: 'none'
+        }
+      },
+
+      children: [
+        {
+          tagName: 'label',
+          textContent: '${this.parentNode.label.get()}',
           style: {
-            maxWidth: '500px',
-            margin: '0 auto',
-            backgroundColor: 'white',
-            padding: '2em',
-            borderRadius: '8px',
-            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+            display: 'block',
+            marginBottom: '0.5em',
+            fontWeight: 'bold'
+          }
+        },
+        {
+          tagName: 'input',
+          name: '${this.parentNode.label.get()}',
+          type: '${this.parentNode.type.get()}',
+          placeholder: '${this.parentNode.placeholder.get()}',
+          value: '${(this.parentNode.valueSignal && this.parentNode.valueSignal.get()) ? this.parentNode.valueSignal.get() : ""}',
+          className: 'field-input input-field',
+          style: {
+            width: '100%',
+            padding: '0.75em',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            fontSize: '1em'
+          },
+          oninput: function (e) {
+            this.parentNode.updateValue(e.target.value);
+          }
+        },
+        {
+          tagName: 'textarea',
+          name: '${this.parentNode.label.get()}',
+          placeholder: '${this.parentNode.placeholder.get()}',
+          value: '${(this.parentNode.valueSignal && this.parentNode.valueSignal.get()) ? this.parentNode.valueSignal.get() : ""}',
+          rows: '${this.parentNode.rows.get()}',
+          className: 'field-input textarea-field',
+          style: {
+            width: '100%',
+            padding: '0.75em',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            fontSize: '1em'
+          },
+          oninput: function (e) {
+            this.parentNode.updateValue(e.target.value);
+          }
+        },
+        {
+          tagName: 'div',
+          textContent: '${this.parentNode.currentErrorMessage}',
+          className: 'error-message',
+          style: {
+            color: '#dc3545',
+            fontSize: '0.875em',
+            marginTop: '0.25em',
+            minHeight: '1.2em',
+            transition: 'opacity 0.2s ease'
+          }
+        }
+      ]
+    },
+
+    {
+      tagName: 'contact-form',
+
+      // Reactive form data properties
+      $name: '',
+      $email: '',
+      $message: '',
+
+      // Form validation computed properties
+      get isNameValid() {
+        return this.$name.get().trim().length >= 2;
+      },
+
+      get isEmailValid() {
+        const email = this.$email.get();
+        return email.includes('@') && email.includes('.') && email.length > 5;
+      },
+
+      get isMessageValid() {
+        return this.$message.get().trim().length >= 10;
+      },
+
+      get isFormValid() {
+        return this.isNameValid && this.isEmailValid && this.isMessageValid;
+      },
+
+      // Form methods
+      submitForm: function () {
+        if (this.isFormValid) {
+          alert(`Form submitted!\nName: ${this.$name.get()}\nEmail: ${this.$email.get()}\nMessage: ${this.$message.get()}`);
+          this.resetForm();
+        } else {
+          alert('Please fill out all fields correctly before submitting.');
+        }
+      },
+
+      resetForm: function () {
+        this.$name.set('');
+        this.$email.set('');
+        this.$message.set('');
+      },
+
+      // Set up reactive attributes for CSS styling
+      connectedCallback: function () {
+        DDOM.createEffect(() => {
+          this.setAttribute('data-form-valid', this.isFormValid);
+        });
+      },
+
+      style: {
+        display: 'block',
+        maxWidth: '500px',
+        margin: '0 auto',
+        backgroundColor: 'white',
+        padding: '2em',
+        borderRadius: '8px',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+
+        // Form validation styling using attributes
+        '[data-form-valid="true"] .submit-button': {
+          backgroundColor: '#28a745',
+          cursor: 'pointer'
+        },
+        '[data-form-valid="false"] .submit-button': {
+          backgroundColor: '#6c757d',
+          cursor: 'not-allowed'
+        },
+        '[data-form-valid="true"] .form-status': {
+          color: '#28a745'
+        },
+        '[data-form-valid="false"] .form-status': {
+          color: '#dc3545'
+        }
+      },
+
+      children: [
+        {
+          tagName: 'form-field',
+          label: 'Name:',
+          type: 'text',
+          placeholder: 'Enter your name (minimum 2 characters)',
+          validator: (value) => value.trim().length >= 2,
+          errorMessage: 'Name must be at least 2 characters',
+          valueSignalName: '$name'
+        },
+        {
+          tagName: 'form-field',
+          label: 'Email:',
+          type: 'email',
+          placeholder: 'Enter your email address',
+          validator: (value) => value.includes('@') && value.includes('.') && value.length > 5,
+          errorMessage: 'Please enter a valid email address',
+          valueSignalName: '$email'
+        },
+        {
+          tagName: 'form-field',
+          label: 'Message:',
+          type: 'textarea',
+          rows: 4,
+          placeholder: 'Enter your message (minimum 10 characters)',
+          validator: (value) => value.trim().length >= 10,
+          errorMessage: 'Message must be at least 10 characters',
+          valueSignalName: '$message'
+        },
+        {
+          tagName: 'div',
+          style: {
+            display: 'flex',
+            gap: '1em',
+            justifyContent: 'space-between'
           },
           children: [
-            {
-              tagName: 'div',
-              style: { marginBottom: '1.5em' },
-              children: [
-                {
-                  tagName: 'label',
-                  textContent: 'Name:',
-                  style: {
-                    display: 'block',
-                    marginBottom: '0.5em',
-                    fontWeight: 'bold'
-                  }
-                },
-                {
-                  tagName: 'input',
-                  type: 'text',
-                  placeholder: 'Enter your name',
-                  style: {
-                    width: '100%',
-                    padding: '0.75em',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    fontSize: '1em'
-                  },
-                  oninput: function(e) { window.updateField('name', e.target.value); }
-                }
-              ]
-            },
-            {
-              tagName: 'div',
-              style: { marginBottom: '1.5em' },
-              children: [
-                {
-                  tagName: 'label',
-                  textContent: 'Email:',
-                  style: {
-                    display: 'block',
-                    marginBottom: '0.5em',
-                    fontWeight: 'bold'
-                  }
-                },
-                {
-                  tagName: 'input',
-                  type: 'email',
-                  placeholder: 'Enter your email',
-                  style: {
-                    width: '100%',
-                    padding: '0.75em',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    fontSize: '1em'
-                  },
-                  oninput: function(e) { window.updateField('email', e.target.value); }
-                }
-              ]
-            },
-            {
-              tagName: 'div',
-              style: { marginBottom: '1.5em' },
-              children: [
-                {
-                  tagName: 'label',
-                  textContent: 'Message:',
-                  style: {
-                    display: 'block',
-                    marginBottom: '0.5em',
-                    fontWeight: 'bold'
-                  }
-                },
-                {
-                  tagName: 'textarea',
-                  placeholder: 'Enter your message',
-                  rows: '4',
-                  style: {
-                    width: '100%',
-                    padding: '0.75em',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    fontSize: '1em',
-                    resize: 'vertical'
-                  },
-                  oninput: function(e) { window.updateField('message', e.target.value); }
-                }
-              ]
-            },
             {
               tagName: 'button',
               type: 'button',
               textContent: 'Submit Form',
+              className: 'submit-button',
               style: {
-                width: '100%',
+                flex: '1',
                 padding: '0.75em',
-                backgroundColor: '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '1em'
+              },
+              onclick: function () {
+                this.parentNode.parentNode.submitForm();
+              }
+            },
+            {
+              tagName: 'button',
+              type: 'button',
+              textContent: 'Reset',
+              style: {
+                flex: '0 0 auto',
+                padding: '0.75em 1.5em',
+                backgroundColor: '#6c757d',
                 color: 'white',
                 border: 'none',
                 borderRadius: '4px',
                 fontSize: '1em',
                 cursor: 'pointer'
               },
-              onclick: function() { window.submitForm(); }
+              onclick: function () {
+                this.parentNode.parentNode.resetForm();
+              }
+            }
+          ]
+        },
+        {
+          tagName: 'div',
+          style: {
+            marginTop: '1.5em',
+            padding: '1em',
+            backgroundColor: '#f8f9fa',
+            borderRadius: '4px',
+            border: '1px solid #dee2e6'
+          },
+          children: [
+            {
+              tagName: 'h4',
+              textContent: 'Form Data (Live Preview):',
+              style: {
+                margin: '0 0 0.5em 0',
+                color: '#495057'
+              }
+            },
+            {
+              tagName: 'div',
+              style: { fontSize: '0.875em', color: '#6c757d' },
+              children: [
+                {
+                  tagName: 'div',
+                  tag: function () { return this.parent.parent.parent.$name },
+                  textContent: 'Name: ${this.parentNode.parentNode.parentNode.$name.get()}'
+                },
+                {
+                  tagName: 'div',
+                  textContent: 'Email: ${this.parentNode.parentNode.parentNode.$email.get()}'
+                },
+                {
+                  tagName: 'div',
+                  textContent: 'Message: ${this.parentNode.parentNode.parentNode.$message.get()}'
+                },
+                {
+                  tagName: 'div',
+                  textContent: 'Valid: ${this.parentNode.parentNode.parentNode.isFormValid ? "Yes" : "No"}',
+                  className: 'form-status',
+                  style: {
+                    marginTop: '0.5em',
+                    fontWeight: 'bold'
+                  }
+                }
+              ]
             }
           ]
         }
       ]
     }
-  }
+  ]
 }

@@ -1,9 +1,8 @@
-// Re-export the standard Signal implementation
+export { Signal } from 'signal-polyfill';
 import { Signal } from 'signal-polyfill';
 
 /**
- * Type representing a Signal node, which can be either a State or Computed signal.
- * This is used to ensure type safety when working with reactive properties.
+ * Union type for all signal node types
  */
 export type SignalNode<T = any> = Signal.State<T> | Signal.Computed<T>;
 
@@ -12,13 +11,6 @@ export type SignalNode<T = any> = Signal.State<T> | Signal.Computed<T>;
  * This creates a single global watcher that processes all signal effects efficiently.
  */
 let needsEnqueue = true;
-
-const globalSignalWatcher = new Signal.subtle.Watcher(() => {
-	if (needsEnqueue) {
-		needsEnqueue = false;
-		queueMicrotask(processPending);
-	}
-});
 
 const processPending = () => {
 	needsEnqueue = true;
@@ -30,7 +22,13 @@ const processPending = () => {
 	globalSignalWatcher.watch();
 };
 
-export { globalSignalWatcher };
+export const globalSignalWatcher = new Signal.subtle.Watcher(() => {
+	if (needsEnqueue) {
+		needsEnqueue = false;
+		queueMicrotask(processPending);
+	}
+});
+
 
 /**
  * Creates a reactive effect that integrates with the global signal watcher system.
@@ -43,59 +41,31 @@ export function createEffect(callback: () => void | (() => void)): () => void {
   let cleanup: (() => void) | void;
 
   const computed = new Signal.Computed(() => {
-    cleanup?.();
-    cleanup = callback();
+	cleanup?.();
+	cleanup = callback();
   });
 
   globalSignalWatcher.watch(computed);
   computed.get();
 
   return () => {
-    globalSignalWatcher.unwatch(computed);
-    cleanup?.();
+	globalSignalWatcher.unwatch(computed);
+	cleanup?.();
   };
 }
 
+
 /**
- * Creates a reactive property on an element using the Signal standard.
- * Returns the Signal object directly - no wrapper getters/setters.
+ * Creates a reactive property using a direct Signal.State object.
+ * This ensures proper dependency tracking with the TC39 Signals polyfill.
  * 
- * @param el The element to add the reactive property to
- * @param key The property name (should start with $)
- * @param initialValue The initial value or a function that returns a Signal.State
- * @returns The Signal.State object for direct .get()/.set() usage
+ * @param el - The element to attach the property to
+ * @param property - The property name
+ * @param initialValue - The initial value for the property
+ * @returns The Signal.State instance
  */
-export function createReactiveProperty(
-	el: any, 
-	key: string, 
-	initialValue: any
-): Signal.State<any> {
-	let signalInstance: any;
-
-
-	// Check if this is a function that should return a signal object
-	if (typeof initialValue === 'function') {
-		// Evaluate the function to see what it returns
-		const referencedValue = initialValue();
-		
-		// Use the proper Signal polyfill type checking
-		if (Signal.isState(referencedValue) || Signal.isComputed(referencedValue)) {
-			// This is already a signal object - use it directly
-			signalInstance = referencedValue;
-		} else {
-			// Function returned a value, create a new signal with that value
-			signalInstance = new Signal.State(referencedValue);
-		}
-	} else if (Signal.isState(initialValue) || Signal.isComputed(initialValue)) {
-		// This is already a signal object
-		signalInstance = initialValue;
-	} else {
-		// Regular reactive property - create new signal
-		signalInstance = new Signal.State(initialValue);
-	}
-
-	// Store the signal directly on the element
-	(el as any)[key] = signalInstance;
-
-	return signalInstance;
+export function createReactiveProperty(el: any, property: string, initialValue: any): Signal.State<any> {
+  const signal = new Signal.State(initialValue);
+  el[property] = signal;
+  return signal;
 }

@@ -1,11 +1,10 @@
+export { Signal } from 'signal-polyfill';
 import { Signal } from 'signal-polyfill';
 /**
- * Type representing a Signal node, which can be either a State or Computed signal.
- * This is used to ensure type safety when working with reactive properties.
+ * Union type for all signal node types
  */
 export type SignalNode<T = any> = Signal.State<T> | Signal.Computed<T>;
-declare const globalSignalWatcher: Signal.subtle.Watcher;
-export { globalSignalWatcher };
+export declare const globalSignalWatcher: Signal.subtle.Watcher;
 /**
  * Creates a reactive effect that integrates with the global signal watcher system.
  * This provides consistent reactive behavior across the entire DDOM system.
@@ -15,12 +14,12 @@ export { globalSignalWatcher };
  */
 export declare function createEffect(callback: () => void | (() => void)): () => void;
 /**
- * Creates a reactive property on an element using the Signal standard.
- * Returns the Signal object directly - no wrapper getters/setters.
+ * Creates a reactive property using a direct Signal.State object.
+ * This ensures proper dependency tracking with the TC39 Signals polyfill.
  *
- * @param el The element to add the reactive property to
- * @param key The property name (should start with $)
- * @param initialValue The initial value or a function that returns a Signal.State
- * @returns The Signal.State object for direct .get()/.set() usage
+ * @param el - The element to attach the property to
+ * @param property - The property name
+ * @param initialValue - The initial value for the property
+ * @returns The Signal.State instance
  */
-export declare function createReactiveProperty(el: any, key: string, initialValue: any): Signal.State<any>;
+export declare function createReactiveProperty(el: any, property: string, initialValue: any): Signal.State<any>;

@@ -1,5 +1,5 @@
 export {
-	ArrayExpr,
+	MappedArrayExpr,
 	CustomElementSpec,
 	DocumentSpec,
 	DOMNode,

@@ -3,36 +3,66 @@ export default {
 		basic: { name: 'Basic Example', config: null },
 		'custom-elements': { name: 'Custom Elements', config: null },
 		'interactive-form': { name: 'Interactive Form', config: null },
-		'dynamic-list': { name: 'Dynamic List', config: null }
+		'dynamic-list': { name: 'Dynamic List', config: null },
+		'computed-properties': { name: 'Computed Properties', config: null }
 	},
 
 	customElements: [
 		{
 			tagName: 'nav-button',
-			connectedCallback: function (element) {
-				// Get the label from the element's properties
-				const label = element.label || 'Button';
-				const button = element.querySelector('button');
-				if (button) {
-					button.textContent = label;
+			
+			// Props passed from parent - use empty defaults to avoid conflicts
+			label: '',  // Will be set by instance
+			example: '', // Will be set by instance
+			active: false, // Will be set by instance
+
+			// Computed properties
+			get buttonText() {
+				const labelValue = this.label && this.label.get ? this.label.get() : this.label;
+				return labelValue || 'Button'; // Fallback to 'Button' if no label
+			},
+
+			get isActive() {
+				const activeValue = this.active && this.active.get ? this.active.get() : this.active;
+				return activeValue;
+			},
+
+			connectedCallback: function () {
+				// Set up reactive attributes for styling
+				DDOM.createEffect(() => {
+					this.setAttribute('data-active', this.isActive);
+				});
+			},
+
+			style: {
+				display: 'block',
+				
+				// Active/inactive button styling using attributes
+				'[data-active="true"] button': {
+					backgroundColor: '#007bff',
+					color: 'white'
+				},
+				'[data-active="false"] button': {
+					backgroundColor: 'white',
+					color: '#007bff'
 				}
 			},
+
 			children: [{
 				tagName: 'button',
+				textContent: '${this.parentNode.buttonText}',
 				style: {
 					padding: '0.5em 1em',
 					border: '1px solid #007bff',
 					borderRadius: '4px',
-					backgroundColor: 'white',
-					color: '#007bff',
 					cursor: 'pointer',
 					fontSize: '0.9em',
 					transition: 'all 0.2s'
 				},
 				onclick: function () {
 					// Access the example property from the custom element
-					const customElement = this.parentElement;
-					const example = customElement.example;
+					const customElement = this.parentNode;
+					const example = customElement.example.get ? customElement.example.get() : customElement.example;
 					if (example) {
 						window.switchExample(example);
 					}
@@ -42,15 +72,21 @@ export default {
 	],
 
 	loadExamples: async function () {
-		const basicModule = await import('./basic.js');
-		const customElementsModule = await import('./custom-elements.js');
-		const interactiveFormModule = await import('./interactive-form.js');
-		const dynamicListModule = await import('./dynamic-list.js');
+		try {
+			const basicModule = await import('./basic.js');
+			const customElementsModule = await import('./custom-elements.js');
+			const interactiveFormModule = await import('./interactive-form.js');
+			const dynamicListModule = await import('./dynamic-list.js');
+			const computedPropertiesModule = await import('./computed-properties/computed-properties.js');
 
-		this.examples.basic.config = basicModule.default;
-		this.examples['custom-elements'].config = customElementsModule.default;
-		this.examples['interactive-form'].config = interactiveFormModule.default;
-		this.examples['dynamic-list'].config = dynamicListModule.default;
+			this.examples.basic.config = basicModule.default;
+			this.examples['custom-elements'].config = customElementsModule.default;
+			this.examples['interactive-form'].config = interactiveFormModule.default;
+			this.examples['dynamic-list'].config = dynamicListModule.default;
+			this.examples['computed-properties'].config = computedPropertiesModule.default;
+		} catch (error) {
+			console.error('Error loading examples:', error);
+		}
 	},
 	currentExample: 'basic',
 
@@ -61,6 +97,7 @@ export default {
 	},
 	createElementCurrentExample: function () {
 		const exampleContainer = document.getElementById('example-container');
+		
 		if (exampleContainer && this.examples[this.currentExample]?.config) {
 			const example = this.examples[this.currentExample];
 
@@ -69,6 +106,9 @@ export default {
 				window.DDOM.customElements.define(example.config.customElements);
 			}
 
+			// Clear and render using pure DDOM
+			exampleContainer.innerHTML = '';
+			
 			// Create split layout using pure DDOM
 			const splitLayout = {
 				tagName: 'div',
@@ -78,7 +118,8 @@ export default {
 					gap: '1px',
 					backgroundColor: '#dee2e6'
 				},
-				children: [					// Left side - rendered example
+				children: [
+					// Left side - rendered example
 					{
 						tagName: 'div',
 						style: {
@@ -115,6 +156,7 @@ export default {
 							},
 							{
 								tagName: 'pre',
+								id: 'config-display',
 								style: {
 									backgroundColor: '#ffffff',
 									border: '1px solid #dee2e6',
@@ -124,19 +166,24 @@ export default {
 									overflow: 'auto',
 									whiteSpace: 'pre-wrap',
 									wordWrap: 'break-word'
-								},
-								textContent: (() => {
-									const configToShow = { ...example.config };
-									if (configToShow.oncreateElement) delete configToShow.oncreateElement;
-									return JSON.stringify(configToShow, null, 2);
-								})()
+								}
+								// textContent will be set manually after creation
 							}
 						]
 					}
 				]
-			};			// Clear and createElement using pure DDOM
-			exampleContainer.innerHTML = '';
-			window.DDOM.createElement(splitLayout, exampleContainer);
+			};
+
+			// Render the split layout
+			window.DDOM.appendChild(splitLayout, exampleContainer);
+
+			// Manually set the JSON content to avoid template literal processing
+			const configDisplay = document.getElementById('config-display');
+			if (configDisplay) {
+				const configToShow = { ...example.config };
+				if (configToShow.oncreateElement) delete configToShow.oncreateElement;
+				configDisplay.textContent = JSON.stringify(configToShow, null, 2);
+			}
 
 			// Call oncreateElement if it exists
 			if (example.config.oncreateElement) {
@@ -148,13 +195,13 @@ export default {
 	updateNavButtons: function () {
 		Object.keys(this.examples).forEach(key => {
 			const button = document.getElementById(`nav-${key}`);
-			if (button) {
-				if (this.currentExample === key) {
-					button.style.backgroundColor = '#007bff';
-					button.style.color = 'white';
+			if (button && button.active) {
+				// Update the reactive active signal
+				const isActive = this.currentExample === key;
+				if (button.active.set) {
+					button.active.set(isActive);
 				} else {
-					button.style.backgroundColor = 'white';
-					button.style.color = '#007bff';
+					button.active = isActive;
 				}
 			}
 		});
@@ -205,25 +252,36 @@ export default {
 									tagName: 'nav-button',
 									id: 'nav-basic',
 									label: 'Basic Example',
-									example: 'basic'
+									example: 'basic',
+									active: true  // Set the first one as active initially
 								},
 								{
 									tagName: 'nav-button',
 									id: 'nav-custom-elements',
 									label: 'Custom Elements',
-									example: 'custom-elements'
+									example: 'custom-elements',
+									active: false
 								},
 								{
 									tagName: 'nav-button',
 									id: 'nav-interactive-form',
 									label: 'Interactive Form',
-									example: 'interactive-form'
+									example: 'interactive-form',
+									active: false
 								},
 								{
 									tagName: 'nav-button',
 									id: 'nav-dynamic-list',
 									label: 'Dynamic List',
-									example: 'dynamic-list'
+									example: 'dynamic-list',
+									active: false
+								},
+								{
+									tagName: 'nav-button',
+									id: 'nav-computed-properties',
+									label: 'Computed Properties',
+									example: 'computed-properties',
+									active: false
 								}
 							]
 						}
@@ -260,5 +318,6 @@ export default {
 		}
 
 		this.createElementCurrentExample();
+		this.updateNavButtons(); // Set initial active states
 	}
 };

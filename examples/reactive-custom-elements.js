@@ -1,17 +1,19 @@
-// filepath: examples/reactive-custom-elements.js
+// filepath: examples/reactive-custom-elements-new.js
+// Updated to use new reactivity model without DSL syntax
 export default {
-  // Reactive properties prefixed with $ for automatic reactivity
-  $todos: [
+  // Regular properties that become automatically reactive via transparent proxy
+  todos: [
     { text: 'Learn Declarative DOM', completed: false },
     { text: 'Build awesome apps', completed: false },
     { text: 'Share with the world', completed: false }
   ],
+  
   customElements: [
     {
       tagName: 'counter-widget',
-      // Reactive field - prefixed with $ to make it reactive
-      $count: 0,
-      $theme: 'light',
+      // Regular properties that automatically become reactive
+      count: 0,
+      theme: 'light',
       style: {
         display: 'block',
         padding: '1em',
@@ -32,8 +34,8 @@ export default {
       children: [
         {
           tagName: 'h3',
-          // Using Attribute Value Templates for dynamic content
-          textContent: 'Count: {parentNode.$count}',
+          // Template literals automatically get computed signals + effects
+          textContent: 'Count: ${this.parentNode.count.get()}',
           style: {
             margin: '0 0 1em 0',
             fontSize: '1.5em'
@@ -62,9 +64,9 @@ export default {
               onclick: function (event) {
                 const counterElement = event.target.parentNode.parentNode; // button -> div -> counter-widget
                 if (counterElement && counterElement.tagName === 'COUNTER-WIDGET') {
-                  console.log('[Counter] Decrementing count from:', counterElement.$count.get());
-                  counterElement.$count.set(counterElement.$count.get() - 1);
-                  console.log('[Counter] Count is now:', counterElement.$count.get());
+                  console.log('[Counter] Decrementing count from:', counterElement.count);
+                  counterElement.count = counterElement.count - 1;
+                  console.log('[Counter] Count is now:', counterElement.count);
                 }
               }
             },
@@ -87,9 +89,9 @@ export default {
               onclick: function (event) {
                 const counterElement = event.target.parentNode.parentNode; // button -> div -> counter-widget
                 if (counterElement && counterElement.tagName === 'COUNTER-WIDGET') {
-                  console.log('[Counter] Incrementing count from:', counterElement.$count.get());
-                  counterElement.$count.set(counterElement.$count.get() + 1);
-                  console.log('[Counter] Count is now:', counterElement.$count.get());
+                  console.log('[Counter] Incrementing count from:', counterElement.count);
+                  counterElement.count = counterElement.count + 1;
+                  console.log('[Counter] Count is now:', counterElement.count);
                 }
               }
             }
@@ -112,17 +114,17 @@ export default {
           onclick: function (event) {
             const counterElement = event.target.parentNode; // button -> counter-widget
             if (counterElement && counterElement.tagName === 'COUNTER-WIDGET') {
-              console.log('[Theme] Changing theme from:', counterElement.$theme.get());
-              const newTheme = counterElement.$theme.get() === 'light' ? 'dark' : 'light';
-              counterElement.$theme.set(newTheme);
-              console.log('[Theme] Theme is now:', counterElement.$theme.get());
+              console.log('[Theme] Changing theme from:', counterElement.theme);
+              const newTheme = counterElement.theme === 'light' ? 'dark' : 'light';
+              counterElement.theme = newTheme;
+              console.log('[Theme] Theme is now:', counterElement.theme);
               counterElement.setAttribute('data-theme', newTheme);
             }
           }
         },
         {
           tagName: 'p',
-          textContent: 'Current theme: {parentNode.$theme}',
+          textContent: 'Current theme: ${this.parentNode.theme.get()}',
           style: {
             margin: '1em 0 0 0',
             fontSize: '0.9em',
@@ -133,60 +135,61 @@ export default {
     },
     {
       tagName: 'todo-item',
-      $item: {},
-      $index: 0,
+      item: {},
+      index: 0,
       delete: function () {
-        // debug
-        console.log('[TodoItem] Deleting item at index:', this.$index.get());
-
-        $todos.set($todos.get().toSpliced(this.$index.get(), 1)); // This triggers the signal update
+        console.log('[TodoItem] Deleting item at index:', this.index);
+        const rootElement = this.getRootNode() || document;
+        const todos = rootElement.todos || window.todos;
+        if (todos) {
+          const currentTodos = Array.isArray(todos) ? todos : (todos.__getSignal ? todos.__getSignal().get() : []);
+          const newTodos = currentTodos.toSpliced(this.index, 1);
+          
+          if (todos.__getSignal) {
+            todos.__getSignal().set(newTodos);
+          } else if (Array.isArray(window.todos)) {
+            window.todos.splice(this.index, 1);
+          }
+        }
       },
       toggle: function (checked) {
-        const index = this.$index.get();
-        $todos.set(
-          $todos.get().toSpliced(index, 1, {
-            ...$todos.get()[index],
+        const index = this.index;
+        console.log('[TodoItem] Toggling item at index:', index, 'to:', checked);
+        
+        const rootElement = this.getRootNode() || document;
+        const todos = rootElement.todos || window.todos;
+        if (todos) {
+          const currentTodos = Array.isArray(todos) ? todos : (todos.__getSignal ? todos.__getSignal().get() : []);
+          const newTodos = currentTodos.toSpliced(index, 1, {
+            ...currentTodos[index],
             completed: checked
-          })
-        );
-      },
-      updateText: function (newText) {
-        const index = this.$index.get();
-        $todos.set(
-          $todos.get().toSpliced(index, 1, {
-            ...$todos.get()[index],
-            text: newText.trim()
-          })
-        );
-      },
-      attributes: {
-        checked: function (el) {
-          return el.$item.get().completed ? true : false;
+          });
+          
+          if (todos.__getSignal) {
+            todos.__getSignal().set(newTodos);
+          } else if (Array.isArray(window.todos)) {
+            window.todos[index] = { ...window.todos[index], completed: checked };
+          }
         }
       },
       style: {
         display: 'flex',
-        alignItems: 'space-between',
+        alignItems: 'center',
         padding: '0.5em',
-        borderBottom: '1px solid #eee',
-        '[checked] :not(button)': {
-          textDecoration: 'line-through',
-          opacity: '0.6'
-        }
+        margin: '0.25em 0',
+        border: '1px solid #e1e1e1',
+        borderRadius: '4px',
+        backgroundColor: '#f9f9f9'
       },
       children: [
         {
           tagName: 'input',
-          type: 'checkbox',
-          name: 'todo-item-checkbox-{parentNode.$index}',
           attributes: {
-            checked: function (el) {
-              return el.parentNode.$item.get().completed ? true : false;
-            }
+            type: 'checkbox',
+            checked: '${this.parentNode.item.completed.get()}'
           },
           style: {
-            marginRight: '0.5em',
-            maxWidth: 'fit-content',
+            marginRight: '0.5em'
           },
           onchange: function (event) {
             const todoItem = event.target.parentNode;
@@ -196,55 +199,29 @@ export default {
           }
         },
         {
-          tagName: 'input',
-          type: 'text',
-          name: 'todo-item-text-{parentNode.$index}',
-          value: '{parentNode.$item.text}',
+          tagName: 'span',
+          textContent: '${this.parentNode.item.text.get()}',
           style: {
             flex: '1',
-            FlexGrow: '1',
-            border: 'none',
-            background: 'transparent',
-            fontSize: 'inherit',
-            fontFamily: 'inherit',
-            padding: '0.25em',
-            margin: '0',
-            outline: 'none',
-            ':focus': {
-              background: '#f0f0f0',
-              border: '1px solid #007acc',
-              borderRadius: '3px'
-            }
-          },
-          onblur: function (event) {
-            const todoItem = event.target.parentNode;
-            const newText = event.target.value.trim();
-            if (todoItem && todoItem.updateText && newText) {
-              todoItem.updateText(newText);
-            }
-          },
-          onkeydown: function (event) {
-            if (event.key === 'Enter') {
-              event.target.blur(); // Trigger onblur to save
-            }
-            if (event.key === 'Escape') {
-              // Reset to original value
-              event.target.value = event.target.parentNode.$item.get().text;
-              event.target.blur();
-            }
+            textDecoration: '${this.parentNode.item.completed.get() ? "line-through" : "none"}',
+            color: '${this.parentNode.item.completed.get() ? "#888" : "#333"}'
           }
         },
         {
           tagName: 'button',
           textContent: '×',
           style: {
+            marginLeft: '0.5em',
+            padding: '0.25em 0.5em',
             border: 'none',
+            borderRadius: '4px',
             backgroundColor: '#ff4757',
-            borderRadius: '50%',
             color: 'white',
             cursor: 'pointer',
-            fontSize: '1.2em',
-            width: '1.5em',
+            fontSize: '0.9em',
+            ':hover': {
+              backgroundColor: '#ff3838'
+            }
           },
           onclick: function (event) {
             const todoItem = event.target.parentNode;
@@ -254,178 +231,210 @@ export default {
           }
         }
       ]
-    },
-    {
-      tagName: 'todo-list',
-      add: function (text) {
-        if (text && text.trim()) {
-          window.$todos.set([
-            ...window.$todos.get(),
-            {
-              text: text.trim(),
-              completed: false
-            }
-          ]);
+    }
+  ],
+
+  document: {
+    head: {
+      children: [
+        {
+          tagName: 'title',
+          textContent: 'Reactive Custom Elements - New Reactivity Model'
         }
-      },
+      ]
+    },
+    body: {
       style: {
-        display: 'block',
-        border: '1px solid #ddd',
-        borderRadius: '8px',
-        padding: '1em',
-        margin: '1em 0',
-        backgroundColor: 'white'
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        lineHeight: '1.6',
+        maxWidth: '800px',
+        margin: '0 auto',
+        padding: '2em',
+        backgroundColor: '#f8f9fa'
       },
       children: [
         {
-          tagName: 'h3',
-          textContent: 'Reactive Todo List',
+          tagName: 'header',
           style: {
-            margin: '0 0 1em 0',
-            color: '#333'
-          }
-        },
-        {
-          id: 'todo-input-container',
-          tagName: 'div',
-          style: { marginBottom: '1em' },
+            textAlign: 'center',
+            marginBottom: '2em'
+          },
           children: [
             {
-              id: 'todo-input',
-              tagName: 'input',
-              type: 'text',
-              placeholder: 'Add new todo...',
+              tagName: 'h1',
+              textContent: 'Reactive Custom Elements',
               style: {
-                padding: '0.5em',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                marginRight: '0.5em',
-                flex: '1'
-              },
-              onkeydown: function (event) {
-                if (event.key === 'Enter') {
-                  const todoList = event.target.parentNode.parentNode; // input -> div -> todo-list
-                  const input = event.target;
-                  if (todoList && todoList.add && input && input.value.trim()) {
-                    console.log('[Todo] Adding item via Enter:', input.value);
-                    todoList.add(input.value);
-                    input.focus(); // Keep cursor in the input field
-                    input.value = ''; // Clear input after adding
-                    event.preventDefault(); // Prevent form submission if inside a form
-                  }
-                }
+                color: '#2c3e50',
+                marginBottom: '0.5em'
               }
             },
             {
-              tagName: 'button',
-              textContent: 'Add',
+              tagName: 'p',
+              textContent: 'Demonstrating the new reactivity model with transparent signal proxies',
               style: {
-                padding: '0.5em 1em',
-                border: 'none',
-                borderRadius: '4px',
-                backgroundColor: '#007acc',
-                color: 'white',
-                cursor: 'pointer'
-              },
-              onclick: function (event) {
-                const todoList = event.target.parentNode.parentNode; // button -> div -> todo-list
-                const input = event.target.previousElementSibling;
-                if (todoList && todoList.add && input) {
-                  console.log('[Todo] Adding item:', input.value);
-                  todoList.add(input.value);
-                  input.value = ''; // Clear input after adding
-                  input.focus(); // Keep cursor in the input field
-                }
+                color: '#7f8c8d',
+                fontSize: '1.1em'
               }
             }
           ]
         },
+        
         {
-          tagName: 'todo-items',
-        }
-      ]
-    },
-    {
-      tagName: 'todo-items',
-      children: {
-        items: () => window.$todos,
-        map: {
-          tagName: 'todo-item',
-          $item: (item, index) => item,
-          $index: (item, index) => index,
-        }
-      }
-    }
-  ],
-  document: {
-    body: {
-      style: {
-        fontFamily: 'system-ui, sans-serif',
-        padding: '2em',
-        backgroundColor: '#f8f9fa',
-        margin: '0',
-        lineHeight: '1.6'
-      },
-      children: [
-        {
-          tagName: 'h1',
-          textContent: 'Reactive Custom Elements Example',
+          tagName: 'section',
           style: {
-            color: '#333',
-            marginBottom: '1em',
-            textAlign: 'center'
-          }
-        },
-        {
-          tagName: 'p',
-          textContent: 'This example demonstrates reactive custom elements using the $ prefix for reactive properties and Attribute Value Templates for dynamic content. Changes to reactive properties automatically trigger re-renders.',
-          style: {
-            maxWidth: '600px',
-            margin: '0 auto 2em',
-            textAlign: 'center',
-            color: '#666'
-          }
-        },
-        { tagName: 'counter-widget' },
-        { tagName: 'todo-list' },
-        {
-          tagName: 'div',
-          style: {
-            marginTop: '2em',
-            padding: '1em',
-            backgroundColor: 'white',
-            borderRadius: '8px',
-            border: '1px solid #ddd'
+            marginBottom: '2em'
           },
           children: [
             {
-              tagName: 'h3',
-              textContent: 'How It Works',
-              style: { marginTop: '0', color: '#333' }
+              tagName: 'h2',
+              textContent: 'Interactive Counter Widget',
+              style: {
+                color: '#34495e',
+                borderBottom: '2px solid #3498db',
+                paddingBottom: '0.5em'
+              }
+            },
+            {
+              tagName: 'counter-widget'
+            }
+          ]
+        },
+
+        {
+          tagName: 'section',
+          children: [
+            {
+              tagName: 'h2',
+              textContent: 'Dynamic Todo List',
+              style: {
+                color: '#34495e',
+                borderBottom: '2px solid #3498db',
+                paddingBottom: '0.5em'
+              }
+            },
+            {
+              tagName: 'div',
+              style: {
+                backgroundColor: 'white',
+                padding: '1.5em',
+                borderRadius: '8px',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+              },
+              children: [
+                {
+                  tagName: 'div',
+                  style: {
+                    marginBottom: '1em'
+                  },
+                  children: [
+                    {
+                      tagName: 'input',
+                      attributes: {
+                        type: 'text',
+                        placeholder: 'Add a new todo...',
+                        id: 'new-todo-input'
+                      },
+                      style: {
+                        padding: '0.5em',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        marginRight: '0.5em',
+                        flex: '1'
+                      }
+                    },
+                    {
+                      tagName: 'button',
+                      textContent: 'Add Todo',
+                      style: {
+                        padding: '0.5em 1em',
+                        border: 'none',
+                        borderRadius: '4px',
+                        backgroundColor: '#3498db',
+                        color: 'white',
+                        cursor: 'pointer',
+                        ':hover': {
+                          backgroundColor: '#2980b9'
+                        }
+                      },
+                      onclick: function () {
+                        const input = document.getElementById('new-todo-input');
+                        const text = input.value.trim();
+                        if (text) {
+                          const rootElement = document.body;
+                          const todos = rootElement.todos || window.todos;
+                          if (todos) {
+                            const currentTodos = Array.isArray(todos) ? todos : (todos.__getSignal ? todos.__getSignal().get() : []);
+                            const newTodos = [...currentTodos, { text, completed: false }];
+                            
+                            if (todos.__getSignal) {
+                              todos.__getSignal().set(newTodos);
+                            } else if (Array.isArray(window.todos)) {
+                              window.todos.push({ text, completed: false });
+                            }
+                          }
+                          input.value = '';
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  tagName: 'div',
+                  id: 'todo-list',
+                  // Using string address for array binding
+                  items: 'this.parentNode.parentNode.todos',
+                  children: {
+                    tagName: 'todo-item',
+                    item: (item) => item,
+                    index: (item, index) => index
+                  }
+                }
+              ]
+            }
+          ]
+        },
+
+        {
+          tagName: 'footer',
+          style: {
+            textAlign: 'center',
+            marginTop: '3em',
+            padding: '2em 0',
+            borderTop: '1px solid #e1e1e1',
+            color: '#7f8c8d'
+          },
+          children: [
+            {
+              tagName: 'p',
+              textContent: 'This example demonstrates the new reactivity model:'
             },
             {
               tagName: 'ul',
-              style: { color: '#666', lineHeight: '1.8' },
+              style: {
+                textAlign: 'left',
+                display: 'inline-block',
+                marginTop: '1em'
+              },
               children: [
                 {
                   tagName: 'li',
-                  textContent: 'Properties prefixed with $ become reactive signals'
+                  textContent: 'No more $-prefixed reactive properties'
+                },
+                {
+                  tagName: 'li', 
+                  textContent: 'Transparent signal proxies for seamless get/set syntax'
                 },
                 {
                   tagName: 'li',
-                  textContent: 'Changes to reactive properties trigger automatic re-renders'
+                  textContent: 'Template literals automatically get computed signals + effects'
                 },
                 {
                   tagName: 'li',
-                  textContent: 'Attribute Value Templates ({property}) enable dynamic content'
+                  textContent: 'String addresses for array binding ("this.parentNode.todos")'
                 },
                 {
                   tagName: 'li',
-                  textContent: 'ArrayExprs provide data-driven list rendering'
-                },
-                {
-                  tagName: 'li',
-                  textContent: 'Event handlers can modify reactive state to update the UI'
+                  textContent: 'Property-level reactivity instead of component-level'
                 }
               ]
             }
@@ -434,4 +443,4 @@ export default {
       ]
     }
   }
-}
+};

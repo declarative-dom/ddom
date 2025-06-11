@@ -1,7 +1,4 @@
-import { ArrayExpr, DocumentSpec, DOMSpec, HTMLElementSpec, WindowSpec, DOMNode } from '../../../types/src';
-/**
- * Adopts a WindowSpec into the current document context.
- */
+import { MappedArrayExpr, DocumentSpec, DOMSpec, HTMLElementSpec, WindowSpec, DOMNode } from '../../../types/src';
 /**
  * Adopts a DocumentSpec into the current document context.
  * This function applies the declarative document properties to the global document object.
@@ -21,6 +18,11 @@ export declare function adoptDocument(spec: DocumentSpec): void;
  * This function applies properties from the declarative object to the target element,
  * handling children, attributes, styles, and other properties appropriately.
  *
+ * Uses the new reactivity model:
+ * - Template literals with ${...} get computed signals + effects
+ * - Non-function, non-templated properties get transparent signal proxies
+ * - Protected properties (id, tagName) are set once and never reactive
+ *
  * @param spec The declarative DOM object to adopt
  * @param el The target DOM node to apply properties to
  * @param css Whether to process CSS styles (default: true)
@@ -28,7 +30,9 @@ export declare function adoptDocument(spec: DocumentSpec): void;
  * @example
  * ```typescript
  * adoptNode({
- *   textContent: 'Hello',
+ *   textContent: 'Hello ${this.name}', // Template literal - creates computed signal
+ *   count: 0, // Non-templated - gets transparent signal proxy
+ *   id: 'my-element', // Protected - set once, never reactive
  *   style: { color: 'red' }
  * }, myElement);
  * ```
@@ -87,14 +91,16 @@ export declare function appendChild(spec: HTMLElementSpec, parentNode: DOMNode, 
  */
 export declare function createElement(spec: HTMLElementSpec, css?: boolean): HTMLElement;
 /**
- * Adopts a ArrayExpr and renders its items as DOM elements in the parent container
+ * Adopts a MappedArrayExpr and renders its items as DOM elements in the parent container
  *
- * This function creates a reactive ArrayExpr instance and renders each mapped item
+ * This function creates a reactive MappedArrayExpr instance and renders each mapped item
  * as a DOM element, properly handling reactive properties and leveraging existing element
  * creation functions.
  *
- * @param arrayExpr - The DeclarativeArray configuration
+ * Uses modern fine-grained updates instead of clearing and re-rendering everything.
+ *
+ * @param arrayExpr - The MappedArray configuration
  * @param parentElement - The parent DOM element to render items into
  * @param css - Whether to process CSS styles (default: true)
  */
-export declare function adoptArray<T>(arrayExpr: ArrayExpr<T, any>, parentElement: Element, css?: boolean): void;
+export declare function adoptArray<T>(arrayExpr: MappedArrayExpr<T, any>, parentElement: Element, css?: boolean): void;

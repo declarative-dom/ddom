@@ -18,10 +18,8 @@ export default {
 				},
 				{
 					tagName: 'button',
-					attributes: {
-						text: 'Click Me!',
-					},
-					textContent: '{@text}',
+					text: 'Click Me!',  // Use property instead of attribute
+					textContent: '${this.text.get()}', // Reference the property
 					style: {
 						padding: '0.5em 1em',
 						backgroundColor: '#007bff',
@@ -31,7 +29,7 @@ export default {
 						cursor: 'pointer',
 						':hover': { backgroundColor: '#007acc', color: 'white' }
 					},
-					onclick: (event) => { alert(`You clicked on the ${event.target.getAttribute("text")} button!`); }
+					onclick: (event) => { alert(`You clicked on the ${event.target.text.get()} button!`); }
 				}
 			]
 		}
