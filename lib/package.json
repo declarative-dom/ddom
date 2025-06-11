@@ -36,6 +36,9 @@
   "license": "MIT",
   "main": "dist/index.js",
   "name": "@declarative-dom/lib",
+	"publishConfig": {
+		"access": "public"
+	},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/declarative-dom/ddom/lib.git"

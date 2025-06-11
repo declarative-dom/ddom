@@ -1,6 +1,5 @@
 import { MappedArrayExpr } from '../../../types/src';
 import { Signal } from '../events';
-
 /**
  * Type guard to check if a value is an MappedArrayExpr.
  * Validates that the object has the required 'items' property to be considered an MappedArrayExpr.
@@ -17,8 +16,6 @@ import { Signal } from '../events';
  * ```
  */
 export declare function isMappedArrayExpr<T>(value: any): value is MappedArrayExpr<T, any>;
-
-
 /**
  * Reactive array implementation that integrates with the Signal system.
  * Processes arrays through a complete pipeline of filtering, sorting, mapping, and composition.

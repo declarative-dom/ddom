@@ -292,30 +292,11 @@ Certain properties are automatically protected from becoming reactive:
 - `id` - Set once during element creation
 - `tagName` - Set once during element creation
 
-## Architecture
-
-DDOM consists of several key modules:
-
-- **`templates/`** - Template literal processing and signal property creation
-- **`elements/`** - DOM element creation and property handling
-- **`events/`** - Signal system and effect management
-- **`arrays/`** - Dynamic array handling with string address support
-- **`customElements/`** - Custom element registration and management
-
-## Performance
-
-DDOM's reactivity model provides excellent performance:
-
-- **Property-level reactivity** - Only affected elements update
-- **Explicit signal access** - Predictable `.get()` and `.set()` operations
-- **Computed signals** - Efficient template literal updates
-- **No component re-rendering** - Granular updates only
-
 ## Philosophy
 
 ### DOM-First Design
 
-DDOM maintains strict alignment with DOM APIs and web standards. The library eliminates non-standard syntax while preserving powerful reactivity through standard JavaScript patterns.
+DDOM maintains strict alignment with DOM APIs and web standards. In general, DDOM aims to mirror and support valid DOM properties, keys, and value types as closely as possible.
 
 ### Developer Experience
 
