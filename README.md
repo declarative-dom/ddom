@@ -193,8 +193,8 @@ app.age.set(31);
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/declarative-dom.git
-cd declarative-dom
+git clone https://github.com/declarative-dom/ddom.git
+cd ddom
 
 # Install dependencies
 cd lib && npm install
