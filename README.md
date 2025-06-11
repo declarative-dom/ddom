@@ -1,3 +1,8 @@
+<!-- Logo -->
+<p align="left">
+  <img src="logo/ddom.svg" alt="Declarative DOM Logo" width="100" height="100" />
+</p>
+
 # Declarative DOM
 
 **Declarative DOM** *(or DDOM)* is a JavaScript object schema for building web applications. It is designed to encompass all modern web development features within an object syntax that closely follows the [DOM](https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model), [CSSOM](https://developer.mozilla.org/en-US/docs/Web/API/CSS_Object_Model), and related web standards.
