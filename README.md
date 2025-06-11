@@ -4,7 +4,7 @@
 
 Just as JSON provides a syntax and grammar for describing arbitrary data, DDOM defines a type-enforced structure for describing web applications and components. Specifically, DDOM provides a strongly typed, JSON-like syntax for defining DOM documents, nodes, and custom elements, in a declarative manner which attempts to mirror and extend the official DOM API.
 
-Declarative DOM also publishes a reference JavaScript library for deploying reactive web applications using Declarative DOM syntax. The DDOM library integrations the [TC39 JavaScript Signals proposal polyfill](https://github.com/tc39/proposal-signals) to provide a standardized signal-based reactivity model that provides fine-grained updates.
+DDOM is maintained with a reference JavaScript library for deploying reactive web applications using the DDOM syntax. The DDOM library integrations the [TC39 JavaScript Signals proposal polyfill](https://github.com/tc39/proposal-signals) to provide a standardized signal-based reactivity model that provides fine-grained updates.
 
 
 ## Quick Example
