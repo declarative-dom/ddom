@@ -149,6 +149,25 @@ DOM immutable properties `id` and `tagName` are automatically protected from rea
 }
 ```
 
+### 🌐 Property Accessor Resolution
+
+Strings the begin with `document.`, `this.` or `window.` are provisioned as property accessors. Reference data from anywhere in your application using standard JavaScript dot notation:
+
+```javascript
+{
+  // Reference global data
+  userData: 'window.currentUser',
+  settings: 'document.appConfig',
+  
+  // Reference parent element data  
+  parentData: 'this.parentNode.sharedState',
+  
+  // Use in any property
+  items: 'window.todoList',           // ← For dynamic arrays
+  signal: 'this.parentNode.$count'    // ← For signal references
+}
+```
+
 ### 🌐 Dynamic Mapped Arrays
 
 Create dynamic lists that automatically update when data changes:
@@ -270,7 +289,7 @@ DDOM automatically wraps custom data (non-style, non-immutable, non-function, no
 
 ### Template Literal Processing
 
-Strings containing `${...}` patterns are converted to template literal expressions and are automatically processed to:
+DDOM converts strings containing `${...}` patterns to template literal expressions. These expressions:
 
 - Create computed signals for the entire template
 - Set up effects that update DOM properties when signals change
@@ -279,7 +298,7 @@ Strings containing `${...}` patterns are converted to template literal expressio
 
 ### String Address Resolution
 
-DDOM supports clean string-based data binding for arrays and signals (WIP):
+DDOM supports clean string-based property accessors, especially useful for data binding for arrays and signals:
 
 ```javascript
 // These all work:

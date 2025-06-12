@@ -1,14 +1,5 @@
 import { Signal } from '../events';
 /**
- * Resolves a signal address string to the actual signal object.
- * Supports addresses like "window.todos", "this.parentNode.items", etc.
- *
- * @param address - The signal address string
- * @param contextNode - The context node for resolving "this" references
- * @returns The resolved signal object or null if not found
- */
-export declare function resolveSignalAddress(address: string, contextNode: Node): Signal.State<any> | Signal.Computed<any> | null;
-/**
  * Evaluates JavaScript template literals using DOM nodes as context.
  * Uses native JavaScript template literal syntax with the context node as 'this'.
  *

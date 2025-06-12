@@ -34,6 +34,11 @@ import {
 	bindAttributeTemplate,
 } from '../templates';
 
+import {
+	isPropertyAccessor,
+	resolvePropertyAccessor
+} from '../accessors';
+
 // Properties that are immutable after element creation (structural identity)
 const IMMUTABLE_PROPERTIES = new Set(['id', 'tagName']);
 
@@ -147,12 +152,24 @@ const ddomHandlers: {
 			if (descriptor.get || descriptor.set) {
 				Object.defineProperty(el, key, descriptor);
 			}
+			// Handle property accessor strings
+			else if (typeof descriptor.value === 'string' && isPropertyAccessor(descriptor.value)) {
+				const resolved = resolvePropertyAccessor(descriptor.value, (el as Node));
+				if (resolved !== null) {
+					// Pass through any resolved value (signals, objects, arrays, functions, etc.)
+					(el as any)[key] = resolved;
+				} else {
+					console.warn(`Failed to resolve property accessor "${descriptor.value}" for property "${key}"`);
+				}
+			}
+			// Handle template literal strings
+			else if (typeof descriptor.value === 'string' && isTemplateLiteral(descriptor.value) && !IMMUTABLE_PROPERTIES.has(key)) {
+				// Set up fine-grained reactivity - the template will auto-update when dependencies change
+				bindPropertyTemplate(el, key, descriptor.value);
+			}
 			// Handle non-event function properties
 			else if (typeof descriptor.value === 'function') {
 				(el as any)[key] = descriptor.value;
-			} else if (typeof descriptor.value === 'string' && isTemplateLiteral(descriptor.value) && !IMMUTABLE_PROPERTIES.has(key)) {
-				// Set up fine-grained reactivity - the template will auto-update when dependencies change
-				bindPropertyTemplate(el, key, descriptor.value);
 			} else {
 				// For non-function, non-templated properties, wrap in transparent signal proxy
 				// but only if not protected (id, tagName)

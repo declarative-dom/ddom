@@ -3,29 +3,9 @@ import {
 	createEffect
 } from '../events';
 
-/**
- * Resolves a signal address string to the actual signal object.
- * Supports addresses like "window.todos", "this.parentNode.items", etc.
- * 
- * @param address - The signal address string
- * @param contextNode - The context node for resolving "this" references
- * @returns The resolved signal object or null if not found
- */
-export function resolveSignalAddress(address: string, contextNode: Node): Signal.State<any> | Signal.Computed<any> | null {
-  try {
-    const resolved = new Function('return ' + address).call(contextNode);
-    
-    // Check if it's a signal
-    if (resolved && (Signal.isState(resolved) || Signal.isComputed(resolved))) {
-      return resolved;
-    }
-    
-    return null;
-  } catch (error) {
-    console.warn(`Failed to resolve signal address "${address}":`, error);
-    return null;
-  }
-}
+import {
+  resolvePropertyAccessor
+} from '../accessors';
 
 /**
  * Evaluates JavaScript template literals using DOM nodes as context.

@@ -1,1 +1,1 @@
-export { adoptDocument, adoptNode, adoptWindow, createElement } from './elements';
+export * from './elements';

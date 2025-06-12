@@ -5,6 +5,7 @@ import { MappedArray } from './arrays/arrays';
 import { createEffect, createReactiveProperty } from './events/Signal';
 import { Signal } from 'signal-polyfill';
 import { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate } from './templates/templates';
+import { isPropertyAccessor, resolvePropertyAccessor } from './accessors/accessors';
 
 // Named exports for compatibility
 export { adoptDocument, adoptNode, adoptWindow, createElement } from './elements/elements';
@@ -14,6 +15,7 @@ export { createEffect, createReactiveProperty } from './events/Signal';
 export { Signal } from 'signal-polyfill';
 export { MappedArray } from './arrays/arrays';
 export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate } from './templates/templates';
+export { isPropertyAccessor, resolvePropertyAccessor } from './accessors/accessors';
 
 // Default export: DDOM function with namespace properties
 function DDOM(spec: any) {

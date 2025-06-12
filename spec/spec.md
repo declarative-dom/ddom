@@ -34,6 +34,7 @@ This specification covers:
 - Event handler specifications
 - Style object definitions
 - Attribute handling
+- Property accessor resolution
 
 ### 2. Core Syntax
 
@@ -207,6 +208,24 @@ Child elements are specified in the `children` array:
   ]
 }
 ```
+
+#### 3.6 Property Accessors
+
+Property accessor strings are automatically resolved to their target values:
+
+```javascript
+{
+  tagName: 'div',
+  userData: 'window.currentUser',      // ← Resolves to window.currentUser
+  parentData: 'this.parentNode.items', // ← Resolves to parent element's items
+  settings: 'document.appConfig'       // ← Resolves to document.appConfig
+}
+```
+
+Property accessors must start with:
+- `window.` - References global window properties
+- `document.` - References document properties  
+- `this.` - References properties relative to the current element
 
 ### 4. Custom Elements
 

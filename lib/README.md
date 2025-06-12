@@ -114,6 +114,7 @@ const page = {
 - **DOM Conformance:** Object properties mirror standard DOM element properties.
 - **Reactive Signals:** Custom data properties become reactive signals with explicit `.get()` and `.set()` methods.
 - **Template Literals:** Template literals with `${...}` expressions are automatically reactive.
+- **Property Accessors:** Reference values throughout the application using standard JavaScript dot notation.
 - **Declarative Children:** Nested structures mirror the DOM tree using `children` arrays.
 - **Declarative Styles:** Styles are objects with camelCase property names and support CSS nesting.
 - **Custom Elements:** Define and use custom elements declaratively.
@@ -125,8 +126,9 @@ DDOM consists of several key modules:
 - **`templates/`** - Template literal processing and signal property creation
 - **`elements/`** - DOM element creation and property handling
 - **`events/`** - Signal system and effect management
-- **`arrays/`** - Dynamic array handling with string address support
+- **`arrays/`** - Dynamic array handling with property accessor support
 - **`customElements/`** - Custom element registration and management
+- **`accessors/`** - Property accessor resolution for cross-component data binding
 
 ## Performance
 

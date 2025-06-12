@@ -38,10 +38,6 @@ export default {
       validator: () => true, // Default validator always returns true
       errorMessage: '',
       rows: 1,
-      valueSignalName: '', // Name of the signal property on parent (e.g., '$name')
-
-      // Runtime signal reference (established in connectedCallback after properties are set)
-      valueSignal: null,
 
       // Computed validation using the passed signal
       get isValid() {
@@ -88,35 +84,6 @@ export default {
           this.setAttribute('data-field-type', this.type.get());
           this.setAttribute('data-is-input', this.isInputField);
           this.setAttribute('data-is-textarea', this.isTextareaField);
-        });
-
-        // Set up effect to connect to parent signal and sync DOM values
-        // This will run after properties are assigned, so valueSignalName will be correct
-        DDOM.createEffect(() => {
-          const signalName = this.valueSignalName.get();
-          if (signalName && this.parentNode && this.parentNode[signalName]) {
-            // Connect to parent signal
-            if (this.valueSignal !== this.parentNode[signalName]) {
-              this.valueSignal = this.parentNode[signalName];
-            }
-
-            // Sync DOM input values with signal
-            if (this.valueSignal && DDOM.Signal.isState(this.valueSignal)) {
-              const value = this.valueSignal.get();
-
-              // Update input field
-              const input = this.children[1];
-              if (input && input.value !== value) {
-                input.value = value;
-              }
-
-              // Update textarea field
-              const textarea = this.children[2];
-              if (textarea && textarea.value !== value) {
-                textarea.value = value;
-              }
-            }
-          }
         });
       },
 
@@ -297,7 +264,7 @@ export default {
           placeholder: 'Enter your name (minimum 2 characters)',
           validator: (value) => value.trim().length >= 2,
           errorMessage: 'Name must be at least 2 characters',
-          valueSignalName: '$name'
+          valueSignal: 'this.parentNode.$name'
         },
         {
           tagName: 'form-field',
@@ -306,7 +273,7 @@ export default {
           placeholder: 'Enter your email address',
           validator: (value) => value.includes('@') && value.includes('.') && value.length > 5,
           errorMessage: 'Please enter a valid email address',
-          valueSignalName: '$email'
+          valueSignal: 'this.parentNode.$email'
         },
         {
           tagName: 'form-field',
@@ -316,7 +283,7 @@ export default {
           placeholder: 'Enter your message (minimum 10 characters)',
           validator: (value) => value.trim().length >= 10,
           errorMessage: 'Message must be at least 10 characters',
-          valueSignalName: '$message'
+          valueSignal: 'this.parentNode.$message'
         },
         {
           tagName: 'div',
