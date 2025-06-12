@@ -1,1 +1,1 @@
-export { define } from './customElements';
+export * from './customElements';

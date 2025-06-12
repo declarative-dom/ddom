@@ -43,7 +43,7 @@ export declare class MappedArray<T, U = any> {
      * Sets up the reactive pipeline for processing array data through filtering,
      * sorting, mapping, and composition operations.
      *
-     * Supports string addresses like "window.todos" or "this.parentNode.items" for signal resolution.
+     * Supports property accessors like "window.todos" or "this.parentNode.items" for value resolution.
      *
      * @param expr - The MappedArrayExpr configuration defining the processing pipeline
      * @param parentElement - Optional parent element for context-aware operations

@@ -1,1 +1,1 @@
-export { adoptStyleSheet, clearStyleSheet, insertRules, } from './styleSheets';
+export * from './styleSheets';

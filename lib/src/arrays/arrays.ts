@@ -12,9 +12,12 @@ import {
 } from '../events';
 
 import {
-  parseTemplateLiteral,
-  resolveSignalAddress
+  parseTemplateLiteral
 } from '../templates';
+
+import {
+  resolvePropertyAccessor
+} from '../accessors';
 
 /**
  * Evaluates a filter expression against an item in an array.
@@ -171,7 +174,7 @@ export class MappedArray<T, U = any> {
    * Sets up the reactive pipeline for processing array data through filtering,
    * sorting, mapping, and composition operations.
    * 
-   * Supports string addresses like "window.todos" or "this.parentNode.items" for signal resolution.
+   * Supports property accessors like "window.todos" or "this.parentNode.items" for value resolution.
    * 
    * @param expr - The MappedArrayExpr configuration defining the processing pipeline
    * @param parentElement - Optional parent element for context-aware operations
@@ -186,13 +189,22 @@ export class MappedArray<T, U = any> {
     } else if (Array.isArray(expr.items)) {
       this.sourceSignal = new Signal.State(expr.items);
     } else if (typeof expr.items === 'string') {
-      // Handle string address resolution (new feature)
-      const resolvedSignal = resolveSignalAddress(expr.items, parentElement || document.body);
-      if (resolvedSignal) {
-        this.sourceSignal = resolvedSignal;
+      // Handle property accessor resolution
+      const resolved = resolvePropertyAccessor(expr.items, parentElement || document.body);
+      if (resolved !== null) {
+        // Check if it's a signal
+        if (Signal.isState(resolved) || Signal.isComputed(resolved)) {
+          this.sourceSignal = resolved;
+        } else if (Array.isArray(resolved)) {
+          // Static array - wrap in a signal
+          this.sourceSignal = new Signal.State(resolved);
+        } else {
+          console.error('MappedArray: Property accessor resolved to non-array value:', resolved);
+          throw new Error(`Property accessor "${expr.items}" must resolve to an array or Signal containing an array`);
+        }
       } else {
-        console.error('MappedArray: Failed to resolve string address:', expr.items);
-        throw new Error(`Cannot resolve signal address: ${expr.items}`);
+        console.error('MappedArray: Failed to resolve property accessor:', expr.items);
+        throw new Error(`Cannot resolve property accessor: ${expr.items}`);
       }
     } else if (typeof expr.items === 'function') {
       // Handle function that returns array or Signal
@@ -214,7 +226,7 @@ export class MappedArray<T, U = any> {
         throw error;
       }
     } else {
-      throw new Error('MappedArrayExpr items must be an array, Signal, string address, or function');
+      throw new Error('MappedArrayExpr items must be an array, Signal, property accessor string, or function');
     }    // Create computed that processes the array through the full pipeline
     this.computed = new Signal.Computed(() => {
       try {

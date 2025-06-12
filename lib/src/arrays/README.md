@@ -57,6 +57,23 @@ MappedArrayExprs excel at:
 }
 ```
 
+### Property Accessor Integration
+
+```javascript
+// Reference global or parent data using property accessors
+{
+  tagName: 'div',
+  children: {
+    items: 'window.userData',  // Property accessor to global data
+    map: (user) => ({
+      tagName: 'div',
+      textContent: user.name,
+      className: `user-${user.role}`
+    })
+  }
+}
+```
+
 ### String Template Mapping
 
 ```javascript
@@ -120,15 +137,15 @@ MappedArrayExprs excel at:
 }
 ```
 
-## Integration with Templates
+## Integration with Property Accessors
 
-MappedArrayExprs work seamlessly with JavaScript template literals for even more dynamic content:
+MappedArrayExprs work seamlessly with property accessors for referencing data:
 
 ```javascript
 {
   tagName: 'div',
   children: {
-    items: userData,
+    items: 'this.parentNode.userList',  // Property accessor to parent data
     map: {
       tagName: 'div',
       textContent: 'User: ${this.name}',

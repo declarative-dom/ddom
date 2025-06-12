@@ -7,6 +7,7 @@ export { createEffect, createReactiveProperty } from './events/Signal';
 export { Signal } from 'signal-polyfill';
 export { MappedArray } from './arrays/arrays';
 export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate } from './templates/templates';
+export { isPropertyAccessor, resolvePropertyAccessor } from './accessors/accessors';
 declare function DDOM(spec: any): void;
 export default DDOM;
 declare global {
