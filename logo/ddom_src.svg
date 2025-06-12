@@ -6,8 +6,8 @@
    sodipodi:docname="ddom.svg"
    inkscape:version="1.4.2 (ebf0e940d0, 2025-05-08)"
    inkscape:export-filename="ddom.png"
-   inkscape:export-xdpi="39.009525"
-   inkscape:export-ydpi="39.009525"
+   inkscape:export-xdpi="76.190475"
+   inkscape:export-ydpi="76.190475"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -85,15 +85,16 @@ THE SOFTWARE.
        d="M -97.206097,488.96091 H 588.4452 c 30.11101,0 54.352,24.24099 54.352,54.35199 v 685.6513 c 0,30.111 -24.24099,54.352 -54.352,54.352 H -97.206097 c -30.111003,0 -54.351993,-24.241 -54.351993,-54.352 V 543.3129 c 0,-30.111 24.24099,-54.35199 54.351993,-54.35199 z" />
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:800;font-stretch:condensed;font-size:343.903px;font-family:DINish;-inkscape-font-specification:'DINish Ultra-Bold Condensed';text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#ffffff;stroke-width:1.03171"
+       style="font-style:normal;font-variant:normal;font-weight:800;font-stretch:condensed;font-size:343.903px;font-family:DINish;-inkscape-font-specification:'DINish Ultra-Bold Condensed';text-align:start;letter-spacing:-12.6088px;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#ffffff;stroke-width:1.03171"
        x="603.40002"
        y="1235.4569"
        id="text3"><tspan
          sodipodi:role="line"
          id="tspan3"
-         style="font-style:normal;font-variant:normal;font-weight:800;font-stretch:condensed;font-family:DINish;-inkscape-font-specification:'DINish Ultra-Bold Condensed';text-align:end;text-anchor:end;stroke-width:1.03171"
-         x="603.40002"
-         y="1235.4569">DDOM</tspan></text>
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:condensed;font-family:DINish;-inkscape-font-specification:'DINish Bold Condensed';text-align:end;letter-spacing:-12.6088px;text-anchor:end;stroke-width:1.03171"
+         x="590.7912"
+         y="1235.4569"
+         dx="0">DDOM</tspan></text>
     <text
        xml:space="preserve"
        transform="matrix(1.2608814,0,0,1.2608814,-151.55808,488.96091)"
