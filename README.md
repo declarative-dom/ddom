@@ -151,7 +151,7 @@ DOM immutable properties `id` and `tagName` are automatically protected from rea
 
 ### 🌐 Property Accessor Resolution
 
-Strings the begin with `document.`, `this.` or `window.` are provisioned as property accessors. Reference data from anywhere in your application using standard JavaScript dot notation:
+Strings beginning with `document.`, `this.` or `window.` are provisioned as property accessors. Reference data from anywhere in your application using standard JavaScript dot notation:
 
 ```javascript
 {

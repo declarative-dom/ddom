@@ -10,7 +10,8 @@
 		"lib"
 	],
 	"scripts": {
-		"release": "npm run release --workspaces && release-it"
+		"release": "npm run release --workspaces && release-it",
+		"upgrade": "npx npm-check-updates -u && npm install"
 	},
 	"repository": {
 		"type": "git",
