@@ -1,0 +1,40 @@
+{
+	"name": "declarative-dom-monorepo",
+	"version": "0.1.4",
+	"description": "Declarative DOM monorepo",
+	"author": "Declarative DOM Working Group",
+	"license": "MIT",
+	"private": true,
+	"workspaces": [
+		"types",
+		"lib"
+	],
+	"scripts": {
+		"release": "npm run release --workspaces && release-it"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/declarative-dom/ddom.git"
+	},
+	"devDependencies": {
+		"@release-it/bumper": "^7.0.5",
+		"@release-it/conventional-changelog": "^10.0.1",
+		"release-it": "^19.0.3"
+	},
+	"release-it": {
+		"git": {
+			"requireCleanWorkingDir": false
+		},
+		"npm": {
+			"publish": false
+		},
+		"github": {
+			"release": true
+		},
+		"plugins": {
+			"@release-it/conventional-changelog": {
+				"preset": "angular"
+			}
+		}
+	}
+}

@@ -5,7 +5,7 @@
 	},
 	"description": "TypeScript type definitions for Declarative DOM",
 	"devDependencies": {
-		"typescript": "^5.4.0"
+		"typescript": "^5.8.3"
 	},
 	"engines": {
 		"node": ">=16.0.0"
@@ -17,13 +17,18 @@
 	"keywords": [
 		"typescript",
 		"types",
-		"definitions"
+		"definitions",
+		"declarative",
+		"dom"
 	],
 	"license": "MIT",
 	"main": "dist/index.js",
 	"name": "@declarative-dom/types",
 	"publishConfig": {
 		"access": "public"
+	},
+	"release-it": {
+		"git": false
 	},
 	"repository": {
 		"type": "git",
@@ -33,6 +38,7 @@
 		"build": "tsc",
 		"clean": "rm -rf dist",
 		"prepublishOnly": "npm run clean && npm run build",
+		"release": "release-it",
 		"test": "tsc --noEmit",
 		"upgrade": "npx npm-check-updates -u && npm install"
 	},
