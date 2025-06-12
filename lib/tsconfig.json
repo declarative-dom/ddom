@@ -1,29 +1,30 @@
 {
 	"compilerOptions": {
-		"target": "ES2022",
-		"module": "ES2022",
+		"allowImportingTsExtensions": false,
+		"declaration": true,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
 		"lib": [
 			"DOM",
 			"ES2022"
 		],
+		"module": "ES2022",
 		"moduleResolution": "bundler",
-		"allowImportingTsExtensions": false,
-		"declaration": true,
 		"outDir": "./dist",
 		"rootDir": "../",
+		"skipLibCheck": true,
+		"sourceMap": true,
 		"strict": true,
-		"esModuleInterop": true,
-		"forceConsistentCasingInFileNames": true,
-		"skipLibCheck": true
+		"target": "ES2022"
 	},
-	"include": [
-		"src/**/*",
-		"../types/src/types.d.ts"
-	],
 	"exclude": [
 		"node_modules",
 		"dist",
 		"**/*.test.ts",
 		"**/*.spec.ts"
+	],
+	"include": [
+		"src/**/*",
+		"../types/src/types.d.ts"
 	]
 }
