@@ -1,112 +1,96 @@
-# Release Process
+# Release Guide
 
-This monorepo uses `release-it` to automate the release process for both `@declarative-dom/types` and `@declarative-dom/lib` packages.
+This monorepo uses release-it with conventional-changelog for automated releases and NPM publishing.
 
 ## Prerequisites
 
-1. Ensure you have NPM publish permissions for both packages
-2. Be on the `main` branch
-3. Have a clean working directory (no uncommitted changes)
-4. Install dependencies: `npm install`
+1. Make sure you're logged into NPM: `npm login`
+2. Ensure you have write access to the @declarative-dom organization
+3. Make sure your working directory is clean (or use `--ci` flag)
 
-## Release Commands
+## Release Process
 
-### Standard Releases
-
+### 1. Standard Release
 ```bash
-# Patch release (0.1.4 → 0.1.5)
-npm run release:patch
-
-# Minor release (0.1.4 → 0.2.0)
-npm run release:minor
-
-# Major release (0.1.4 → 1.0.0)
-npm run release:major
-```
-
-### Pre-releases
-
-```bash
-# Beta release (0.1.4 → 0.1.5-beta.0)
-npm run release:beta
-
-# Alpha release (0.1.4 → 0.1.5-alpha.0)
-npm run release:alpha
-```
-
-### Interactive Release
-
-```bash
-# Interactive mode - choose version bump
 npm run release
 ```
 
-## What Happens During Release
+This will:
+1. Release the `types` package first
+2. Release the `lib` package (with updated dependency versions)
+3. Create a git tag and GitHub release at the root level
+4. Generate CHANGELOG.md files for each package and the root
+5. Publish both packages to NPM
 
-1. **Pre-checks**: Verifies clean working directory and correct branch
-2. **Build**: Cleans and rebuilds both packages (`npm run build`)
-3. **Test**: Runs tests for both packages (`npm run test`)
-4. **Version Bump**: Updates version in root package.json
-5. **Package Updates**: Updates version in both `lib/package.json` and `types/package.json`
-6. **Git Operations**: Creates commit and tag
-7. **GitHub Release**: Creates GitHub release with changelog
-8. **NPM Publishing**: Publishes both packages to NPM
-9. **Git Push**: Pushes commits and tags to remote
+### 2. Dry Run
+```bash
+npm run release -- --dry-run
+```
 
-## Manual Steps
+Test the release process without making any changes.
+
+### 3. Prerelease
+```bash
+npm run release -- --preRelease=beta
+```
+
+Create a beta release.
+
+### 4. CI Mode
+```bash
+npm run release -- --ci
+```
+
+Skip interactive prompts (useful for CI/CD).
+
+## Conventional Commits
+
+This setup uses conventional commits for automated changelog generation. Use these commit prefixes:
+
+- `feat:` - New features (minor version bump)
+- `fix:` - Bug fixes (patch version bump)
+- `docs:` - Documentation changes
+- `style:` - Code style changes
+- `refactor:` - Code refactoring
+- `test:` - Test changes
+- `chore:` - Build/tooling changes
+
+### Breaking Changes
+Add `BREAKING CHANGE:` in the commit footer for major version bumps:
+
+```
+feat: new API design
+
+BREAKING CHANGE: The old API has been removed
+```
+
+## Package Structure
+
+- **Root**: Handles git tagging, GitHub releases, and root changelog
+- **types**: TypeScript definitions package
+- **lib**: Main library package (depends on types)
+
+The lib package automatically updates its dependency on the types package during releases.
+
+## Generated Files
+
+After releases, you'll see:
+- `CHANGELOG.md` in root, types/, and lib/
+- Updated version numbers in all package.json files
+- Git tags and GitHub releases
+
+## Manual Publishing
 
 If you need to publish manually:
 
 ```bash
-# Build both packages
+# Types package
+cd types
 npm run build
+npm publish
 
-# Update versions manually in package.json files
-# Then publish individually:
-cd types && npm publish
-cd ../lib && npm publish
+# Lib package
+cd lib
+npm run build
+npm publish
 ```
-
-## Troubleshooting
-
-### NPM Authentication
-
-If you get authentication errors:
-
-```bash
-npm login
-# Or set NPM_TOKEN environment variable
-export NPM_TOKEN=your_token_here
-```
-
-### Failed Release
-
-If a release fails partway through:
-
-1. Check what was published: `npm view @declarative-dom/lib` and `npm view @declarative-dom/types`
-2. If packages were published but git operations failed, manually push:
-   ```bash
-   git push origin main --tags
-   ```
-3. If git operations succeeded but NPM publish failed, manually publish the remaining packages
-
-### Rollback
-
-To rollback a release:
-
-```bash
-# Deprecate the NPM versions (don't unpublish unless absolutely necessary)
-npm deprecate @declarative-dom/lib@version "Rolled back due to issues"
-npm deprecate @declarative-dom/types@version "Rolled back due to issues"
-
-# Reset git if needed
-git reset --hard HEAD~1
-git tag -d v${version}
-git push origin :refs/tags/v${version}
-```
-
-## Configuration
-
-The release process is configured in:
-
-- Root `package.json` - Release scripts and workspace configuration
