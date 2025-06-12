@@ -347,7 +347,7 @@ function transformObjectTemplate(template: any, context: any, index: number = 0)
     // Function values are evaluated immediately with item and index
     return template(context, index);
   } else if (typeof template === 'string') {
-    return parseTemplateLiteral(template, context);
+    return template;
   } else if (Array.isArray(template)) {
     return template.map((item, itemIndex) => transformObjectTemplate(item, context, itemIndex));
   } else if (template && typeof template === 'object') {

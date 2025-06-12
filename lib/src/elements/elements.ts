@@ -489,20 +489,8 @@ export function adoptArray<T>(
 
 		// Create new elements
 		elementsToCreate.forEach(({ item, index }) => {
+			// createElement already handles all property processing through adoptNode and the handler system
 			const element = createElement(item, css);
-
-			// Apply mapped properties as reactive signals to the element
-			Object.entries(item).forEach(([key, value]) => {
-				if (key !== 'tagName' && key !== 'children' && key !== 'style' && key !== 'attributes') {
-					// Set up reactive properties on the element
-					if (typeof value === 'string' && isTemplateLiteral(value)) {
-						bindPropertyTemplate(element, key, value);
-					} else {
-						createReactiveProperty(element, key, value);
-					}
-				}
-			});
-
 			newElementMap.set(index, element);
 		});
 
