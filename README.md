@@ -149,7 +149,7 @@ DOM immutable properties `id` and `tagName` are automatically protected from rea
 }
 ```
 
-### 🌐 Expressive Arrays
+### 🌐 Dynamic Mapped Arrays
 
 Create dynamic lists that automatically update when data changes:
 
@@ -158,7 +158,7 @@ Create dynamic lists that automatically update when data changes:
   items: 'window.todoList',           // ← Reference data from anywhere
   // items: 'this.parentNode.data',   // ← Or from relative locations
   // items: [{ id: 1, text: 'Task 1' }, { id: 2, text: 'Task 2' }], // ← Or a static array
-  children: {
+  map: {
     tagName: 'todo-item',
     item: (item) => item,             // ← Access each array item
     index: (item, index) => index,    // ← Access the item's index
