@@ -1,6 +1,6 @@
 <!-- Logo -->
 <p align="left">
-  <img src="logo/ddom.svg" alt="Declarative DOM Logo" width="100" height="100" />
+  <img src="logo/ddom.min.svg" alt="Declarative DOM Logo" width="100" height="100" />
 </p>
 
 # Declarative DOM
