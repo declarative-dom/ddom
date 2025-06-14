@@ -276,6 +276,33 @@ The `examples/` directory contains comprehensive demonstrations:
 - **`reactive-custom-elements.html`** - Custom elements with reactivity
 - **`performance-test.html`** - Performance benchmarking
 
+## Testing
+
+DDOM includes a comprehensive testing framework using Vitest:
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode  
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+**Current Status: ✅ 25/25 tests passing**
+
+The test suite validates:
+- ✅ Library loading and exports
+- ✅ Transparent signal proxies  
+- ✅ Template literal reactivity
+- ✅ String address resolution
+- ✅ Protected properties
+- ✅ Performance benchmarks
+
+See [`tests/README.md`](tests/README.md) for detailed testing documentation.
+
 ## Core Concepts
 
 ### Standardized Reactive Signals
