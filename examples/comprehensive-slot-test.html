@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive Slot Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 2em;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 1.5em;
+            margin: 1em 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            margin: 0.5em 0;
+            padding: 0.5em;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .pass { background-color: #d4edda; color: #155724; }
+        .fail { background-color: #f8d7da; color: #721c24; }
+        .pending { background-color: #fff3cd; color: #856404; }
+        .log {
+            background: #f8f9fa;
+            padding: 1em;
+            border: 1px solid #dee2e6;
+            margin: 1em 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            font-size: 0.8em;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Comprehensive Slot Test</h1>
+    <p>Testing all slot functionality scenarios</p>
+
+    <!-- Test 1: Default Slot -->
+    <div class="test-section">
+        <h2>Test 1: Default Slot</h2>
+        <p>Custom element with default slot should render instance children</p>
+        <div id="test1-container"></div>
+        <div id="test1-result" class="test-result pending">⏳ Running...</div>
+    </div>
+
+    <!-- Test 2: Named Slots -->
+    <div class="test-section">
+        <h2>Test 2: Named Slots</h2>
+        <p>Custom element with named slots should render content in correct slots</p>
+        <div id="test2-container"></div>
+        <div id="test2-result" class="test-result pending">⏳ Running...</div>
+    </div>
+
+    <!-- Test 3: Mixed Slots -->
+    <div class="test-section">
+        <h2>Test 3: Mixed Default and Named Slots</h2>
+        <p>Custom element with both default and named slots should work correctly</p>
+        <div id="test3-container"></div>
+        <div id="test3-result" class="test-result pending">⏳ Running...</div>
+    </div>
+
+    <!-- Test 4: Slotless Component -->
+    <div class="test-section">
+        <h2>Test 4: Slotless Component</h2>
+        <p>Custom element without slots should ignore instance children</p>
+        <div id="test4-container"></div>
+        <div id="test4-result" class="test-result pending">⏳ Running...</div>
+    </div>
+
+    <!-- Test 5: Nested Slots -->
+    <div class="test-section">
+        <h2>Test 5: Nested Slots</h2>
+        <p>Slots can be nested within other elements in the template</p>
+        <div id="test5-container"></div>
+        <div id="test5-result" class="test-result pending">⏳ Running...</div>
+    </div>
+
+    <div id="log" class="log"></div>
+
+    <script type="module">
+        import DDOM from '../lib/dist/index.js';
+
+        const log = document.getElementById('log');
+        
+        function logMessage(msg) {
+            console.log(msg);
+            log.textContent += msg + '\n';
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function setResult(testId, success, message) {
+            const resultEl = document.getElementById(`${testId}-result`);
+            if (success) {
+                resultEl.className = 'test-result pass';
+                resultEl.textContent = `✅ PASS: ${message}`;
+            } else {
+                resultEl.className = 'test-result fail';
+                resultEl.textContent = `❌ FAIL: ${message}`;
+            }
+        }
+
+        // Test 1: Default Slot
+        function test1_defaultSlot() {
+            logMessage('\n=== Test 1: Default Slot ===');
+            
+            try {
+                const cardWithSlot = {
+                    tagName: 'test1-card',
+                    style: {
+                        display: 'block',
+                        border: '2px solid #007bff',
+                        borderRadius: '8px',
+                        padding: '1em'
+                    },
+                    children: [
+                        {
+                            tagName: 'h3',
+                            textContent: 'Card Title'
+                        },
+                        {
+                            tagName: 'slot'
+                        },
+                        {
+                            tagName: 'p',
+                            textContent: 'Card Footer'
+                        }
+                    ]
+                };
+
+                DDOM({
+                    customElements: [cardWithSlot],
+                    document: {
+                        body: {
+                            children: [
+                                {
+                                    tagName: 'test1-card',
+                                    children: [
+                                        {
+                                            tagName: 'p',
+                                            textContent: 'Slotted content here!',
+                                            className: 'slot-content'
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                });
+
+                setTimeout(() => {
+                    const card = document.querySelector('test1-card');
+                    if (!card) {
+                        setResult('test1', false, 'Card element not found');
+                        return;
+                    }
+
+                    document.getElementById('test1-container').appendChild(card);
+                    
+                    const slotContent = card.querySelector('.slot-content');
+                    const title = card.querySelector('h3');
+                    const footer = card.querySelector('p:last-child');
+                    
+                    logMessage(`Card found: ${!!card}`);
+                    logMessage(`Slot content found: ${!!slotContent}`);
+                    logMessage(`Title found: ${!!title}`);
+                    logMessage(`Footer found: ${!!footer}`);
+                    
+                    if (slotContent && title && footer) {
+                        setResult('test1', true, 'Default slot working correctly');
+                    } else {
+                        setResult('test1', false, 'Missing expected elements');
+                    }
+                }, 100);
+
+            } catch (error) {
+                logMessage(`Test 1 error: ${error.message}`);
+                setResult('test1', false, `Error: ${error.message}`);
+            }
+        }
+
+        // Test 2: Named Slots
+        function test2_namedSlots() {
+            logMessage('\n=== Test 2: Named Slots ===');
+            
+            try {
+                const cardWithNamedSlots = {
+                    tagName: 'test2-card',
+                    style: {
+                        display: 'block',
+                        border: '2px solid #28a745',
+                        borderRadius: '8px',
+                        padding: '1em'
+                    },
+                    children: [
+                        {
+                            tagName: 'header',
+                            children: [
+                                {
+                                    tagName: 'slot',
+                                    attributes: { name: 'header' }
+                                }
+                            ]
+                        },
+                        {
+                            tagName: 'footer',
+                            children: [
+                                {
+                                    tagName: 'slot',
+                                    attributes: { name: 'footer' }
+                                }
+                            ]
+                        }
+                    ]
+                };
+
+                DDOM({
+                    customElements: [cardWithNamedSlots],
+                    document: {
+                        body: {
+                            children: [
+                                {
+                                    tagName: 'test2-card',
+                                    children: [
+                                        {
+                                            tagName: 'h2',
+                                            textContent: 'Header Content',
+                                            attributes: { slot: 'header' },
+                                            className: 'header-content'
+                                        },
+                                        {
+                                            tagName: 'small',
+                                            textContent: 'Footer Content',
+                                            attributes: { slot: 'footer' },
+                                            className: 'footer-content'
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                });
+
+                setTimeout(() => {
+                    const card = document.querySelector('test2-card');
+                    if (!card) {
+                        setResult('test2', false, 'Card element not found');
+                        return;
+                    }
+
+                    document.getElementById('test2-container').appendChild(card);
+                    
+                    const headerContent = card.querySelector('.header-content');
+                    const footerContent = card.querySelector('.footer-content');
+                    const header = card.querySelector('header');
+                    const footer = card.querySelector('footer');
+                    
+                    logMessage(`Card found: ${!!card}`);
+                    logMessage(`Header content found: ${!!headerContent}`);
+                    logMessage(`Footer content found: ${!!footerContent}`);
+                    logMessage(`Header container found: ${!!header}`);
+                    logMessage(`Footer container found: ${!!footer}`);
+                    
+                    if (headerContent && footerContent && header && footer) {
+                        // Check that content is in the right places
+                        const headerInHeader = header.contains(headerContent);
+                        const footerInFooter = footer.contains(footerContent);
+                        
+                        logMessage(`Header content in header: ${headerInHeader}`);
+                        logMessage(`Footer content in footer: ${footerInFooter}`);
+                        
+                        if (headerInHeader && footerInFooter) {
+                            setResult('test2', true, 'Named slots working correctly');
+                        } else {
+                            setResult('test2', false, 'Content not in correct slots');
+                        }
+                    } else {
+                        setResult('test2', false, 'Missing expected elements');
+                    }
+                }, 150);
+
+            } catch (error) {
+                logMessage(`Test 2 error: ${error.message}`);
+                setResult('test2', false, `Error: ${error.message}`);
+            }
+        }
+
+        // Test 3: Mixed Slots
+        function test3_mixedSlots() {
+            logMessage('\n=== Test 3: Mixed Slots ===');
+            
+            try {
+                const cardWithMixedSlots = {
+                    tagName: 'test3-card',
+                    style: {
+                        display: 'block',
+                        border: '2px solid #ffc107',
+                        borderRadius: '8px',
+                        padding: '1em'
+                    },
+                    children: [
+                        {
+                            tagName: 'header',
+                            children: [
+                                {
+                                    tagName: 'slot',
+                                    attributes: { name: 'title' }
+                                }
+                            ]
+                        },
+                        {
+                            tagName: 'main',
+                            children: [
+                                {
+                                    tagName: 'slot' // Default slot
+                                }
+                            ]
+                        }
+                    ]
+                };
+
+                DDOM({
+                    customElements: [cardWithMixedSlots],
+                    document: {
+                        body: {
+                            children: [
+                                {
+                                    tagName: 'test3-card',
+                                    children: [
+                                        {
+                                            tagName: 'h2',
+                                            textContent: 'Card Title',
+                                            attributes: { slot: 'title' },
+                                            className: 'title-content'
+                                        },
+                                        {
+                                            tagName: 'p',
+                                            textContent: 'Main content 1',
+                                            className: 'main-content-1'
+                                        },
+                                        {
+                                            tagName: 'p',
+                                            textContent: 'Main content 2',
+                                            className: 'main-content-2'
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                });
+
+                setTimeout(() => {
+                    const card = document.querySelector('test3-card');
+                    if (!card) {
+                        setResult('test3', false, 'Card element not found');
+                        return;
+                    }
+
+                    document.getElementById('test3-container').appendChild(card);
+                    
+                    const titleContent = card.querySelector('.title-content');
+                    const mainContent1 = card.querySelector('.main-content-1');
+                    const mainContent2 = card.querySelector('.main-content-2');
+                    const header = card.querySelector('header');
+                    const main = card.querySelector('main');
+                    
+                    logMessage(`Title content found: ${!!titleContent}`);
+                    logMessage(`Main content 1 found: ${!!mainContent1}`);
+                    logMessage(`Main content 2 found: ${!!mainContent2}`);
+                    
+                    if (titleContent && mainContent1 && mainContent2 && header && main) {
+                        const titleInHeader = header.contains(titleContent);
+                        const main1InMain = main.contains(mainContent1);
+                        const main2InMain = main.contains(mainContent2);
+                        
+                        logMessage(`Title in header: ${titleInHeader}`);
+                        logMessage(`Main content 1 in main: ${main1InMain}`);
+                        logMessage(`Main content 2 in main: ${main2InMain}`);
+                        
+                        if (titleInHeader && main1InMain && main2InMain) {
+                            setResult('test3', true, 'Mixed slots working correctly');
+                        } else {
+                            setResult('test3', false, 'Content not in correct slots');
+                        }
+                    } else {
+                        setResult('test3', false, 'Missing expected elements');
+                    }
+                }, 200);
+
+            } catch (error) {
+                logMessage(`Test 3 error: ${error.message}`);
+                setResult('test3', false, `Error: ${error.message}`);
+            }
+        }
+
+        // Test 4: Slotless Component
+        function test4_slotlessComponent() {
+            logMessage('\n=== Test 4: Slotless Component ===');
+            
+            try {
+                const slotlessCard = {
+                    tagName: 'test4-card',
+                    style: {
+                        display: 'block',
+                        border: '2px solid #dc3545',
+                        borderRadius: '8px',
+                        padding: '1em'
+                    },
+                    children: [
+                        {
+                            tagName: 'h3',
+                            textContent: 'Slotless Card',
+                            className: 'card-title'
+                        }
+                    ]
+                };
+
+                DDOM({
+                    customElements: [slotlessCard],
+                    document: {
+                        body: {
+                            children: [
+                                {
+                                    tagName: 'test4-card',
+                                    children: [
+                                        {
+                                            tagName: 'p',
+                                            textContent: 'This should NOT appear!',
+                                            className: 'unwanted-content'
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                });
+
+                setTimeout(() => {
+                    const card = document.querySelector('test4-card');
+                    if (!card) {
+                        setResult('test4', false, 'Card element not found');
+                        return;
+                    }
+
+                    document.getElementById('test4-container').appendChild(card);
+                    
+                    const title = card.querySelector('.card-title');
+                    const unwantedContent = card.querySelector('.unwanted-content');
+                    
+                    logMessage(`Card title found: ${!!title}`);
+                    logMessage(`Unwanted content found: ${!!unwantedContent}`);
+                    
+                    if (title && !unwantedContent) {
+                        setResult('test4', true, 'Slotless component correctly ignores instance children');
+                    } else if (!title) {
+                        setResult('test4', false, 'Card title missing');
+                    } else {
+                        setResult('test4', false, 'Unwanted content was rendered');
+                    }
+                }, 250);
+
+            } catch (error) {
+                logMessage(`Test 4 error: ${error.message}`);
+                setResult('test4', false, `Error: ${error.message}`);
+            }
+        }
+
+        // Test 5: Nested Slots
+        function test5_nestedSlots() {
+            logMessage('\n=== Test 5: Nested Slots ===');
+            
+            try {
+                const nestedSlotCard = {
+                    tagName: 'test5-card',
+                    style: {
+                        display: 'block',
+                        border: '2px solid #6f42c1',
+                        borderRadius: '8px',
+                        padding: '1em'
+                    },
+                    children: [
+                        {
+                            tagName: 'div',
+                            className: 'outer-container',
+                            children: [
+                                {
+                                    tagName: 'div',
+                                    className: 'inner-container',
+                                    children: [
+                                        {
+                                            tagName: 'slot'
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                };
+
+                DDOM({
+                    customElements: [nestedSlotCard],
+                    document: {
+                        body: {
+                            children: [
+                                {
+                                    tagName: 'test5-card',
+                                    children: [
+                                        {
+                                            tagName: 'p',
+                                            textContent: 'Nested slot content',
+                                            className: 'nested-content'
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                });
+
+                setTimeout(() => {
+                    const card = document.querySelector('test5-card');
+                    if (!card) {
+                        setResult('test5', false, 'Card element not found');
+                        return;
+                    }
+
+                    document.getElementById('test5-container').appendChild(card);
+                    
+                    const outerContainer = card.querySelector('.outer-container');
+                    const innerContainer = card.querySelector('.inner-container');
+                    const nestedContent = card.querySelector('.nested-content');
+                    
+                    logMessage(`Outer container found: ${!!outerContainer}`);
+                    logMessage(`Inner container found: ${!!innerContainer}`);
+                    logMessage(`Nested content found: ${!!nestedContent}`);
+                    
+                    if (outerContainer && innerContainer && nestedContent) {
+                        const contentInInner = innerContainer.contains(nestedContent);
+                        
+                        logMessage(`Content in inner container: ${contentInInner}`);
+                        
+                        if (contentInInner) {
+                            setResult('test5', true, 'Nested slots working correctly');
+                        } else {
+                            setResult('test5', false, 'Content not in correct nested location');
+                        }
+                    } else {
+                        setResult('test5', false, 'Missing expected elements');
+                    }
+                }, 300);
+
+            } catch (error) {
+                logMessage(`Test 5 error: ${error.message}`);
+                setResult('test5', false, `Error: ${error.message}`);
+            }
+        }
+
+        // Run all tests
+        logMessage('🔧 Starting comprehensive slot tests...');
+        
+        test1_defaultSlot();
+        
+        setTimeout(() => {
+            test2_namedSlots();
+        }, 200);
+        
+        setTimeout(() => {
+            test3_mixedSlots();
+        }, 400);
+        
+        setTimeout(() => {
+            test4_slotlessComponent();
+        }, 600);
+        
+        setTimeout(() => {
+            test5_nestedSlots();
+        }, 800);
+    </script>
+</body>
+</html>

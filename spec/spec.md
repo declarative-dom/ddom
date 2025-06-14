@@ -1,5 +1,5 @@
 # Declarative DOM Technical Specification
-## Version 0.1.5
+## Version 0.2.0
 
 ### Abstract
 
@@ -274,6 +274,128 @@ Once defined, custom elements can be used like standard elements:
     {
       tagName: 'user-card',
       attributes: { name: 'John Doe' }
+    }
+  ]
+}
+```
+
+#### 4.3 Slot Support
+
+Custom elements support the standardized `<slot>` element for content composition. Components with slots can accept arbitrary nesting of additional elements within their template.
+
+##### Default Slots
+
+A default slot accepts any content that doesn't have a specific slot assignment:
+
+```javascript
+{
+  customElements: [
+    {
+      tagName: 'my-card',
+      children: [
+        {
+          tagName: 'h3',
+          textContent: 'Card Title'
+        },
+        {
+          tagName: 'slot' // Default slot
+        },
+        {
+          tagName: 'p',
+          textContent: 'Card Footer'
+        }
+      ]
+    }
+  ]
+}
+
+// Usage with slotted content
+{
+  tagName: 'my-card',
+  children: [
+    {
+      tagName: 'p',
+      textContent: 'This content goes in the slot!'
+    }
+  ]
+}
+```
+
+##### Named Slots
+
+Named slots allow precise control over content placement:
+
+```javascript
+{
+  customElements: [
+    {
+      tagName: 'my-layout',
+      children: [
+        {
+          tagName: 'header',
+          children: [
+            {
+              tagName: 'slot',
+              attributes: { name: 'header' }
+            }
+          ]
+        },
+        {
+          tagName: 'main',
+          children: [
+            {
+              tagName: 'slot' // Default slot
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+// Usage with named slots
+{
+  tagName: 'my-layout',
+  children: [
+    {
+      tagName: 'h1',
+      textContent: 'Page Title',
+      attributes: { slot: 'header' }
+    },
+    {
+      tagName: 'p',
+      textContent: 'Main content'
+    }
+  ]
+}
+```
+
+##### Slotless Components
+
+Components without `<slot>` elements are considered slotless and ignore instance children:
+
+```javascript
+{
+  customElements: [
+    {
+      tagName: 'simple-badge',
+      children: [
+        {
+          tagName: 'span',
+          textContent: 'Badge'
+        }
+      ]
+    }
+  ]
+}
+
+// These children will be ignored (no slots defined)
+{
+  tagName: 'simple-badge',
+  children: [
+    {
+      tagName: 'p',
+      textContent: 'This will NOT appear'
     }
   ]
 }

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slot Test Quick Check</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 2em; background: #f5f5f5; }
+        .card { margin: 1em 0; }
+        .result { background: white; padding: 1em; border-radius: 4px; margin: 1em 0; }
+    </style>
+</head>
+<body>
+    <h1>Quick Slot Test</h1>
+    <div id="results" class="result">Loading...</div>
+    
+    <script type="module">
+        import DDOM from '../lib/dist/index.js';
+        
+        const results = document.getElementById('results');
+        
+        try {
+            // Test 1: Basic slot
+            const cardWithSlot = {
+                tagName: 'quick-test-card',
+                style: {
+                    display: 'block',
+                    border: '2px solid blue',
+                    padding: '1em',
+                    margin: '1em 0'
+                },
+                children: [
+                    { tagName: 'h3', textContent: 'Card Title' },
+                    { tagName: 'slot' },
+                    { tagName: 'p', textContent: 'Card Footer' }
+                ]
+            };
+            
+            DDOM({
+                customElements: [cardWithSlot],
+                document: {
+                    body: {
+                        children: [
+                            {
+                                tagName: 'quick-test-card',
+                                children: [
+                                    {
+                                        tagName: 'p',
+                                        textContent: 'SLOT CONTENT HERE!',
+                                        style: { color: 'red', fontWeight: 'bold' }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            });
+            
+            setTimeout(() => {
+                const card = document.querySelector('quick-test-card');
+                if (card) {
+                    results.appendChild(card);
+                    
+                    const slotContent = card.querySelector('p[style*="color: red"]');
+                    if (slotContent) {
+                        results.innerHTML += '<p>✅ SUCCESS: Slot content found!</p>';
+                        results.innerHTML += `<p>Content: "${slotContent.textContent}"</p>`;
+                    } else {
+                        results.innerHTML += '<p>❌ FAILURE: Slot content not found</p>';
+                        results.innerHTML += `<p>Card HTML: ${card.innerHTML}</p>`;
+                    }
+                } else {
+                    results.innerHTML = '<p>❌ FAILURE: Card not found</p>';
+                }
+            }, 100);
+            
+        } catch (error) {
+            results.innerHTML = `<p>❌ ERROR: ${error.message}</p>`;
+        }
+    </script>
+</body>
+</html>

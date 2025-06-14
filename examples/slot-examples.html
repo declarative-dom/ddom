@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slot Support Examples</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* Some additional hover effects that couldn't be done inline */
+        navigation-menu a:hover {
+            background-color: #34495e !important;
+            color: white !important;
+        }
+        
+        button:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    
+    <script type="module">
+        import DDOM from '../lib/dist/index.js';
+        import slotExamples from './slot-examples.js';
+        
+        // Render the examples
+        DDOM(slotExamples);
+    </script>
+</body>
+</html>
