@@ -37,5 +37,8 @@
 				"preset": "angular"
 			}
 		}
+	},
+	"dependencies": {
+		"jsdom": "^26.1.0"
 	}
 }

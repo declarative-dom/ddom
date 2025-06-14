@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slot Support Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 2em;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 1.5em;
+            margin: 1em 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            margin: 0.5em 0;
+            padding: 0.5em;
+            border-radius: 4px;
+        }
+        .pass { background-color: #d4edda; color: #155724; }
+        .fail { background-color: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>Slot Support Test</h1>
+    <p>Testing slot functionality in custom elements</p>
+
+    <div class="test-section">
+        <h2>Test 1: Basic Slot Usage</h2>
+        <p>Custom element with a slot should render instance children in the slot location:</p>
+        <div id="test1-container"></div>
+        <div id="test1-result" class="test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 2: Named Slots</h2>
+        <p>Custom element with named slots should render content in the correct slot:</p>
+        <div id="test2-container"></div>
+        <div id="test2-result" class="test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 3: Slotless Component</h2>
+        <p>Custom element without slots should not render instance children:</p>
+        <div id="test3-container"></div>
+        <div id="test3-result" class="test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 4: Multiple Slots</h2>
+        <p>Custom element with multiple slots should render content correctly:</p>
+        <div id="test4-container"></div>
+        <div id="test4-result" class="test-result"></div>
+    </div>
+
+    <script type="module">
+        import DDOM from '../lib/dist/index.js';
+
+        // Test 1: Basic slot usage
+        function test1_basicSlot() {
+            try {
+                // Define custom element with a slot
+                const cardWithSlot = {
+                    tagName: 'card-with-slot',
+                    style: {
+                        display: 'block',
+                        border: '2px solid #007bff',
+                        borderRadius: '8px',
+                        padding: '1em',
+                        margin: '0.5em 0'
+                    },
+                    children: [
+                        {
+                            tagName: 'h3',
+                            textContent: 'Card Title',
+                            style: { margin: '0 0 0.5em 0', color: '#007bff' }
+                        },
+                        {
+                            tagName: 'slot', // This should be replaced with instance children
+                            style: { display: 'block' }
+                        },
+                        {
+                            tagName: 'p',
+                            textContent: 'Card Footer',
+                            style: { margin: '0.5em 0 0 0', fontSize: '0.8em', color: '#666' }
+                        }
+                    ]
+                };
+
+                // Create and render the custom element spec
+                DDOM({
+                    customElements: [cardWithSlot],
+                    document: {
+                        body: {
+                            children: [
+                                {
+                                    tagName: 'card-with-slot',
+                                    children: [
+                                        {
+                                            tagName: 'p',
+                                            textContent: 'This content should appear in the slot!',
+                                            style: { background: '#fff3cd', padding: '0.5em' }
+                                        },
+                                        {
+                                            tagName: 'ul',
+                                            children: [
+                                                { tagName: 'li', textContent: 'Slotted item 1' },
+                                                { tagName: 'li', textContent: 'Slotted item 2' }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                });
+
+                // Move the custom element to test container
+                const cardElement = document.querySelector('card-with-slot');
+                const container = document.getElementById('test1-container');
+                if (cardElement && container) {
+                    container.appendChild(cardElement);
+                }
+
+                // Check if slot content was rendered
+                const slotContent = cardElement?.querySelector('p[style*="background"]');
+                const result = document.getElementById('test1-result');
+                
+                if (slotContent && slotContent.textContent.includes('This content should appear in the slot!')) {
+                    result.textContent = '✅ PASS: Slot content rendered correctly';
+                    result.className = 'test-result pass';
+                } else {
+                    result.textContent = '❌ FAIL: Slot content not found or incorrect';
+                    result.className = 'test-result fail';
+                }
+
+            } catch (error) {
+                const result = document.getElementById('test1-result');
+                result.textContent = `❌ FAIL: ${error.message}`;
+                result.className = 'test-result fail';
+            }
+        }
+
+        // Test 2: Named slots
+        function test2_namedSlots() {
+            try {
+                // Define custom element with named slots
+                const cardWithNamedSlots = {
+                    tagName: 'card-with-named-slots',
+                    style: {
+                        display: 'block',
+                        border: '2px solid #28a745',
+                        borderRadius: '8px',
+                        padding: '1em',
+                        margin: '0.5em 0'
+                    },
+                    children: [
+                        {
+                            tagName: 'header',
+                            style: { borderBottom: '1px solid #ccc', paddingBottom: '0.5em', marginBottom: '0.5em' },
+                            children: [
+                                {
+                                    tagName: 'slot',
+                                    attributes: { name: 'header' }
+                                }
+                            ]
+                        },
+                        {
+                            tagName: 'main',
+                            children: [
+                                {
+                                    tagName: 'slot' // Default slot
+                                }
+                            ]
+                        },
+                        {
+                            tagName: 'footer',
+                            style: { borderTop: '1px solid #ccc', paddingTop: '0.5em', marginTop: '0.5em' },
+                            children: [
+                                {
+                                    tagName: 'slot',
+                                    attributes: { name: 'footer' }
+                                }
+                            ]
+                        }
+                    ]
+                };
+
+                DDOM({
+                    customElements: [cardWithNamedSlots],
+                    document: {
+                        body: {
+                            children: [
+                                {
+                                    tagName: 'card-with-named-slots',
+                                    children: [
+                                        {
+                                            tagName: 'h2',
+                                            textContent: 'Header Content',
+                                            attributes: { slot: 'header' }
+                                        },
+                                        {
+                                            tagName: 'p',
+                                            textContent: 'Main content goes here',
+                                            style: { background: '#e7f3ff', padding: '0.5em' }
+                                        },
+                                        {
+                                            tagName: 'small',
+                                            textContent: 'Footer text',
+                                            attributes: { slot: 'footer' }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                });
+
+                // Move to test container
+                const cardElement = document.querySelector('card-with-named-slots');
+                const container = document.getElementById('test2-container');
+                if (cardElement && container) {
+                    container.appendChild(cardElement);
+                }
+
+                const result = document.getElementById('test2-result');
+                result.textContent = '⚠️ PENDING: Named slots not yet implemented';
+                result.className = 'test-result fail';
+
+            } catch (error) {
+                const result = document.getElementById('test2-result');
+                result.textContent = `❌ FAIL: ${error.message}`;
+                result.className = 'test-result fail';
+            }
+        }
+
+        // Test 3: Slotless component (should not render instance children)
+        function test3_slotless() {
+            try {
+                const slotlessCard = {
+                    tagName: 'slotless-card',
+                    style: {
+                        display: 'block',
+                        border: '2px solid #dc3545',
+                        borderRadius: '8px',
+                        padding: '1em',
+                        margin: '0.5em 0'
+                    },
+                    children: [
+                        {
+                            tagName: 'h3',
+                            textContent: 'Slotless Card',
+                            style: { margin: '0', color: '#dc3545' }
+                        },
+                        {
+                            tagName: 'p',
+                            textContent: 'This card has no slots, so instance children should not appear.',
+                            style: { margin: '0.5em 0 0 0' }
+                        }
+                    ]
+                };
+
+                DDOM({
+                    customElements: [slotlessCard],
+                    document: {
+                        body: {
+                            children: [
+                                {
+                                    tagName: 'slotless-card',
+                                    // These children should NOT appear in the rendered output
+                                    children: [
+                                        {
+                                            tagName: 'p',
+                                            textContent: 'This should NOT appear!',
+                                            style: { background: 'red', color: 'white' }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                });
+
+                // Move to test container
+                const cardElement = document.querySelector('slotless-card');
+                const container = document.getElementById('test3-container');
+                if (cardElement && container) {
+                    container.appendChild(cardElement);
+                }
+
+                // Check that instance children were NOT rendered
+                const shouldNotAppear = cardElement?.querySelector('p[style*="background: red"]');
+                const result = document.getElementById('test3-result');
+
+                if (!shouldNotAppear) {
+                    result.textContent = '✅ PASS: Slotless component correctly ignored instance children';
+                    result.className = 'test-result pass';
+                } else {
+                    result.textContent = '❌ FAIL: Slotless component rendered instance children';
+                    result.className = 'test-result fail';
+                }
+
+            } catch (error) {
+                const result = document.getElementById('test3-result');
+                result.textContent = `❌ FAIL: ${error.message}`;
+                result.className = 'test-result fail';
+            }
+        }
+
+        // Test 4: Multiple slots
+        function test4_multipleSlots() {
+            const result = document.getElementById('test4-result');
+            result.textContent = '⚠️ PENDING: Multiple slots test not yet implemented';
+            result.className = 'test-result fail';
+        }
+
+        // Run tests
+        setTimeout(() => {
+            test1_basicSlot();
+            test2_namedSlots();
+            test3_slotless();
+            test4_multipleSlots();
+        }, 100);
+    </script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Slot Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 2em;
+            background-color: #f5f5f5;
+        }
+        .result {
+            margin: 1em 0;
+            padding: 1em;
+            border: 1px solid #ccc;
+            background: white;
+            border-radius: 4px;
+        }
+        .log {
+            background: #f8f9fa;
+            padding: 1em;
+            border: 1px solid #dee2e6;
+            margin: 1em 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Simple Slot Test</h1>
+    
+    <div id="result" class="result">
+        <p>Testing slot functionality...</p>
+    </div>
+
+    <div id="log" class="log"></div>
+
+    <script type="module">
+        import DDOM from '../lib/dist/index.js';
+
+        const log = document.getElementById('log');
+        
+        function logMessage(msg) {
+            console.log(msg);
+            log.textContent += msg + '\n';
+        }
+
+        try {
+            logMessage('🔧 Setting up test...');
+            
+            // Define a custom element with a slot
+            const cardWithSlot = {
+                tagName: 'test-card',
+                style: {
+                    display: 'block',
+                    border: '2px solid #007bff',
+                    borderRadius: '8px',
+                    padding: '1em',
+                    margin: '0.5em 0'
+                },
+                children: [
+                    {
+                        tagName: 'h3',
+                        textContent: 'Card Title',
+                        style: { margin: '0 0 0.5em 0', color: '#007bff' }
+                    },
+                    {
+                        tagName: 'slot',
+                        style: { display: 'block', background: '#f8f9fa', padding: '0.5em', border: '1px dashed #ccc' }
+                    },
+                    {
+                        tagName: 'p',
+                        textContent: 'Card Footer',
+                        style: { margin: '0.5em 0 0 0', fontSize: '0.8em', color: '#666' }
+                    }
+                ]
+            };
+
+            logMessage('✅ Custom element defined');
+
+            // Create the DOM structure
+            DDOM({
+                customElements: [cardWithSlot],
+                document: {
+                    body: {
+                        children: [
+                            {
+                                tagName: 'test-card',
+                                children: [
+                                    {
+                                        tagName: 'p',
+                                        textContent: 'This content should appear in the slot!',
+                                        style: { color: 'green', fontWeight: 'bold', margin: '0' }
+                                    },
+                                    {
+                                        tagName: 'span',
+                                        textContent: 'Additional slot content',
+                                        style: { color: 'blue', fontStyle: 'italic' }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            });
+
+            logMessage('✅ DDOM structure created');
+
+            // Check the results
+            setTimeout(() => {
+                logMessage('🔍 Checking results...');
+                
+                const testCard = document.querySelector('test-card');
+                logMessage(`Test card found: ${!!testCard}`);
+                
+                if (testCard) {
+                    logMessage(`Card innerHTML: ${testCard.innerHTML}`);
+                    
+                    // Move the test card to the result area
+                    const resultDiv = document.getElementById('result');
+                    resultDiv.innerHTML = '';
+                    resultDiv.appendChild(testCard);
+                    
+                    // Check for slot content
+                    const slotContent = testCard.querySelector('p[style*="color: green"]');
+                    const additionalContent = testCard.querySelector('span[style*="color: blue"]');
+                    
+                    logMessage(`Green slot content found: ${!!slotContent}`);
+                    logMessage(`Blue additional content found: ${!!additionalContent}`);
+                    
+                    if (slotContent && additionalContent) {
+                        logMessage('🎉 SUCCESS: Slot functionality working!');
+                    } else {
+                        logMessage('❌ FAILURE: Slot content not found');
+                    }
+                } else {
+                    logMessage('❌ FAILURE: Test card not found');
+                    logMessage('Available elements:');
+                    document.querySelectorAll('*').forEach(el => {
+                        if (el.tagName && el.tagName.includes('-')) {
+                            logMessage(`  - ${el.tagName}: ${el.outerHTML.substring(0, 100)}`);
+                        }
+                    });
+                }
+            }, 200);
+
+        } catch (error) {
+            logMessage(`❌ ERROR: ${error.message}`);
+            logMessage(`Stack: ${error.stack}`);
+        }
+    </script>
+</body>
+</html>

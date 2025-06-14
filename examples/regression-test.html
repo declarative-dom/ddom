@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Regression Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 2em;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 1.5em;
+            margin: 1em 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .log {
+            background: #f8f9fa;
+            padding: 1em;
+            border: 1px solid #dee2e6;
+            margin: 1em 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Regression Test - Existing Custom Elements</h1>
+    <p>Testing that existing custom element functionality still works</p>
+    
+    <div class="test-section">
+        <h2>Test 1: Basic Custom Element (No Slots)</h2>
+        <div id="test1-container"></div>
+    </div>
+
+    <div id="log" class="log"></div>
+
+    <script type="module">
+        import DDOM from '../lib/dist/index.js';
+
+        const log = document.getElementById('log');
+        
+        function logMessage(msg) {
+            console.log(msg);
+            log.textContent += msg + '\n';
+        }
+
+        try {
+            logMessage('🔧 Testing existing custom element functionality...');
+            
+            // Test 1: Basic custom element (like existing examples)
+            const userCard = {
+                tagName: 'user-card',
+                style: {
+                    border: '1px solid #ddd',
+                    borderRadius: '8px',
+                    display: 'block',
+                    padding: '1em',
+                    margin: '1em 0',
+                    backgroundColor: 'white',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                },
+                children: [
+                    {
+                        tagName: 'h3',
+                        textContent: 'User Name',
+                        style: { margin: '0 0 0.5em 0', color: '#333' }
+                    },
+                    {
+                        tagName: 'p',
+                        textContent: 'user@example.com',
+                        style: { margin: '0', color: '#666' }
+                    }
+                ]
+            };
+
+            logMessage('✅ Basic custom element defined');
+
+            // Create DDOM structure
+            DDOM({
+                customElements: [userCard],
+                document: {
+                    body: {
+                        children: [
+                            {
+                                tagName: 'user-card'
+                            }
+                        ]
+                    }
+                }
+            });
+
+            logMessage('✅ DDOM structure created');
+
+            // Test the results
+            setTimeout(() => {
+                logMessage('🔍 Checking basic custom element...');
+                
+                const userCardElement = document.querySelector('user-card');
+                logMessage(`User card found: ${!!userCardElement}`);
+                
+                if (userCardElement) {
+                    const container = document.getElementById('test1-container');
+                    container.appendChild(userCardElement);
+                    
+                    // Check for expected content
+                    const title = userCardElement.querySelector('h3');
+                    const email = userCardElement.querySelector('p');
+                    
+                    logMessage(`Title found: ${!!title} (${title?.textContent})`);
+                    logMessage(`Email found: ${!!email} (${email?.textContent})`);
+                    
+                    if (title && email && title.textContent === 'User Name' && email.textContent === 'user@example.com') {
+                        logMessage('🎉 SUCCESS: Basic custom element works correctly!');
+                    } else {
+                        logMessage('❌ FAILURE: Basic custom element content incorrect');
+                    }
+                } else {
+                    logMessage('❌ FAILURE: User card not found');
+                }
+                
+                // Now test custom element with children (should be ignored if no slots)
+                logMessage('\n🔧 Testing custom element with children (should be ignored)...');
+                
+                const cardWithChildren = {
+                    tagName: 'card-no-slots',
+                    style: {
+                        border: '2px solid #dc3545',
+                        borderRadius: '8px',
+                        display: 'block',
+                        padding: '1em',
+                        margin: '1em 0'
+                    },
+                    children: [
+                        {
+                            tagName: 'h3',
+                            textContent: 'Card Without Slots',
+                            style: { margin: '0', color: '#dc3545' }
+                        }
+                    ]
+                };
+                
+                DDOM({
+                    customElements: [cardWithChildren],
+                    document: {
+                        body: {
+                            children: [
+                                {
+                                    tagName: 'card-no-slots',
+                                    // These children should be ignored since there are no slots
+                                    children: [
+                                        {
+                                            tagName: 'p',
+                                            textContent: 'This should NOT appear!',
+                                            style: { background: 'red', color: 'white' }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                });
+                
+                setTimeout(() => {
+                    const cardNoSlots = document.querySelector('card-no-slots');
+                    logMessage(`Card with no slots found: ${!!cardNoSlots}`);
+                    
+                    if (cardNoSlots) {
+                        const container = document.getElementById('test1-container');
+                        container.appendChild(cardNoSlots);
+                        
+                        // Check that the children were NOT added
+                        const unwantedContent = cardNoSlots.querySelector('p[style*="background: red"]');
+                        logMessage(`Unwanted content found: ${!!unwantedContent}`);
+                        
+                        if (!unwantedContent) {
+                            logMessage('🎉 SUCCESS: Slotless component correctly ignores instance children!');
+                        } else {
+                            logMessage('❌ FAILURE: Slotless component should not render instance children');
+                        }
+                    }
+                }, 100);
+                
+            }, 200);
+
+        } catch (error) {
+            logMessage(`❌ ERROR: ${error.message}`);
+            logMessage(`Stack: ${error.stack}`);
+        }
+    </script>
+</body>
+</html>

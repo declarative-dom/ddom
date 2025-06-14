@@ -97,6 +97,9 @@ export function define(elements: CustomElementSpec[]) {
 				}
 
 				#initializeDOM() {
+					// Collect instance children before clearing content
+					const instanceChildren = this.#collectInstanceChildren();
+					
 					// Clear existing content
 					if ('innerHTML' in this.#container) {
 						this.#container.innerHTML = '';
@@ -116,10 +119,171 @@ export function define(elements: CustomElementSpec[]) {
 							)
 						];
 
+						// Handle slot functionality - process spec with instance children
+						const processedSpec = this.#processSlots(spec, instanceChildren);
+
 						// Disable CSS processing since styles are already registered at definition time
-						adoptNode(spec, this.#container, false, instanceIgnoreKeys);
+						adoptNode(processedSpec, this.#container, false, instanceIgnoreKeys);
 					} finally {
 						delete (globalThis as any).__ddom_abort_signal;
+					}
+				}
+
+				#collectInstanceChildren(): any[] {
+					const children: any[] = [];
+					
+					// Collect all child nodes that were added as instance children
+					// These are the nodes that exist in the custom element before template processing
+					for (const child of Array.from(this.childNodes)) {
+						if (child.nodeType === Node.ELEMENT_NODE) {
+							// Convert DOM node back to spec format for processing
+							children.push(this.#domNodeToSpec(child as Element));
+						} else if (child.nodeType === Node.TEXT_NODE && child.textContent?.trim()) {
+							// Include text nodes as textContent
+							children.push({
+								tagName: 'span',
+								textContent: child.textContent.trim()
+							});
+						}
+					}
+					
+					return children;
+				}
+
+				#domNodeToSpec(element: Element): any {
+					const spec: any = {
+						tagName: element.tagName.toLowerCase()
+					};
+					
+					// Copy attributes
+					if (element.attributes.length > 0) {
+						spec.attributes = {};
+						for (const attr of Array.from(element.attributes)) {
+							spec.attributes[attr.name] = attr.value;
+						}
+					}
+					
+					// Copy text content if it's a simple element
+					if (element.childNodes.length === 1 && element.childNodes[0].nodeType === Node.TEXT_NODE) {
+						spec.textContent = element.textContent;
+					}
+					
+					// Recursively process child elements
+					const children: any[] = [];
+					for (const child of Array.from(element.childNodes)) {
+						if (child.nodeType === Node.ELEMENT_NODE) {
+							children.push(this.#domNodeToSpec(child as Element));
+						} else if (child.nodeType === Node.TEXT_NODE && child.textContent?.trim()) {
+							children.push({
+								tagName: 'span',
+								textContent: child.textContent.trim()
+							});
+						}
+					}
+					if (children.length > 0) {
+						spec.children = children;
+					}
+					
+					return spec;
+				}
+
+				#processSlots(elementSpec: any, instanceChildren: any[]): any {
+					// If no instance children, return spec as-is
+					if (instanceChildren.length === 0) {
+						return elementSpec;
+					}
+					
+					// If spec has no slots, return spec as-is (slotless component ignores instance children)
+					if (!this.#hasSlots(elementSpec)) {
+						return elementSpec;
+					}
+					
+					// Create a deep copy of the spec to avoid modifying the original
+					const processedSpec = this.#deepClone(elementSpec);
+					
+					// Replace slots with instance children
+					this.#replaceSlots(processedSpec, instanceChildren);
+					
+					return processedSpec;
+				}
+
+				#deepClone(obj: any): any {
+					if (obj === null || typeof obj !== 'object') return obj;
+					if (obj instanceof Date) return new Date(obj.getTime());
+					if (obj instanceof Array) return obj.map(item => this.#deepClone(item));
+					if (typeof obj === 'object') {
+						const cloned: any = {};
+						Object.keys(obj).forEach(key => {
+							cloned[key] = this.#deepClone(obj[key]);
+						});
+						return cloned;
+					}
+				}
+
+				#hasSlots(spec: any): boolean {
+					if (!spec.children) return false;
+					
+					return this.#findSlots(spec.children).length > 0;
+				}
+
+				#findSlots(children: any[]): any[] {
+					const slots: any[] = [];
+					
+					if (!Array.isArray(children)) return slots;
+					
+					for (const child of children) {
+						if (child.tagName === 'slot') {
+							slots.push(child);
+						} else if (child.children) {
+							slots.push(...this.#findSlots(child.children));
+						}
+					}
+					
+					return slots;
+				}
+
+				#replaceSlots(spec: any, instanceChildren: any[]): void {
+					if (!spec.children || !Array.isArray(spec.children)) return;
+					
+					// Separate instance children by slot name
+					const defaultSlotChildren: any[] = [];
+					const namedSlotChildren: Record<string, any[]> = {};
+					
+					for (const child of instanceChildren) {
+						const slotName = child.attributes?.slot;
+						if (slotName) {
+							if (!namedSlotChildren[slotName]) {
+								namedSlotChildren[slotName] = [];
+							}
+							namedSlotChildren[slotName].push(child);
+						} else {
+							defaultSlotChildren.push(child);
+						}
+					}
+					
+					// Replace slots in the spec
+					for (let i = 0; i < spec.children.length; i++) {
+						const child = spec.children[i];
+						
+						if (child.tagName === 'slot') {
+							const slotName = child.attributes?.name;
+							const replacementChildren = slotName 
+								? (namedSlotChildren[slotName] || [])
+								: defaultSlotChildren;
+							
+							// Replace the slot with the appropriate children
+							if (replacementChildren.length > 0) {
+								spec.children.splice(i, 1, ...replacementChildren);
+								i += replacementChildren.length - 1; // Adjust index for inserted items
+							} else {
+								// Remove empty slot
+								spec.children.splice(i, 1);
+								i--; // Adjust index for removed item
+							}
+						} else if (child.children) {
+							// Recursively process nested children
+							this.#replaceSlots(child, instanceChildren);
+						}
 					}
 				}
 
