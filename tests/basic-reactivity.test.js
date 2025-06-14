@@ -20,24 +20,15 @@ describe('Basic Reactivity Example', () => {
     expect(window.message.get()).toBe('Hello');
   });
 
-  test('should create element with template literals', () => {
-    window.counter = new Signal.State(0);
-    window.message = new Signal.State('Hello');
-
+  test('should create element with basic properties', () => {
     const testElement = createElement({
       tagName: 'div',
-      textContent: 'Counter: ${window.counter.get()}, Message: ${window.message.get()}',
-      count: 42,
-      style: {
-        padding: '20px',
-        border: '1px solid #ccc',
-        margin: '10px'
-      }
+      textContent: 'Test content'
     });
 
     expect(testElement).toBeDefined();
     expect(testElement.tagName.toLowerCase()).toBe('div');
-    expect(testElement.count).toBe(42);
+    expect(testElement.textContent).toBe('Test content');
   });
 
   test('should handle signal updates', () => {

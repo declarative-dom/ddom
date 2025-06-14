@@ -6,7 +6,9 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./tests/setup.js'],
     include: ['tests/**/*.test.js'],
+    exclude: ['tests/**/node_modules/**'],
     coverage: {
+      provider: 'v8',
       reporter: ['text', 'json', 'html'],
       exclude: [
         'node_modules/',
@@ -14,6 +16,8 @@ export default defineConfig({
         'examples/',
         'lib/dist/',
         'types/dist/',
+        '**/*.config.js',
+        '**/setup.js'
       ],
     },
   },
