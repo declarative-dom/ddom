@@ -113,16 +113,19 @@ const ddomHandlers: {
 			}
 		}
 	},
-	style: (spec, el, key, descriptor, css) => {
+	customElements: (spec, el, key, descriptor) => {
 		const value = descriptor.value;
-		if (css && value && typeof value === 'object') {
-			adoptStyles((el as Element), value);
+		if (value) {
+			// Import define dynamically to avoid circular dependency
+			import('../customElements').then(({ define }) => {
+				define(value);
+			});
 		}
 	},
 	document: (spec, el, key, descriptor) => {
 		const value = descriptor.value;
 		if (value && el === window) {
-			adoptNode(value as DocumentSpec, document);
+			adoptDocument(value as DocumentSpec);
 		}
 	},
 	body: (spec, el, key, descriptor) => {
@@ -137,13 +140,16 @@ const ddomHandlers: {
 			adoptNode(value as HTMLElementSpec, document.head);
 		}
 	},
-	customElements: (spec, el, key, descriptor) => {
+	style: (spec, el, key, descriptor, css) => {
+		const value = descriptor.value;
+		if (css && value && typeof value === 'object') {
+			adoptStyles((el as Element), value);
+		}
+	},
+	window: (spec, el, key, descriptor) => {
 		const value = descriptor.value;
 		if (value) {
-			// Import define dynamically to avoid circular dependency
-			import('../customElements').then(({ define }) => {
-				define(value);
-			});
+			adoptWindow(value as WindowSpec);
 		}
 	},
 	default: (spec, el, key, descriptor) => {
