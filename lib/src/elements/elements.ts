@@ -39,6 +39,11 @@ import {
 	resolvePropertyAccessor
 } from '../accessors';
 
+import {
+	isRequest,
+	bindRequestProperty
+} from '../requests';
+
 // Properties that are immutable after element creation (structural identity)
 const IMMUTABLE_PROPERTIES = new Set(['id', 'tagName']);
 
@@ -176,6 +181,11 @@ const ddomHandlers: {
 			// Handle non-event function properties
 			else if (typeof descriptor.value === 'function') {
 				(el as any)[key] = descriptor.value;
+			}
+			// Handle Request objects for declarative fetch
+			else if (isRequest(descriptor.value)) {
+				// Set up fetch effect that fetches the Request and stores the result
+				bindRequestProperty(el, key, descriptor.value);
 			} else {
 				// For non-function, non-templated properties, wrap in transparent signal proxy
 				// but only if not protected (id, tagName)
