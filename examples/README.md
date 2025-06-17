@@ -1,24 +1,25 @@
 # DDOM Examples
 
-This directory contains examples demonstrating the DDOM transparent reactivity model.
+This directory contains examples demonstrating the DDOM declarative syntax and reactive features. Each example consists of a JavaScript file that exports a default DDOM object, and an HTML file that loads and executes that DDOM app.
 
-## Core Examples
+## Examples
 
-These examples showcase the current DDOM features:
+- **`basic`** - Basic declarative DOM example showing fundamental syntax
+- **`complete-demo`** - Comprehensive demonstration of all DDOM features
+- **`complete-demo-modular`** - Modular version of the complete demo
+- **`dynamic-list`** - Dynamic list with transparent reactivity
+- **`interactive-form`** - Interactive form handling with reactivity
+- **`reactive-custom-elements`** - Custom elements with transparent reactivity
+- **`custom-elements`** - Basic custom elements example
+- **`computed-properties/`** - Examples of computed properties using getters
+- **`builder/`** - Interactive DDOM object builder tool
 
-- **`basic-reactivity.html`** - Basic test of reactivity features
-- **`complete-demo.html`** - Comprehensive demonstration of all features  
-- **`dynamic-list.html`** - Dynamic list with transparent reactivity
-- **`reactive-custom-elements.html`** - Custom elements with new reactivity model
-- **`validation-test.html`** - Full test suite validating all features
-- **`performance-test.html`** - Performance benchmarking
+## Structure
 
-## Additional Examples
-
-- **`basic.html`** - Basic declarative DOM example (no reactivity)
-- **`custom-elements.js`** - Custom elements example
-- **`interactive-form.html`** - Form handling example
-- **`template-literal-test.html`** - Template literal testing
+Each example follows the pattern:
+- `example-name.js` - Exports a default DDOM object configuration
+- `example-name.html` - Simple HTML file that loads and runs the DDOM app
+- `example-name/` - Directory containing more complex examples with multiple files
 
 ## Key Features
 

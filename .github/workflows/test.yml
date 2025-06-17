@@ -72,9 +72,12 @@ jobs:
         sleep 2
         
         # Test that examples can be accessed (basic smoke test)
-        curl -f http://localhost:8080/validation-test.html > /dev/null
-        curl -f http://localhost:8080/performance-test.html > /dev/null
+        curl -f http://localhost:8080/index.html > /dev/null
+        curl -f http://localhost:8080/basic.html > /dev/null
         curl -f http://localhost:8080/complete-demo.html > /dev/null
+        curl -f http://localhost:8080/dynamic-list.html > /dev/null
+        curl -f http://localhost:8080/interactive-form.html > /dev/null
+        curl -f http://localhost:8080/reactive-custom-elements.html > /dev/null
         
         kill $SERVER_PID
         echo "✅ All examples load successfully"
