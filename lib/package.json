@@ -63,6 +63,7 @@
 		"dev": "rollup -c --watch",
 		"prepublishOnly": "npm run build",
 		"release": "release-it",
+		"test": "cd .. && npm run test",
 		"upgrade": "npx npm-check-updates -u && npm install"
 	},
 	"type": "module",
