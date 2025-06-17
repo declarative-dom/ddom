@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DDOM Declarative Fetch - Issue Examples</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .example { background: #f5f5f5; padding: 20px; margin: 20px 0; border-radius: 8px; }
+        .example h2 { margin-top: 0; color: #333; }
+        .code { background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 5px; font-family: monospace; overflow-x: auto; }
+        .result { background: white; border: 1px solid #ddd; padding: 15px; border-radius: 5px; margin-top: 10px; }
+        .loading { color: #007bff; }
+        .error { color: #dc3545; }
+        .success { color: #28a745; }
+    </style>
+</head>
+<body>
+    <h1>DDOM Declarative Fetch - Issue Examples</h1>
+    <p>This page demonstrates the exact examples from the GitHub issue.</p>
+
+    <div class="example">
+        <h2>Example 1: Direct Request Constructor Usage</h2>
+        <div class="code">
+{
+  tagName: 'user-profile',
+  userData: new Request("/api/users/123"),
+  avatar: new Request("/api/users/123/avatar", { method: "GET" })
+}
+        </div>
+        <div class="result" id="example1-result">Loading...</div>
+    </div>
+
+    <div class="example">
+        <h2>Example 2: Request with Full Options</h2>
+        <div class="code">
+{
+  tagName: 'product-form',
+  submitResult: new Request("/api/products", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "Product Name", price: 99.99 })
+  })
+}
+        </div>
+        <div class="result" id="example2-result">Click button to test POST request</div>
+        <button onclick="testPostRequest()">Test POST Request</button>
+    </div>
+
+    <script type="module">
+        import DDOM from '../lib/dist/index.js';
+
+        console.log('Testing DDOM Declarative Fetch Examples...');
+
+        // Example 1: Direct Request Constructor Usage
+        DDOM.customElements.define({
+            tagName: 'user-profile',
+            userData: new Request("https://jsonplaceholder.typicode.com/users/1"),
+            avatar: new Request("https://jsonplaceholder.typicode.com/users/1", { method: "GET" }) // Simplified for demo
+        });
+
+        // Example 2: Request with Full Options  
+        DDOM.customElements.define({
+            tagName: 'product-form',
+            submitResult: null // Will be set dynamically
+        });
+
+        // Create elements
+        const userProfile = document.createElement('user-profile');
+        const productForm = document.createElement('product-form');
+        
+        // Test Example 1
+        const example1Result = document.getElementById('example1-result');
+        
+        if (userProfile.userData && userProfile.userData.get) {
+            example1Result.innerHTML = '<span class="loading">✓ userData Signal created, fetching...</span>';
+            
+            DDOM.createEffect(() => {
+                const userData = userProfile.userData.get();
+                const avatarData = userProfile.avatar.get();
+                
+                let result = '<h3>Results:</h3>';
+                
+                if (userData !== null) {
+                    if (userData.error) {
+                        result += `<div class="error">userData Error: ${userData.error}</div>`;
+                    } else {
+                        result += `<div class="success">✓ userData loaded: ${userData.name} (${userData.email})</div>`;
+                    }
+                }
+                
+                if (avatarData !== null) {
+                    if (avatarData.error) {
+                        result += `<div class="error">avatar Error: ${avatarData.error}</div>`;
+                    } else {
+                        result += `<div class="success">✓ avatar data loaded</div>`;
+                    }
+                }
+                
+                if (userData === null && avatarData === null) {
+                    result += '<div class="loading">Loading both requests...</div>';
+                }
+                
+                example1Result.innerHTML = result;
+            });
+        } else {
+            example1Result.innerHTML = '<div class="error">❌ userData is not a Signal</div>';
+        }
+
+        // Test Example 2
+        window.testPostRequest = function() {
+            const example2Result = document.getElementById('example2-result');
+            example2Result.innerHTML = '<span class="loading">Creating POST request...</span>';
+            
+            const postRequest = new Request("https://jsonplaceholder.typicode.com/posts", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    name: "DDOM Product", 
+                    price: 99.99,
+                    description: "A product created with DDOM declarative fetch"
+                })
+            });
+            
+            const postSignal = DDOM.createFetchSignal(postRequest);
+            
+            DDOM.createEffect(() => {
+                const result = postSignal.get();
+                
+                if (result === null) {
+                    return; // Still loading
+                } else if (result.error) {
+                    example2Result.innerHTML = `<div class="error">❌ POST Error: ${result.error}</div>`;
+                } else {
+                    example2Result.innerHTML = `
+                        <div class="success">✓ POST Successful!</div>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    `;
+                }
+            });
+        };
+
+        console.log('✅ Examples setup complete');
+        console.log('userProfile element:', userProfile);
+        console.log('userData signal:', userProfile.userData);
+        console.log('avatar signal:', userProfile.avatar);
+    </script>
+</body>
+</html>

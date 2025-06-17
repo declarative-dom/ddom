@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DDOM Declarative Fetch Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .demo-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .demo-section h2 {
+            color: #495057;
+            margin-top: 0;
+        }
+        
+        .data-display {
+            background: #2d3748;
+            color: #a0aec0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 15px 0;
+            white-space: pre-wrap;
+        }
+        
+        .loading {
+            color: #007bff;
+            font-style: italic;
+        }
+        
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-loading { background: #ffc107; }
+        .status-success { background: #28a745; }
+        .status-error { background: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 DDOM Declarative Fetch Demo</h1>
+        
+        <div class="demo-section">
+            <h2>📋 Posts List</h2>
+            <p>Fetching posts from JSONPlaceholder API using declarative Request objects.</p>
+            <div id="posts-status">
+                <span class="status-indicator status-loading"></span>Loading posts...
+            </div>
+            <div class="data-display" id="posts-data">Loading...</div>
+        </div>
+        
+        <div class="demo-section">
+            <h2>👤 User Profile</h2>
+            <p>Fetching user information with error handling demonstration.</p>
+            <div id="user-status">
+                <span class="status-indicator status-loading"></span>Loading user...
+            </div>
+            <div class="data-display" id="user-data">Loading...</div>
+        </div>
+        
+        <div class="demo-section">
+            <h2>📝 Post Creation</h2>
+            <p>Demonstrating POST requests with JSON payloads.</p>
+            <button onclick="createPost()">Create New Post</button>
+            <div id="create-status"></div>
+            <div class="data-display" id="create-data">Click button to create a post...</div>
+        </div>
+        
+        <div class="demo-section">
+            <h2>🔧 Technical Details</h2>
+            <p>This demo showcases DDOM's declarative fetch feature:</p>
+            <ul>
+                <li><strong>Zero New Syntax:</strong> Uses standard <code>Request()</code> constructor</li>
+                <li><strong>Automatic Signals:</strong> Request properties become reactive signals</li>
+                <li><strong>Error Handling:</strong> Network and parsing errors are captured</li>
+                <li><strong>Response Types:</strong> Automatically handles JSON and text responses</li>
+            </ul>
+        </div>
+    </div>
+
+    <script type="module">
+        import DDOM from '../lib/dist/index.js';
+
+        console.log('🚀 DDOM Declarative Fetch Demo Starting...');
+
+        // Create the main demo component
+        DDOM.customElements.define({
+            tagName: 'fetch-demo',
+            
+            // Declarative fetch for posts list
+            postsData: new Request('https://jsonplaceholder.typicode.com/posts?_limit=5'),
+            
+            // Declarative fetch for user (will demonstrate error handling)
+            userData: new Request('https://jsonplaceholder.typicode.com/users/1'),
+            
+            // Post creation will be handled dynamically
+            createResult: null,
+            
+            children: []
+        });
+
+        // Create and mount the demo component
+        const demoElement = document.createElement('fetch-demo');
+        document.body.appendChild(demoElement);
+
+        // Monitor posts data
+        if (demoElement.postsData && demoElement.postsData.get) {
+            DDOM.createEffect(() => {
+                const data = demoElement.postsData.get();
+                const statusEl = document.getElementById('posts-status');
+                const dataEl = document.getElementById('posts-data');
+                
+                if (data === null) {
+                    // Still loading
+                    return;
+                } else if (data.error) {
+                    // Error occurred
+                    statusEl.innerHTML = '<span class="status-indicator status-error"></span>Error loading posts';
+                    dataEl.textContent = `Error: ${data.error}`;
+                    dataEl.className = 'data-display error';
+                } else {
+                    // Success
+                    statusEl.innerHTML = '<span class="status-indicator status-success"></span>Posts loaded successfully';
+                    dataEl.textContent = JSON.stringify(data, null, 2);
+                    dataEl.className = 'data-display';
+                }
+            });
+        }
+
+        // Monitor user data
+        if (demoElement.userData && demoElement.userData.get) {
+            DDOM.createEffect(() => {
+                const data = demoElement.userData.get();
+                const statusEl = document.getElementById('user-status');
+                const dataEl = document.getElementById('user-data');
+                
+                if (data === null) {
+                    // Still loading
+                    return;
+                } else if (data.error) {
+                    // Error occurred
+                    statusEl.innerHTML = '<span class="status-indicator status-error"></span>Error loading user';
+                    dataEl.textContent = `Error: ${data.error}`;
+                    dataEl.className = 'data-display error';
+                } else {
+                    // Success
+                    statusEl.innerHTML = '<span class="status-indicator status-success"></span>User loaded successfully';
+                    dataEl.textContent = JSON.stringify(data, null, 2);
+                    dataEl.className = 'data-display';
+                }
+            });
+        }
+
+        // Function to create a new post
+        window.createPost = function() {
+            const statusEl = document.getElementById('create-status');
+            const dataEl = document.getElementById('create-data');
+            
+            statusEl.innerHTML = '<span class="status-indicator status-loading"></span>Creating post...';
+            dataEl.textContent = 'Sending POST request...';
+            
+            // Create a new Request for POST
+            const createRequest = new Request('https://jsonplaceholder.typicode.com/posts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    title: 'DDOM Demo Post',
+                    body: 'This post was created using DDOM declarative fetch!',
+                    userId: 1
+                })
+            });
+            
+            // Create a fetch signal for this request
+            const createSignal = DDOM.createFetchSignal(createRequest);
+            
+            // Monitor the result
+            DDOM.createEffect(() => {
+                const result = createSignal.get();
+                
+                if (result === null) {
+                    // Still loading
+                    return;
+                } else if (result.error) {
+                    // Error occurred
+                    statusEl.innerHTML = '<span class="status-indicator status-error"></span>Error creating post';
+                    dataEl.textContent = `Error: ${result.error}`;
+                    dataEl.className = 'data-display error';
+                } else {
+                    // Success
+                    statusEl.innerHTML = '<span class="status-indicator status-success"></span>Post created successfully';
+                    dataEl.textContent = JSON.stringify(result, null, 2);
+                    dataEl.className = 'data-display';
+                }
+            });
+        };
+
+        console.log('✅ Demo setup complete!');
+        console.log('📊 Demo element:', demoElement);
+        console.log('📋 Posts signal:', demoElement.postsData);
+        console.log('👤 User signal:', demoElement.userData);
+    </script>
+</body>
+</html>
