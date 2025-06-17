@@ -40,7 +40,7 @@ export default {
       rows: 1,
 
       // Computed validation using the passed signal
-      get isValid() {
+      isValid: function() {
         if (!this.valueSignal || !DDOM.Signal.isState(this.valueSignal)) return true;
         const value = this.valueSignal.get();
         if (typeof value !== 'string') return true; // No validation if not a string
@@ -48,23 +48,23 @@ export default {
         return validator ? validator(value) : true;
       },
 
-      get shouldShowError() {
+      shouldShowError: function() {
         if (!this.valueSignal || !DDOM.Signal.isState(this.valueSignal)) return false;
         const value = this.valueSignal.get();
         if (typeof value !== 'string') return false;
-        return value.length > 0 && !this.isValid;
+        return value.length > 0 && !this.isValid();
       },
 
-      get currentErrorMessage() {
-        return this.shouldShowError ? this.errorMessage.get() : '';
+      currentErrorMessage: function() {
+        return this.shouldShowError() ? this.errorMessage.get() : '';
       },
 
-      // Computed properties for conditional rendering
-      get isInputField() {
+      // Computed functions for conditional rendering
+      isInputField: function() {
         return this.type.get() !== 'textarea';
       },
 
-      get isTextareaField() {
+      isTextareaField: function() {
         return this.type.get() === 'textarea';
       },
 
@@ -79,11 +79,11 @@ export default {
       connectedCallback: function () {
         // Set up reactive attributes for CSS styling  
         DDOM.createEffect(() => {
-          this.setAttribute('data-valid', this.isValid);
-          this.setAttribute('data-show-error', this.shouldShowError);
+          this.setAttribute('data-valid', this.isValid());
+          this.setAttribute('data-show-error', this.shouldShowError());
           this.setAttribute('data-field-type', this.type.get());
-          this.setAttribute('data-is-input', this.isInputField);
-          this.setAttribute('data-is-textarea', this.isTextareaField);
+          this.setAttribute('data-is-input', this.isInputField());
+          this.setAttribute('data-is-textarea', this.isTextareaField());
         });
       },
 
@@ -168,7 +168,7 @@ export default {
         },
         {
           tagName: 'div',
-          textContent: '${this.parentNode.currentErrorMessage}',
+          textContent: '${this.parentNode.currentErrorMessage()}',
           className: 'error-message',
           style: {
             color: '#dc3545',
@@ -189,27 +189,27 @@ export default {
       $email: '',
       $message: '',
 
-      // Form validation computed properties
-      get isNameValid() {
+      // Form validation computed functions
+      isNameValid: function() {
         return this.$name.get().trim().length >= 2;
       },
 
-      get isEmailValid() {
+      isEmailValid: function() {
         const email = this.$email.get();
         return email.includes('@') && email.includes('.') && email.length > 5;
       },
 
-      get isMessageValid() {
+      isMessageValid: function() {
         return this.$message.get().trim().length >= 10;
       },
 
-      get isFormValid() {
-        return this.isNameValid && this.isEmailValid && this.isMessageValid;
+      isFormValid: function() {
+        return this.isNameValid() && this.isEmailValid() && this.isMessageValid();
       },
 
       // Form methods
       submitForm: function () {
-        if (this.isFormValid) {
+        if (this.isFormValid()) {
           alert(`Form submitted!\nName: ${this.$name.get()}\nEmail: ${this.$email.get()}\nMessage: ${this.$message.get()}`);
           this.resetForm();
         } else {
@@ -226,7 +226,7 @@ export default {
       // Set up reactive attributes for CSS styling
       connectedCallback: function () {
         DDOM.createEffect(() => {
-          this.setAttribute('data-form-valid', this.isFormValid);
+          this.setAttribute('data-form-valid', this.isFormValid());
         });
       },
 
@@ -367,7 +367,7 @@ export default {
                 },
                 {
                   tagName: 'div',
-                  textContent: 'Valid: ${this.parentNode.parentNode.parentNode.isFormValid ? "Yes" : "No"}',
+                  textContent: 'Valid: ${this.parentNode.parentNode.parentNode.isFormValid() ? "Yes" : "No"}',
                   className: 'form-status',
                   style: {
                     marginTop: '0.5em',

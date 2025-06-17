@@ -21,12 +21,12 @@ describe('Computed Properties Example', () => {
           $score: 85,
           $level: 1,
 
-          // Computed properties using native ES6+ getter syntax
-          get fullName() {
+          // Computed functions instead of getters
+          fullName: function() {
             return `${this.$firstName.get()} ${this.$lastName.get()}`;
           },
           
-          get displayTitle() {
+          displayTitle: function() {
             const score = this.$score.get();
             const level = this.$level.get();
             if (score >= 90) return `Expert (Level ${level})`;
@@ -35,7 +35,7 @@ describe('Computed Properties Example', () => {
             return `Beginner (Level ${level})`;
           },
           
-          get badgeColor() {
+          badgeColor: function() {
             const score = this.$score.get();
             if (score >= 90) return '#28a745'; // green
             if (score >= 70) return '#007bff'; // blue  
@@ -158,10 +158,14 @@ describe('Computed Properties Example', () => {
           $firstName: 'Test',
           $lastName: 'User',
           $score: 85,
+          // Computed function instead of getter
+          fullName: function() {
+            return `${this.$firstName.get()} ${this.$lastName.get()}`;
+          },
           children: [
             {
               tagName: 'h3',
-              textContent: '${this.parentNode.fullName}'
+              textContent: '${this.parentNode.fullName()}'
             },
             {
               tagName: 'div',

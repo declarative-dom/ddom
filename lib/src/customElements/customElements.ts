@@ -44,15 +44,9 @@ export function define(elements: CustomElementSpec[]) {
 			adoptStyles(spec, spec.tagName);
 			if (spec.document) adoptNode(spec.document as DocumentSpec, document);
 
-			// Extract computed properties for class definition
-			const computedProps = Object.getOwnPropertyDescriptors(spec);
-			const getterSetters = Object.entries(computedProps)
-				.filter(([, descriptor]) => descriptor.get || descriptor.set);
-
 			// Properties to ignore during DOM adoption
 			const ignoreKeys = [
-				'tagName', 'document', 'style', 'constructor',
-				...getterSetters.map(([key]) => key)
+				'tagName', 'document', 'style', 'constructor'
 			];
 
 			customElements.define(spec.tagName, class extends HTMLElement {
@@ -63,11 +57,6 @@ export function define(elements: CustomElementSpec[]) {
 
 				constructor() {
 					super();
-
-					// Set up computed properties
-					getterSetters.forEach(([key, descriptor]) => {
-						Object.defineProperty(this, key, descriptor);
-					});
 
 					// Initialize internals once
 					try {
