@@ -154,12 +154,8 @@ const ddomHandlers: {
 	},
 	default: (spec, el, key, descriptor) => {
 		if (!Object.prototype.hasOwnProperty.call(el, key)) {
-			// Handle native getter/setter properties (ES6+ syntax)
-			if (descriptor.get || descriptor.set) {
-				Object.defineProperty(el, key, descriptor);
-			}
 			// Handle property accessor strings
-			else if (typeof descriptor.value === 'string' && isPropertyAccessor(descriptor.value)) {
+			if (typeof descriptor.value === 'string' && isPropertyAccessor(descriptor.value)) {
 				const resolved = resolvePropertyAccessor(descriptor.value, (el as Node));
 				if (resolved !== null) {
 					// Pass through any resolved value (signals, objects, arrays, functions, etc.)

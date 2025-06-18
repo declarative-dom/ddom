@@ -1,5 +1,5 @@
-// Computed Properties Example
-// Demonstrates how DDOM supports computed properties using native JavaScript getters
+// Computed Properties Example - Refactored without getters/setters
+// Uses signals, property accessors, and computed functions instead
 
 export default {
 	customElements: [
@@ -12,14 +12,12 @@ export default {
 			$score: 85,
 			$level: 1,
 
-			// Computed properties using native ES6+ getter syntax
-			
-			// Native getter function syntax (more familiar to developers)
-			get fullName() {
+			// Computed functions (can be called when needed)
+			fullName: function() {
 				return `${this.$firstName.get()} ${this.$lastName.get()}`;
 			},
 			
-			get displayTitle() {
+			displayTitle: function() {
 				const score = this.$score.get();
 				const level = this.$level.get();
 				if (score >= 90) return `Expert (Level ${level})`;
@@ -28,7 +26,7 @@ export default {
 				return `Beginner (Level ${level})`;
 			},
 			
-			get badgeColor() {
+			badgeColor: function() {
 				const score = this.$score.get();
 				if (score >= 90) return '#28a745'; // green
 				if (score >= 70) return '#007bff'; // blue  
@@ -36,12 +34,12 @@ export default {
 				return '#6c757d'; // gray
 			},
 			
-			get progressPercentage() {
+			progressPercentage: function() {
 				return Math.min(100, Math.max(0, this.$score.get()));
 			},
 			
-			// Computed property for level attribute
-			get levelClass() {
+			// Computed function for level attribute
+			levelClass: function() {
 				const score = this.$score.get();
 				if (score >= 90) return 'expert';
 				if (score >= 70) return 'advanced';  
@@ -53,10 +51,10 @@ export default {
 			connectedCallback: function() {
 				// Set up reactive attribute updates using createEffect
 				DDOM.createEffect(() => {
-					// These .get() calls register dependencies automatically
-					const level = this.levelClass;  // computed property access
+					// These function calls compute values based on reactive signals
+					const level = this.levelClass();  // computed function call
 					const score = this.$score.get(); // reactive signal access
-					const progress = this.progressPercentage; // computed property access
+					const progress = this.progressPercentage(); // computed function call
 					
 					// Set attributes on the custom element (el) so CSS selectors work
 					this.setAttribute('data-level', level);
@@ -163,7 +161,7 @@ export default {
 							children: [
 								{
 									tagName: 'h3',
-									textContent: '${this.parentNode.parentNode.parentNode.fullName}',
+									textContent: '${this.parentNode.parentNode.parentNode.fullName()}',
 									style: {
 										margin: '0 0 0.25em 0',
 										fontSize: '1.25em',
@@ -173,7 +171,7 @@ export default {
 								{
 									tagName: 'div',
 									className: 'level-text',
-									textContent: '${this.parentNode.parentNode.parentNode.displayTitle}',
+									textContent: '${this.parentNode.parentNode.parentNode.displayTitle()}',
 									style: {
 										fontWeight: '500',
 										fontSize: '0.9em'
@@ -338,7 +336,7 @@ export default {
 			children: [
 				{
 					tagName: 'h1',
-					textContent: 'Computed Properties Example',
+					textContent: 'Computed Properties Example - Refactored',
 					style: {
 						textAlign: 'center',
 						color: '#333',
@@ -347,7 +345,7 @@ export default {
 				},
 				{
 					tagName: 'p',
-					textContent: 'This example demonstrates computed properties using native JavaScript getters. The user card below shows how computed properties automatically update when their dependencies change.',
+					textContent: 'This example demonstrates computed properties using functions and signals instead of getters/setters. The user card below shows how computed functions work with reactive dependencies.',
 					style: {
 						textAlign: 'center',
 						color: '#666',
@@ -380,7 +378,7 @@ export default {
 							children: [
 								{
 									tagName: 'li',
-									textContent: 'Native JavaScript getter syntax: { get() { return ... } }'
+									textContent: 'Function-based computed properties: { computedProp() { return ... } }'
 								},
 								{
 									tagName: 'li',
@@ -392,7 +390,7 @@ export default {
 								},
 								{
 									tagName: 'li',
-									textContent: 'Template expressions can access computed properties'
+									textContent: 'Template expressions call computed functions'
 								},
 								{
 									tagName: 'li',

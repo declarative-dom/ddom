@@ -75,7 +75,8 @@ describe('Complete Demo Example', () => {
     const spec = {
       count: 0,
       multiplier: 2,
-      get total() {
+      // Use a computed function instead of getter
+      total: function() {
         const countVal = getSignalValue(this.count);
         const multiplierVal = getSignalValue(this.multiplier);
         return countVal * multiplierVal;
@@ -93,6 +94,8 @@ describe('Complete Demo Example', () => {
     
     expect(countValue).toBe(0);
     expect(multiplierValue).toBe(2);
-    expect(window.total).toBe(0);
+    // Function property should be callable
+    expect(typeof window.total).toBe('function');
+    expect(window.total()).toBe(0);
   });
 });

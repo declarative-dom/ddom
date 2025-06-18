@@ -110,14 +110,17 @@ describe('Performance Test Example', () => {
     DDOM({
       width: 100,
       height: 200,
-      get area() {
+      // Use a computed function instead of getter
+      area: function() {
         const w = getSignalValue(this.width);
         const h = getSignalValue(this.height);
         return w * h;
       }
     });
 
-    expect(window.area).toBe(20000);
+    // Function property should be callable
+    expect(typeof window.area).toBe('function');
+    expect(window.area()).toBe(20000);
 
     const startTime = performance.now();
     const iterations = 100;
