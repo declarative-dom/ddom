@@ -202,9 +202,14 @@ dictionary StyleExpr {
   DOMString overflowY;
   
   // Nested selectors and pseudo-selectors
-  // Note: These are represented as string keys with StyleExpr values
-  // Example: ":hover", ".child", "@media (max-width: 768px)"
+  // Note: These are represented as additional dictionary members with 
+  // selector strings as keys and StyleExpr values
+  // Examples: ":hover", ".child", "@media (max-width: 768px)"
+  // This extends the dictionary dynamically: { ":hover": StyleExpr }
 };
+
+// Note: StyleExpr supports dynamic extension for nested selectors
+// record<DOMString, StyleExpr> for selector nesting is implied
 ```
 
 #### 2.4 Type Unions
