@@ -38,77 +38,180 @@ This specification covers:
 
 ### 2. Core Syntax
 
-#### 2.1 WritableOverrides
+The following Web IDL grammar defines the complete syntax for Declarative DOM specifications.
 
-Defines properties that override normally read-only DOM properties to enable declarative definition:
+#### 2.1 Callback Types
 
-```typescript
-type WritableOverrides = {
-  tagName?: string;
-  attributes?: Record<string, string>;
-  children?: HTMLElementSpec[] | MappedArrayExpr<any[], CustomElementSpec>;
-  document?: Partial<DocumentSpec>;
-  customElements?: CustomElementSpec[];
-  style?: StyleExpr;
+```webidl
+callback ElementConstructor = undefined (HTMLElement element);
+callback ElementLifecycleCallback = undefined (HTMLElement element);
+callback AttributeChangedCallback = undefined (HTMLElement element, DOMString name, DOMString? oldValue, DOMString? newValue);
+callback EventHandlerNonNull = any (Event event);
+typedef EventHandlerNonNull? EventHandler;
+```
+
+#### 2.2 Configuration Dictionaries
+
+```webidl
+dictionary WritableOverrides {
+  DOMString tagName;
+  record<DOMString, DOMString> attributes;
+  sequence<ElementSpec> children;
+  DocumentSpec document;
+  sequence<CustomElementSpec> customElements;
+  StyleExpr style;
+};
+
+dictionary HTMLElementSpec : WritableOverrides {
+  // Standard HTMLElement properties
+  required DOMString tagName;
+  DOMString id;
+  DOMString className;
+  DOMString textContent;
+  DOMString innerHTML;
+  DOMString innerText;
+  boolean hidden;
+  long tabIndex;
+  DOMString title;
+  DOMString lang;
+  DOMString dir;
+  boolean contentEditable;
+  boolean spellcheck;
+  boolean draggable;
+  
+  // Declarative extensions
+  record<DOMString, DOMString> attributes;
+  sequence<ElementSpec> children;
+  StyleExpr style;
+  ElementSpec? parentNode;
+  
+  // Event handlers
+  EventHandler onclick;
+  EventHandler onchange;
+  EventHandler oninput;
+  EventHandler onsubmit;
+  EventHandler onload;
+  EventHandler onerror;
+  EventHandler onmouseover;
+  EventHandler onmouseout;
+  EventHandler onmousedown;
+  EventHandler onmouseup;
+  EventHandler onkeydown;
+  EventHandler onkeyup;
+  EventHandler onkeypress;
+  EventHandler onfocus;
+  EventHandler onblur;
+};
+
+dictionary HTMLBodyElementSpec : HTMLElementSpec {
+  // Inherits all HTMLElementSpec properties
+  // Body-specific properties can be added here
+};
+
+dictionary HTMLHeadElementSpec : HTMLElementSpec {
+  // Inherits all HTMLElementSpec properties  
+  // Head-specific properties can be added here
+};
+
+dictionary CustomElementSpec : HTMLElementSpec {
+  required DOMString tagName; // Required, must contain hyphen
+  ElementConstructor? constructor;
+  ElementLifecycleCallback? adoptedCallback;  
+  AttributeChangedCallback? attributeChangedCallback;
+  ElementLifecycleCallback? connectedCallback;
+  ElementLifecycleCallback? disconnectedCallback;
+  sequence<DOMString> observedAttributes;
+};
+
+dictionary DocumentSpec {
+  // Standard Document properties
+  DOMString title;
+  DOMString URL;
+  DOMString documentURI;
+  DOMString domain;
+  DOMString referrer;
+  DOMString cookie;
+  DOMString lastModified;
+  DOMString readyState;
+  DOMString characterSet;
+  DOMString charset;
+  
+  // Declarative extensions
+  HTMLBodyElementSpec? body;
+  HTMLHeadElementSpec? head;
+  sequence<CustomElementSpec> customElements;
+};
+
+dictionary WindowSpec {
+  // Standard Window properties
+  DOMString name;
+  long innerWidth;
+  long innerHeight;
+  long outerWidth;
+  long outerHeight;
+  long screenX;
+  long screenY;
+  boolean closed;
+  
+  // Declarative extensions
+  DocumentSpec? document;
+  sequence<CustomElementSpec> customElements;
 };
 ```
 
-#### 2.2 HTMLElementSpec
+#### 2.3 Style Expression Dictionary
 
-Represents any HTML element:
-
-```typescript
-type HTMLElementSpec = Omit<HTMLElement, keyof WritableOverrides | 'parentNode'> & WritableOverrides & {
-  tagName: string; // Required for elements
-  parentNode?: DOMNode | ElementSpec; // Allow parentNode to be declared during processing
+```webidl
+dictionary StyleExpr {
+  // CSS Properties (representative subset)
+  DOMString backgroundColor;
+  DOMString color;
+  DOMString fontSize;
+  DOMString fontFamily;
+  DOMString fontWeight;
+  DOMString display;
+  DOMString position;
+  DOMString top;
+  DOMString left;
+  DOMString right;
+  DOMString bottom;
+  DOMString width;
+  DOMString height;
+  DOMString margin;
+  DOMString marginTop;
+  DOMString marginRight;
+  DOMString marginBottom;
+  DOMString marginLeft;
+  DOMString padding;
+  DOMString paddingTop;
+  DOMString paddingRight;
+  DOMString paddingBottom;
+  DOMString paddingLeft;
+  DOMString border;
+  DOMString borderRadius;
+  DOMString boxShadow;
+  DOMString textAlign;
+  DOMString lineHeight;
+  DOMString zIndex;
+  DOMString opacity;
+  DOMString transform;
+  DOMString transition;
+  DOMString cursor;
+  DOMString overflow;
+  DOMString overflowX;
+  DOMString overflowY;
+  
+  // Nested selectors and pseudo-selectors
+  // Note: These are represented as string keys with StyleExpr values
+  // Example: ":hover", ".child", "@media (max-width: 768px)"
 };
 ```
 
-#### 2.3 CustomElementSpec
+#### 2.4 Type Unions
 
-Defines a custom element:
-
-```typescript
-type CustomElementSpec = WritableOverrides & {
-  tagName: string; // Required for custom elements
-  constructor?: (element: HTMLElement) => void;
-  adoptedCallback?: (element: HTMLElement) => void;
-  attributeChangedCallback?: (element: HTMLElement, name: string, oldValue: string | null, newValue: string | null) => void;
-  connectedCallback?: (element: HTMLElement) => void;
-  disconnectedCallback?: (element: HTMLElement) => void;
-  observedAttributes?: string[];
-};
-```
-
-#### 2.4 DocumentSpec
-
-Represents a document:
-
-```typescript
-type DocumentSpec = Omit<Document, keyof WritableOverrides> & WritableOverrides & {
-  body?: Partial<HTMLBodyElementSpec>;
-  head?: Partial<HTMLHeadElementSpec>;
-};
-```
-
-#### 2.5 WindowSpec
-
-Represents a window:
-
-```typescript
-type WindowSpec = Omit<Window, keyof WritableOverrides> & WritableOverrides & {};
-```
-
-#### 2.6 StyleExpr
-
-Extends standard CSS properties to support nested selectors and pseudo-selectors:
-
-```typescript
-type StyleExpr = {
-  [K in keyof CSSStyleDeclaration]?: CSSStyleDeclaration[K];
-} & {
-  [selector: string]: StyleExpr;
-};
+```webidl
+typedef (HTMLElementSpec or HTMLBodyElementSpec or HTMLHeadElementSpec or CustomElementSpec) ElementSpec;
+typedef (HTMLElementSpec or HTMLBodyElementSpec or HTMLHeadElementSpec or CustomElementSpec or DocumentSpec or WindowSpec) DOMSpec;
 ```
 
 ### 3. Syntax Rules
