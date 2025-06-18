@@ -41,6 +41,7 @@ import {
 
 import {
 	isRequest,
+	isNativeRequest,
 	bindRequestProperty
 } from '../requests';
 
@@ -182,8 +183,13 @@ const ddomHandlers: {
 			else if (typeof descriptor.value === 'function') {
 				(el as any)[key] = descriptor.value;
 			}
-			// Handle Request objects for declarative fetch
+			// Handle DDOM Request objects for declarative fetch
 			else if (isRequest(descriptor.value)) {
+				// Set up fetch effect that fetches the Request and stores the result
+				bindRequestProperty(el, key, descriptor.value);
+			}
+			// Handle native Request objects for declarative fetch (legacy support)
+			else if (isNativeRequest(descriptor.value)) {
 				// Set up fetch effect that fetches the Request and stores the result
 				bindRequestProperty(el, key, descriptor.value);
 			} else {

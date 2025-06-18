@@ -6,7 +6,7 @@ import { createEffect, createReactiveProperty } from './events/Signal';
 import { Signal } from 'signal-polyfill';
 import { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate } from './templates/templates';
 import { isPropertyAccessor, resolvePropertyAccessor } from './accessors/accessors';
-import { isRequest, createFetchSignal, bindRequestProperty } from './requests/requests';
+import { isRequest, isNativeRequest, createFetchSignal, bindRequestProperty, convertDDOMRequestToNative } from './requests/requests';
 
 // Named exports for compatibility
 export { adoptDocument, adoptNode, adoptWindow, createElement } from './elements/elements';
@@ -17,7 +17,7 @@ export { Signal } from 'signal-polyfill';
 export { MappedArray } from './arrays/arrays';
 export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate } from './templates/templates';
 export { isPropertyAccessor, resolvePropertyAccessor } from './accessors/accessors';
-export { isRequest, createFetchSignal, bindRequestProperty } from './requests/requests';
+export { isRequest, isNativeRequest, createFetchSignal, bindRequestProperty, convertDDOMRequestToNative } from './requests/requests';
 
 // Default export: DDOM function with namespace properties
 function DDOM(spec: any) {
@@ -49,8 +49,10 @@ Object.assign(DDOM, {
 	isPropertyAccessor,
 	resolvePropertyAccessor,
 	isRequest,
+	isNativeRequest,
 	createFetchSignal,
-	bindRequestProperty
+	bindRequestProperty,
+	convertDDOMRequestToNative
 });
 
 export default DDOM;

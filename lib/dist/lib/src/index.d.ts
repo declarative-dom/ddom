@@ -8,7 +8,7 @@ export { Signal } from 'signal-polyfill';
 export { MappedArray } from './arrays/arrays';
 export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate } from './templates/templates';
 export { isPropertyAccessor, resolvePropertyAccessor } from './accessors/accessors';
-export { isRequest, createFetchSignal, bindRequestProperty } from './requests/requests';
+export { isRequest, isNativeRequest, createFetchSignal, bindRequestProperty, convertDDOMRequestToNative } from './requests/requests';
 declare function DDOM(spec: any): void;
 export default DDOM;
 declare global {
