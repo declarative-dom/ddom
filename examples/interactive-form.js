@@ -38,6 +38,7 @@ export default {
       validator: () => true, // Default validator always returns true
       errorMessage: '',
       rows: 1,
+      valueSignal: null, // Signal to bind the input value
 
       // Computed validation using the passed signal
       isValid: function() {
@@ -56,7 +57,7 @@ export default {
       },
 
       currentErrorMessage: function() {
-        return this.shouldShowError() ? this.errorMessage : '';
+        return this.shouldShowError() ? this.errorMessage.get() : '';
       },
 
       // Computed functions for conditional rendering

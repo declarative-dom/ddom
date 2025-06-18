@@ -73,11 +73,13 @@ export function define(elements: CustomElementSpec[]) {
 				}
 
 				connectedCallback() {
-					if (!this.#initialized) {
-						this.#initializeDOM();
-						this.#initialized = true;
-					}
-					(spec.connectedCallback as any)?.call(this);
+					queueMicrotask(() => {
+						if (!this.#initialized) {
+							this.#initializeDOM();
+							this.#initialized = true;
+						}
+						(spec.connectedCallback as any)?.call(this);
+					});
 				}
 
 				disconnectedCallback() {
