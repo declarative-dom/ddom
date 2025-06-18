@@ -40,10 +40,12 @@ import {
 } from '../accessors';
 
 import {
-	isRequest,
-	isNativeRequest,
-	bindRequestProperty
-} from '../requests';
+	detectNamespace,
+	handleNamespace
+} from '../namespaces';
+
+// Import namespace handlers to ensure registration
+import '../requests/requests';
 
 // Properties that are immutable after element creation (structural identity)
 const IMMUTABLE_PROPERTIES = new Set(['id', 'tagName']);
@@ -183,16 +185,12 @@ const ddomHandlers: {
 			else if (typeof descriptor.value === 'function') {
 				(el as any)[key] = descriptor.value;
 			}
-			// Handle DDOM Request objects for declarative fetch
-			else if (isRequest(descriptor.value)) {
-				// Set up fetch effect that fetches the Request and stores the result
-				bindRequestProperty(el, key, descriptor.value);
+			// Handle namespace properties (Request, WebSocket, etc.)
+			else if (detectNamespace(descriptor.value)) {
+				const cleanup = handleNamespace(el, key, descriptor.value);
+				// Store cleanup function if needed (future enhancement)
 			}
-			// Handle native Request objects for declarative fetch (legacy support)
-			else if (isNativeRequest(descriptor.value)) {
-				// Set up fetch effect that fetches the Request and stores the result
-				bindRequestProperty(el, key, descriptor.value);
-			} else {
+			else {
 				// For non-function, non-templated properties, wrap in transparent signal proxy
 				// but only if not protected (id, tagName)
 				if (!IMPERATIVE_PROPERTIES.has(key)) {

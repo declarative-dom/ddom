@@ -1,59 +1,32 @@
-import {
-  Signal,
-  createEffect
-} from '../events';
+import { Signal } from '../events';
+import { registerNamespaceHandler, type NamespaceHandler } from '../namespaces';
 
 /**
- * Interface for DDOM Request object specification
+ * Interface for Request namespace specification
  */
-export interface DDOMRequestSpec {
-  Request: {
-    url: string;
-    method?: string;
-    headers?: Record<string, string>;
-    body?: any;
-    mode?: RequestMode;
-    credentials?: RequestCredentials;
-    cache?: RequestCache;
-    redirect?: RequestRedirect;
-    referrer?: string;
-    referrerPolicy?: ReferrerPolicy;
-    integrity?: string;
-    keepalive?: boolean;
-    signal?: { AbortController: any };
-  };
+export interface RequestSpec {
+  url: string;
+  method?: string;
+  headers?: Record<string, string>;
+  body?: any;
+  mode?: RequestMode;
+  credentials?: RequestCredentials;
+  cache?: RequestCache;
+  redirect?: RequestRedirect;
+  referrer?: string;
+  referrerPolicy?: ReferrerPolicy;
+  integrity?: string;
+  keepalive?: boolean;
+  signal?: { AbortController: any };
 }
 
 /**
- * Detects if a value is a DDOM Request specification object
- * @param value - The value to check
- * @returns True if the value is a DDOM Request object
- */
-export function isRequest(value: any): value is DDOMRequestSpec {
-  return value && 
-         typeof value === 'object' && 
-         value.Request && 
-         typeof value.Request === 'object' &&
-         typeof value.Request.url === 'string';
-}
-
-/**
- * Detects if a value is a native Request object (legacy support)
- * @param value - The value to check
- * @returns True if the value is a native Request object
- */
-export function isNativeRequest(value: any): value is Request {
-  return value instanceof Request;
-}
-
-/**
- * Creates a fetch signal for a Request object that automatically fetches
- * when the Request is processed, and stores the result in a Signal
+ * Creates a fetch signal that automatically fetches and stores the result
  * 
  * @param request - The Request object to fetch
  * @returns A Signal containing the fetch result
  */
-export function createFetchSignal(request: Request): Signal.State<any> {
+function createFetchSignal(request: Request): Signal.State<any> {
   // Create a signal to hold the result
   const resultSignal = new Signal.State<any>(null);
   
@@ -116,42 +89,41 @@ export function createFetchSignal(request: Request): Signal.State<any> {
 }
 
 /**
- * Converts a DDOM Request specification to a native Request object
- * @param spec - The DDOM Request specification
+ * Converts a Request specification to a native Request object
+ * @param spec - The Request specification
  * @returns A native Request object
  */
-export function convertDDOMRequestToNative(spec: DDOMRequestSpec): Request {
-  const requestSpec = spec.Request;
+function convertToNativeRequest(spec: RequestSpec): Request {
   const init: RequestInit = {};
 
   // Copy basic properties
-  if (requestSpec.method) init.method = requestSpec.method;
-  if (requestSpec.headers) init.headers = requestSpec.headers;
-  if (requestSpec.mode) init.mode = requestSpec.mode;
-  if (requestSpec.credentials) init.credentials = requestSpec.credentials;
-  if (requestSpec.cache) init.cache = requestSpec.cache;
-  if (requestSpec.redirect) init.redirect = requestSpec.redirect;
-  if (requestSpec.referrer) init.referrer = requestSpec.referrer;
-  if (requestSpec.referrerPolicy) init.referrerPolicy = requestSpec.referrerPolicy;
-  if (requestSpec.integrity) init.integrity = requestSpec.integrity;
-  if (requestSpec.keepalive !== undefined) init.keepalive = requestSpec.keepalive;
+  if (spec.method) init.method = spec.method;
+  if (spec.headers) init.headers = spec.headers;
+  if (spec.mode) init.mode = spec.mode;
+  if (spec.credentials) init.credentials = spec.credentials;
+  if (spec.cache) init.cache = spec.cache;
+  if (spec.redirect) init.redirect = spec.redirect;
+  if (spec.referrer) init.referrer = spec.referrer;
+  if (spec.referrerPolicy) init.referrerPolicy = spec.referrerPolicy;
+  if (spec.integrity) init.integrity = spec.integrity;
+  if (spec.keepalive !== undefined) init.keepalive = spec.keepalive;
 
   // Handle AbortController
-  if (requestSpec.signal && requestSpec.signal.AbortController) {
+  if (spec.signal?.AbortController) {
     init.signal = new AbortController().signal;
   }
 
   // Handle body conversion
-  if (requestSpec.body !== undefined) {
-    init.body = convertBodyToNative(requestSpec.body);
+  if (spec.body !== undefined) {
+    init.body = convertBodyToNative(spec.body);
   }
 
-  return new Request(requestSpec.url, init);
+  return new Request(spec.url, init);
 }
 
 /**
- * Converts DDOM body specification to native body format
- * @param body - The DDOM body specification
+ * Converts specification body to native body format
+ * @param body - The body specification
  * @returns The native body format
  */
 function convertBodyToNative(body: any): BodyInit | null {
@@ -200,37 +172,22 @@ function convertBodyToNative(body: any): BodyInit | null {
 }
 
 /**
- * Sets up reactive fetch binding for a property.
- * Creates a fetch effect that fetches the Request and stores the result.
- * 
+ * Request namespace handler - handles declarative fetch operations
  * @param el - The DOM element
  * @param property - The property name to bind
- * @param requestSpec - The Request object or DDOM Request specification
- * @returns A cleanup function to dispose of the effect
+ * @param spec - The Request specification
+ * @returns Cleanup function
  */
-export function bindRequestProperty(
-  el: any,
-  property: string,
-  requestSpec: Request | DDOMRequestSpec
-): () => void {
-  let request: Request;
-  
-  // Convert DDOM Request spec to native Request if needed
-  if (isNativeRequest(requestSpec)) {
-    request = requestSpec;
-  } else if (isRequest(requestSpec)) {
-    request = convertDDOMRequestToNative(requestSpec);
-  } else {
-    throw new Error('Invalid request specification');
-  }
-  
+const requestHandler: NamespaceHandler = (el: any, property: string, spec: RequestSpec): (() => void) => {
+  const request = convertToNativeRequest(spec);
   const fetchSignal = createFetchSignal(request);
   
   // Set the signal as the property value
   el[property] = fetchSignal;
   
   // Return a no-op cleanup function since the effect is managed internally
-  // In the future, this could return an actual cleanup function if we add
-  // request cancellation or other cleanup logic
   return () => {};
-}
+};
+
+// Register the Request namespace handler
+registerNamespaceHandler('Request', requestHandler);

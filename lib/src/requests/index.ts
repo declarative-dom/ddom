@@ -1,8 +1,1 @@
-export { 
-  isRequest, 
-  isNativeRequest, 
-  createFetchSignal, 
-  bindRequestProperty, 
-  convertDDOMRequestToNative,
-  DDOMRequestSpec 
-} from './requests';
+export type { RequestSpec } from './requests';
