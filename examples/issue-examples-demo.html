@@ -24,8 +24,16 @@
         <div class="code">
 {
   tagName: 'user-profile',
-  userData: new Request("/api/users/123"),
-  avatar: new Request("/api/users/123/avatar", { method: "GET" })
+  $userData: {
+    Request: {
+      url: "/api/users/123"
+    }
+  },
+  $avatar: {
+    Request: {
+      url: "/api/users/123/avatar"
+    }
+  }
 }
         </div>
         <div class="result" id="example1-result">Loading...</div>
@@ -36,11 +44,14 @@
         <div class="code">
 {
   tagName: 'product-form',
-  submitResult: new Request("/api/products", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: "Product Name", price: 99.99 })
-  })
+  $submitResult: {
+    Request: {
+      url: "/api/products",
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: { name: "Product Name", price: 99.99 }
+    }
+  }
 }
         </div>
         <div class="result" id="example2-result">Click button to test POST request</div>
@@ -55,14 +66,22 @@
         // Example 1: Direct Request Constructor Usage
         DDOM.customElements.define({
             tagName: 'user-profile',
-            userData: new Request("https://jsonplaceholder.typicode.com/users/1"),
-            avatar: new Request("https://jsonplaceholder.typicode.com/users/1", { method: "GET" }) // Simplified for demo
+            $userData: {
+                Request: {
+                    url: "https://jsonplaceholder.typicode.com/users/1"
+                }
+            },
+            $avatar: {
+                Request: {
+                    url: "https://jsonplaceholder.typicode.com/users/1"
+                }
+            }
         });
 
         // Example 2: Request with Full Options  
         DDOM.customElements.define({
             tagName: 'product-form',
-            submitResult: null // Will be set dynamically
+            $submitResult: null // Will be set dynamically
         });
 
         // Create elements
@@ -72,11 +91,11 @@
         // Test Example 1
         const example1Result = document.getElementById('example1-result');
         
-        if (userProfile.userData && userProfile.userData.get) {
+        if (userProfile.$userData && userProfile.$userData.get) {
             example1Result.innerHTML = '<span class="loading">✓ userData Signal created, fetching...</span>';
             
             DDOM.createEffect(() => {
-                const userData = userProfile.userData.get();
+                const userData = userProfile.$userData.get();
                 const avatarData = userProfile.avatar.get();
                 
                 let result = '<h3>Results:</h3>';
@@ -112,17 +131,18 @@
             const example2Result = document.getElementById('example2-result');
             example2Result.innerHTML = '<span class="loading">Creating POST request...</span>';
             
-            const postRequest = new Request("https://jsonplaceholder.typicode.com/posts", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ 
-                    name: "DDOM Product", 
-                    price: 99.99,
-                    description: "A product created with DDOM declarative fetch"
-                })
-            });
-            
-            const postSignal = DDOM.createFetchSignal(postRequest);
+            const postSignal = DDOM.createFetchSignal(DDOM.convertDDOMRequestToNative({
+                Request: {
+                    url: "https://jsonplaceholder.typicode.com/posts",
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: { 
+                        name: "DDOM Product", 
+                        price: 99.99,
+                        description: "A product created with DDOM declarative fetch"
+                    }
+                }
+            }));
             
             DDOM.createEffect(() => {
                 const result = postSignal.get();

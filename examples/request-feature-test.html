@@ -61,8 +61,10 @@
         try {
             const exports = Object.keys(DDOM);
             const hasNewExports = exports.includes('isRequest') && 
+                                 exports.includes('isNativeRequest') &&
                                  exports.includes('createFetchSignal') && 
-                                 exports.includes('bindRequestProperty');
+                                 exports.includes('bindRequestProperty') &&
+                                 exports.includes('convertDDOMRequestToNative');
             
             if (hasNewExports) {
                 pass('test1', 'Library loaded with Request exports', 
@@ -75,18 +77,25 @@
             fail('test1', 'Library loading failed', error.toString());
         }
         
-        // Test 2: Request Detection
+        // Test 2: Request Detection (Both Syntaxes)
         try {
-            const testRequest = new Request('https://jsonplaceholder.typicode.com/posts/1');
-            const isRequestResult = DDOM.isRequest(testRequest);
+            const nativeRequest = new Request('https://jsonplaceholder.typicode.com/posts/1');
+            const ddomRequest = {
+                Request: {
+                    url: 'https://jsonplaceholder.typicode.com/posts/1'
+                }
+            };
+            
+            const isNativeRequestResult = DDOM.isNativeRequest(nativeRequest);
+            const isDDOMRequestResult = DDOM.isRequest(ddomRequest);
             const isNotRequestResult = DDOM.isRequest({ url: 'test' });
             
-            if (isRequestResult === true && isNotRequestResult === false) {
+            if (isNativeRequestResult && isDDOMRequestResult && !isNotRequestResult) {
                 pass('test2', 'Request detection works correctly', 
-                     `isRequest(Request): ${isRequestResult}\nisRequest(Object): ${isNotRequestResult}`);
+                     `isNativeRequest(Request): ${isNativeRequestResult}\nisRequest(DDOMRequest): ${isDDOMRequestResult}\nisRequest(Object): ${isNotRequestResult}`);
             } else {
                 fail('test2', 'Request detection failed', 
-                     `isRequest(Request): ${isRequestResult}\nisRequest(Object): ${isNotRequestResult}`);
+                     `isNativeRequest(Request): ${isNativeRequestResult}\nisRequest(DDOMRequest): ${isDDOMRequestResult}\nisRequest(Object): ${isNotRequestResult}`);
             }
         } catch (error) {
             fail('test2', 'Request detection error', error.toString());

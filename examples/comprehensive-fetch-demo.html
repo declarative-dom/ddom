@@ -146,13 +146,21 @@
             tagName: 'fetch-demo',
             
             // Declarative fetch for posts list
-            postsData: new Request('https://jsonplaceholder.typicode.com/posts?_limit=5'),
+            $postsData: {
+                Request: {
+                    url: 'https://jsonplaceholder.typicode.com/posts?_limit=5'
+                }
+            },
             
             // Declarative fetch for user (will demonstrate error handling)
-            userData: new Request('https://jsonplaceholder.typicode.com/users/1'),
+            $userData: {
+                Request: {
+                    url: 'https://jsonplaceholder.typicode.com/users/1'
+                }
+            },
             
             // Post creation will be handled dynamically
-            createResult: null,
+            $createResult: null,
             
             children: []
         });
@@ -162,9 +170,9 @@
         document.body.appendChild(demoElement);
 
         // Monitor posts data
-        if (demoElement.postsData && demoElement.postsData.get) {
+        if (demoElement.$postsData && demoElement.$postsData.get) {
             DDOM.createEffect(() => {
-                const data = demoElement.postsData.get();
+                const data = demoElement.$postsData.get();
                 const statusEl = document.getElementById('posts-status');
                 const dataEl = document.getElementById('posts-data');
                 
@@ -186,9 +194,9 @@
         }
 
         // Monitor user data
-        if (demoElement.userData && demoElement.userData.get) {
+        if (demoElement.$userData && demoElement.$userData.get) {
             DDOM.createEffect(() => {
-                const data = demoElement.userData.get();
+                const data = demoElement.$userData.get();
                 const statusEl = document.getElementById('user-status');
                 const dataEl = document.getElementById('user-data');
                 
@@ -217,21 +225,21 @@
             statusEl.innerHTML = '<span class="status-indicator status-loading"></span>Creating post...';
             dataEl.textContent = 'Sending POST request...';
             
-            // Create a new Request for POST
-            const createRequest = new Request('https://jsonplaceholder.typicode.com/posts', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    title: 'DDOM Demo Post',
-                    body: 'This post was created using DDOM declarative fetch!',
-                    userId: 1
-                })
-            });
-            
-            // Create a fetch signal for this request
-            const createSignal = DDOM.createFetchSignal(createRequest);
+            // Create a new Request for POST using new syntax
+            const createSignal = DDOM.createFetchSignal(DDOM.convertDDOMRequestToNative({
+                Request: {
+                    url: 'https://jsonplaceholder.typicode.com/posts',
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: {
+                        title: 'DDOM Demo Post',
+                        body: 'This post was created using DDOM declarative fetch!',
+                        userId: 1
+                    }
+                }
+            }));
             
             // Monitor the result
             DDOM.createEffect(() => {
@@ -256,8 +264,8 @@
 
         console.log('✅ Demo setup complete!');
         console.log('📊 Demo element:', demoElement);
-        console.log('📋 Posts signal:', demoElement.postsData);
-        console.log('👤 User signal:', demoElement.userData);
+        console.log('📋 Posts signal:', demoElement.$postsData);
+        console.log('👤 User signal:', demoElement.$userData);
     </script>
 </body>
 </html>
