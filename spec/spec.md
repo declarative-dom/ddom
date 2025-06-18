@@ -1,5 +1,5 @@
 # Declarative DOM Technical Specification
-## Version 0.1.5
+## Version 0.3.0
 
 ### Abstract
 
