@@ -4,35 +4,78 @@ This document describes the implementation of the declarative fetch feature for 
 
 ## Overview
 
-The declarative fetch feature allows developers to use the standard `Request()` constructor directly in DDOM object specifications. When DDOM encounters a Request object as a property value, it automatically:
+The declarative fetch feature allows developers to use a serializable Request object syntax directly in DDOM object specifications. When DDOM encounters a Request object as a property value, it automatically:
 
 1. Performs the fetch operation
 2. Creates a Signal to store the result  
 3. Updates the Signal when the fetch completes
 4. Handles errors gracefully
 
+## Syntax Evolution
+
+### New Serializable Syntax (Current)
+
+```javascript
+{
+  tagName: 'user-profile',
+  $userData: {
+    Request: {
+      url: "/api/users/123",
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      body: { name: "John Doe" }
+    }
+  }
+}
+```
+
+### Legacy Syntax (Backward Compatible)
+
+```javascript
+{
+  tagName: 'user-profile',
+  userData: new Request("/api/users/123", {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "John Doe" })
+  })
+}
+```
+
 ## Implementation Details
 
 ### Files Created/Modified
 
 1. **`lib/src/requests/`** - New module containing the declarative fetch functionality
-   - `requests.ts` - Core implementation
+   - `requests.ts` - Core implementation with both syntaxes
    - `index.ts` - Module exports
    - `README.md` - Module documentation
 
-2. **`lib/src/elements/elements.ts`** - Modified to detect and handle Request objects
+2. **`lib/src/elements/elements.ts`** - Modified to detect and handle both Request syntaxes
 
 3. **`lib/src/index.ts`** - Updated to export new request functions
 
-4. **Examples** - Created demonstration files:
-   - `examples/issue-examples-demo.html` - Examples from the GitHub issue
-   - `examples/comprehensive-fetch-demo.html` - Full-featured demo
-   - `examples/request-feature-test.html` - Basic functionality test
+4. **Examples** - Updated demonstration files:
+   - `examples/issue-examples-demo.html` - Examples using new syntax
+   - `examples/comprehensive-fetch-demo.html` - Full-featured demo with new syntax
+   - `examples/request-feature-test.html` - Tests for both syntaxes
+   - `examples/new-request-syntax-demo.html` - New syntax showcase
+   - `examples/new-syntax-test.html` - New syntax validation
 
 ### Core Functions
 
 #### `isRequest(value: any): boolean`
-Detects if a value is a Request object using `instanceof` check.
+Detects if a value is a DDOM Request specification object with the new serializable syntax.
+
+#### `isNativeRequest(value: any): boolean`
+Detects if a value is a native Request object (for backward compatibility).
+
+#### `convertDDOMRequestToNative(spec: DDOMRequestSpec): Request`
+Converts a DDOM Request specification to a native Request object. Features:
+- Complete fetch API options support
+- Intelligent body conversion (FormData, URLSearchParams, Blob, ArrayBuffer)
+- AbortController signal creation
+- Type-safe conversion
 
 #### `createFetchSignal(request: Request): Signal.State<any>`
 Creates a Signal that automatically fetches the Request and stores the result. Features:
@@ -41,19 +84,74 @@ Creates a Signal that automatically fetches the Request and stores the result. F
 - Content-type aware response parsing (JSON/text)
 - Comprehensive error handling with structured error objects
 
-#### `bindRequestProperty(el: any, property: string, request: Request): () => void`
-Integrates with DDOM's property handling system to automatically convert Request properties to fetch signals.
+#### `bindRequestProperty(el: any, property: string, requestSpec: Request | DDOMRequestSpec): () => void`
+Integrates with DDOM's property handling system to automatically convert Request properties to fetch signals. Supports both legacy and new syntax.
 
 ### Integration Points
 
-The feature integrates with DDOM's existing property handling system in `elements.ts`. When processing element properties, the system now checks for Request objects and automatically converts them to fetch signals.
+The feature integrates with DDOM's existing property handling system in `elements.ts`. When processing element properties, the system now checks for both Request syntaxes and automatically converts them to fetch signals.
 
 ```javascript
-// Handle Request objects for declarative fetch
+// Handle DDOM Request objects for declarative fetch
 else if (isRequest(descriptor.value)) {
     // Set up fetch effect that fetches the Request and stores the result
     bindRequestProperty(el, key, descriptor.value);
 }
+// Handle native Request objects for declarative fetch (legacy support)
+else if (isNativeRequest(descriptor.value)) {
+    // Set up fetch effect that fetches the Request and stores the result
+    bindRequestProperty(el, key, descriptor.value);
+}
+```
+
+### Body Type Conversion
+
+The new syntax supports comprehensive body type conversion:
+
+#### FormData
+```javascript
+body: {
+  FormData: {
+    field1: "value1",
+    file: fileObject
+  }
+}
+```
+
+#### URLSearchParams
+```javascript
+body: {
+  URLSearchParams: {
+    param1: "value1",
+    param2: "value2"
+  }
+}
+```
+
+#### Blob
+```javascript
+body: {
+  Blob: {
+    content: "text content",
+    type: "text/plain"
+  }
+}
+```
+
+#### ArrayBuffer
+```javascript
+body: {
+  ArrayBuffer: [1, 2, 3, 4, 5]  // Converted to ArrayBuffer
+}
+```
+
+#### JSON (Default)
+```javascript
+body: {
+  key: "value",
+  nested: { data: "value" }
+}
+// Automatically converted to JSON.stringify()
 ```
 
 ### Error Handling
@@ -84,7 +182,41 @@ The system automatically handles different response types:
 
 ## Usage Examples
 
-### Basic Usage (from GitHub issue)
+### Basic Usage (New Serializable Syntax)
+
+```javascript
+{
+  tagName: 'user-profile',
+  $userData: {
+    Request: {
+      url: "/api/users/123"
+    }
+  },
+  $avatar: {
+    Request: {
+      url: "/api/users/123/avatar"
+    }
+  }
+}
+```
+
+### With Full Options (New Serializable Syntax)
+
+```javascript
+{
+  tagName: 'product-form',
+  $submitResult: {
+    Request: {
+      url: "/api/products",
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: { name: "Product Name", price: 99.99 }
+    }
+  }
+}
+```
+
+### Legacy Syntax (Still Supported)
 
 ```javascript
 {
@@ -93,18 +225,6 @@ The system automatically handles different response types:
   avatar: new Request("/api/users/123/avatar", { method: "GET" })
 }
 ```
-
-### With Full Options (from GitHub issue)
-
-```javascript
-{
-  tagName: 'product-form',
-  submitResult: new Request("/api/products", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: window.productName, price: window.productPrice })
-  })
-}
 ```
 
 ### Accessing the Data
