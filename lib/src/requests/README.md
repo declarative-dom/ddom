@@ -175,7 +175,6 @@ The Request object supports all standard fetch API options:
 - **Error Handling**: Fetch errors are captured and stored in the signal
 - **JSON/Text Parsing**: Automatically tries JSON parsing, falls back to text
 - **Comprehensive Body Support**: FormData, URLSearchParams, Blob, ArrayBuffer
-- **Backward Compatibility**: Still supports legacy `new Request()` syntax
 
 ## Response Handling
 
@@ -194,66 +193,16 @@ Example error response:
 }
 ```
 
-## Migration from Legacy Syntax
-
-### Before (Legacy)
-```javascript
-{
-  tagName: 'user-profile',
-  userData: new Request("/api/users/123", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ data: "value" })
-  })
-}
-```
-
-### After (New Serializable Syntax)
-```javascript
-{
-  tagName: 'user-profile',
-  $userData: {
-    Request: {
-      url: "/api/users/123",
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: { data: "value" }
-    }
-  }
-}
-```
-
-## Current Limitations
-
-1. **Static Requests**: Template literals within Request constructor arguments are evaluated once at creation time
-2. **No Auto Re-fetching**: Requests fetch once when encountered (future enhancement)
-3. **Property-Level Reactivity**: Entire Request property reassignment triggers new fetch
-
-## Future Enhancements
-
-- Support for reactive Request parameters with template literals
-- Automatic re-fetching when dependencies change
-- Request caching and deduplication
-- Advanced AbortController integration
-
 ## API Reference
 
-### `isRequest(value: any): boolean`
+### `convertToNativeRequest(spec: RequestSpec): Request`
 
-Detects if a value is a DDOM Request specification object.
-
-### `isNativeRequest(value: any): boolean`
-
-Detects if a value is a native Request object (for legacy support).
-
-### `convertDDOMRequestToNative(spec: DDOMRequestSpec): Request`
-
-Converts a DDOM Request specification to a native Request object.
+Converts a Request specification to a native Request object.
 
 ### `createFetchSignal(request: Request): Signal.State<any>`
 
 Creates a fetch signal for a Request object that automatically fetches and stores the result.
 
-### `bindRequestProperty(el: any, property: string, requestSpec: Request | DDOMRequestSpec): () => void`
+### `requestHandler(el: any, property: string, requestSpec: RequestSpec): () => void`
 
-Sets up reactive fetch binding for a property. Used internally by DDOM's property handling system.
+Sets up reactive fetch binding for a property. Used internally by DDOM's namespace handling system.

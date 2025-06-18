@@ -13,7 +13,7 @@ The declarative fetch feature allows developers to use a serializable Request ob
 
 ## Syntax Evolution
 
-### New Serializable Syntax (Current)
+### New Serializable Syntax
 
 ```javascript
 {
@@ -29,18 +29,7 @@ The declarative fetch feature allows developers to use a serializable Request ob
 }
 ```
 
-### Legacy Syntax (Backward Compatible)
 
-```javascript
-{
-  tagName: 'user-profile',
-  userData: new Request("/api/users/123", {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: "John Doe" })
-  })
-}
-```
 
 ## Implementation Details
 
@@ -64,14 +53,8 @@ The declarative fetch feature allows developers to use a serializable Request ob
 
 ### Core Functions
 
-#### `isRequest(value: any): boolean`
-Detects if a value is a DDOM Request specification object with the new serializable syntax.
-
-#### `isNativeRequest(value: any): boolean`
-Detects if a value is a native Request object (for backward compatibility).
-
-#### `convertDDOMRequestToNative(spec: DDOMRequestSpec): Request`
-Converts a DDOM Request specification to a native Request object. Features:
+#### `convertToNativeRequest(spec: RequestSpec): Request`
+Converts a Request specification to a native Request object. Features:
 - Complete fetch API options support
 - Intelligent body conversion (FormData, URLSearchParams, Blob, ArrayBuffer)
 - AbortController signal creation
@@ -84,23 +67,18 @@ Creates a Signal that automatically fetches the Request and stores the result. F
 - Content-type aware response parsing (JSON/text)
 - Comprehensive error handling with structured error objects
 
-#### `bindRequestProperty(el: any, property: string, requestSpec: Request | DDOMRequestSpec): () => void`
-Integrates with DDOM's property handling system to automatically convert Request properties to fetch signals. Supports both legacy and new syntax.
+#### `requestHandler(el: any, property: string, requestSpec: RequestSpec): () => void`
+Integrates with DDOM's namespace handling system to automatically convert Request properties to fetch signals.
 
 ### Integration Points
 
-The feature integrates with DDOM's existing property handling system in `elements.ts`. When processing element properties, the system now checks for both Request syntaxes and automatically converts them to fetch signals.
+The feature integrates with DDOM's namespace handling system. When processing element properties, the system checks for Request namespace objects and automatically converts them to fetch signals.
 
 ```javascript
-// Handle DDOM Request objects for declarative fetch
-else if (isRequest(descriptor.value)) {
-    // Set up fetch effect that fetches the Request and stores the result
-    bindRequestProperty(el, key, descriptor.value);
-}
-// Handle native Request objects for declarative fetch (legacy support)
-else if (isNativeRequest(descriptor.value)) {
-    // Set up fetch effect that fetches the Request and stores the result
-    bindRequestProperty(el, key, descriptor.value);
+// Handle Request namespace for declarative fetch
+else if (detectNamespace(descriptor.value)) {
+    const cleanup = handleNamespace(el, key, descriptor.value);
+    // Store cleanup function if needed (future enhancement)
 }
 ```
 
@@ -182,7 +160,7 @@ The system automatically handles different response types:
 
 ## Usage Examples
 
-### Basic Usage (New Serializable Syntax)
+### Basic Usage (Serializable Syntax)
 
 ```javascript
 {
@@ -200,7 +178,7 @@ The system automatically handles different response types:
 }
 ```
 
-### With Full Options (New Serializable Syntax)
+### With Full Options (Serializable Syntax)
 
 ```javascript
 {
@@ -214,17 +192,6 @@ The system automatically handles different response types:
     }
   }
 }
-```
-
-### Legacy Syntax (Still Supported)
-
-```javascript
-{
-  tagName: 'user-profile',
-  userData: new Request("/api/users/123"),
-  avatar: new Request("/api/users/123/avatar", { method: "GET" })
-}
-```
 ```
 
 ### Accessing the Data
@@ -245,10 +212,10 @@ DDOM.createEffect(() => {
 
 ## Benefits Achieved
 
-✅ **Zero New Syntax**: Uses the standard `Request()` constructor  
-✅ **Web Standards Compliance**: Uses the exact same API developers already know  
-✅ **Self-Documenting**: Any web developer immediately understands what's happening  
-✅ **Parser-Friendly**: Visual builders can easily detect `Request()` objects  
+✅ **Serializable Syntax**: Object specifications can be JSON.stringify'd and stored/transmitted  
+✅ **Web Standards Compliance**: Based on the standard fetch API developers already know  
+✅ **Namespace Architecture**: Extensible system for future WebSocket, IndexedDB, Storage APIs  
+✅ **Zero New Syntax**: Uses familiar object literal syntax  
 ✅ **Automatic Signal Creation**: Properties become reactive signals  
 ✅ **Error Handling**: Network and parsing errors are captured gracefully  
 

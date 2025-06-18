@@ -8,7 +8,8 @@ export { Signal } from 'signal-polyfill';
 export { MappedArray } from './arrays/arrays';
 export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate } from './templates/templates';
 export { isPropertyAccessor, resolvePropertyAccessor } from './accessors/accessors';
-export { isRequest, isNativeRequest, createFetchSignal, bindRequestProperty, convertDDOMRequestToNative } from './requests/requests';
+export { registerNamespaceHandler, detectNamespace, handleNamespace, getRegisteredNamespaces } from './namespaces';
+export type { RequestSpec } from './requests';
 declare function DDOM(spec: any): void;
 export default DDOM;
 declare global {
