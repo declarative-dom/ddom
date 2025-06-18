@@ -205,6 +205,155 @@ describe('Interactive Form Example', () => {
     expect(shouldShowError('test@example.com', emailValidator)).toBe(false); // Valid
   });
 
+  test('should properly handle currentErrorMessage function', () => {
+    // Test the specific currentErrorMessage function logic
+    const mockFormField = {
+      errorMessage: 'Test error message',
+      valueSignal: {
+        get: function() { return 'hi'; } // Only 2 characters, should be invalid
+      },
+      validator: (value) => value.length >= 5, // Requires 5+ characters
+      shouldShowError: function() {
+        const value = this.valueSignal.get();
+        return value.length > 0 && !this.validator(value);
+      },
+      currentErrorMessage: function() {
+        return this.shouldShowError() ? this.errorMessage : '';
+      }
+    };
+
+    // Test that error message shows when shouldShowError is true
+    // 'hi' has length 2, validator requires 5+, so should show error
+    expect(mockFormField.shouldShowError()).toBe(true);
+    expect(mockFormField.currentErrorMessage()).toBe('Test error message');
+
+    // Test that error message is empty when valid
+    mockFormField.valueSignal.get = function() { return 'valid input'; }; // 11 characters, should be valid
+    expect(mockFormField.shouldShowError()).toBe(false);
+    expect(mockFormField.currentErrorMessage()).toBe('');
+
+    // Test that error message is empty when no input
+    mockFormField.valueSignal.get = function() { return ''; };
+    expect(mockFormField.shouldShowError()).toBe(false);
+    expect(mockFormField.currentErrorMessage()).toBe('');
+  });
+
+  test('should create form field with proper error message handling', () => {
+    const formFieldSpec = {
+      customElements: [
+        {
+          tagName: 'form-field',
+          label: 'Test Field',
+          type: 'text',
+          placeholder: 'Enter test value',
+          validator: (value) => value.length >= 3,
+          errorMessage: 'Field must be at least 3 characters',
+          
+          // Mock value signal for testing
+          valueSignal: {
+            get: function() { return 'hi'; }, // Invalid input (too short)
+            set: function(value) { this._value = value; }
+          },
+          
+          isValid: function() {
+            if (!this.valueSignal || !this.valueSignal.get) return true;
+            const value = this.valueSignal.get();
+            if (typeof value !== 'string') return true;
+            const validator = this.validator;
+            return validator ? validator(value) : true;
+          },
+
+          shouldShowError: function() {
+            if (!this.valueSignal || !this.valueSignal.get) return false;
+            const value = this.valueSignal.get();
+            if (typeof value !== 'string') return false;
+            return value.length > 0 && !this.isValid();
+          },
+
+          currentErrorMessage: function() {
+            return this.shouldShowError() ? this.errorMessage : '';
+          },
+          
+          children: [
+            {
+              tagName: 'div',
+              textContent: '${this.parentNode.currentErrorMessage()}',
+              className: 'error-message'
+            }
+          ]
+        }
+      ],
+      document: {
+        body: {
+          children: [
+            {
+              tagName: 'form-field'
+            }
+          ]
+        }
+      }
+    };
+
+    // Test that DDOM can process the form field with error message
+    expect(() => DDOM(formFieldSpec)).not.toThrow();
+  });
+
+  test('should handle complete form error message scenarios', () => {
+    // Test different error message scenarios for each field type
+    const nameFieldTest = {
+      errorMessage: 'Name must be at least 2 characters',
+      validator: (value) => value.trim().length >= 2,
+      valueSignal: { get: () => 'A' }, // Invalid
+      shouldShowError: function() {
+        const value = this.valueSignal.get();
+        return value.length > 0 && !this.validator(value);
+      },
+      currentErrorMessage: function() {
+        return this.shouldShowError() ? this.errorMessage : '';
+      }
+    };
+
+    const emailFieldTest = {
+      errorMessage: 'Please enter a valid email address',
+      validator: (value) => value.includes('@') && value.includes('.') && value.length > 5,
+      valueSignal: { get: () => 'invalid-email' }, // Invalid
+      shouldShowError: function() {
+        const value = this.valueSignal.get();
+        return value.length > 0 && !this.validator(value);
+      },
+      currentErrorMessage: function() {
+        return this.shouldShowError() ? this.errorMessage : '';
+      }
+    };
+
+    const messageFieldTest = {
+      errorMessage: 'Message must be at least 10 characters',
+      validator: (value) => value.trim().length >= 10,
+      valueSignal: { get: () => 'Short' }, // Invalid
+      shouldShowError: function() {
+        const value = this.valueSignal.get();
+        return value.length > 0 && !this.validator(value);
+      },
+      currentErrorMessage: function() {
+        return this.shouldShowError() ? this.errorMessage : '';
+      }
+    };
+
+    // Test that all fields show appropriate error messages
+    expect(nameFieldTest.currentErrorMessage()).toBe('Name must be at least 2 characters');
+    expect(emailFieldTest.currentErrorMessage()).toBe('Please enter a valid email address');
+    expect(messageFieldTest.currentErrorMessage()).toBe('Message must be at least 10 characters');
+
+    // Test that error messages clear when fields become valid
+    nameFieldTest.valueSignal.get = () => 'John Doe';
+    emailFieldTest.valueSignal.get = () => 'test@example.com';
+    messageFieldTest.valueSignal.get = () => 'This is a valid message';
+
+    expect(nameFieldTest.currentErrorMessage()).toBe('');
+    expect(emailFieldTest.currentErrorMessage()).toBe('');
+    expect(messageFieldTest.currentErrorMessage()).toBe('');
+  });
+
   test('should create complete contact form structure', () => {
     const contactFormSpec = {
       customElements: [

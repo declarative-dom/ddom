@@ -56,7 +56,7 @@ export default {
       },
 
       currentErrorMessage: function() {
-        return this.shouldShowError() ? this.errorMessage.get() : '';
+        return this.shouldShowError() ? this.errorMessage : '';
       },
 
       // Computed functions for conditional rendering
