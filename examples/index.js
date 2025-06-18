@@ -17,12 +17,12 @@ export default {
 			active: false, // Will be set by instance
 
 			// Computed properties
-			get buttonText() {
+			buttonText: function() {
 				const labelValue = this.label && this.label.get ? this.label.get() : this.label;
 				return labelValue || 'Button'; // Fallback to 'Button' if no label
 			},
 
-			get isActive() {
+			isActive: function() {
 				const activeValue = this.active && this.active.get ? this.active.get() : this.active;
 				return activeValue;
 			},
@@ -30,7 +30,7 @@ export default {
 			connectedCallback: function () {
 				// Set up reactive attributes for styling
 				DDOM.createEffect(() => {
-					this.setAttribute('data-active', this.isActive);
+					this.setAttribute('data-active', this.isActive());
 				});
 			},
 
@@ -50,7 +50,7 @@ export default {
 
 			children: [{
 				tagName: 'button',
-				textContent: '${this.parentNode.buttonText}',
+				textContent: '${this.parentNode.buttonText()}',
 				style: {
 					padding: '0.5em 1em',
 					border: '1px solid #007bff',
