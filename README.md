@@ -218,6 +218,15 @@ cd lib && npm install
 
 # Build the library
 npm run build
+
+# Run tests
+npm test
+
+# Lint code
+npm run lint
+
+# Lint and auto-fix issues
+npm run lint:fix
 ```
 
 ### Basic Usage

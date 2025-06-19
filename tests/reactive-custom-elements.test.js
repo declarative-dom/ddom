@@ -74,7 +74,7 @@ describe('Reactive Custom Elements Example', () => {
         {
           tagName: 'button',
           textContent: '+',
-          onclick: function (event) {
+          onclick: function (_event) {
             const counter = this.parentNode;
             counter.count = counter.count + 1;
           }

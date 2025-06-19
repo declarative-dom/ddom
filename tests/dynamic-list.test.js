@@ -98,7 +98,7 @@ describe('Dynamic List Example', () => {
                 {
                   tagName: 'button',
                   textContent: 'Remove',
-                  onclick: function (event) {
+                  onclick: function (_event) {
                     const listItem = this.parentNode.parentNode;
                     const index = listItem.index.get();
                     // Test that the custom element has access to its properties
@@ -148,7 +148,7 @@ describe('Dynamic List Example', () => {
         items: 'items',
         map: {
           tagName: 'dynamic-list-item',
-          item: (item, index) => item,
+          item: (item, _index) => item,
           index: (item, index) => index,
         }
       }

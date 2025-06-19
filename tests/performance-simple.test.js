@@ -135,7 +135,7 @@ describe('Performance Test Example', () => {
         window.height = 200 + i;
       }
       // Access computed property
-      const area = window.area;
+      const _area = window.area;
     }
 
     const endTime = performance.now();

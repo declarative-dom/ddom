@@ -2,13 +2,11 @@ import {
   MappedArrayExpr,
   FilterExpr,
   SortExpr,
-  FilterOper
 } from '../../../types/src';
 
 import {
   Signal,
   SignalNode,
-  createEffect,
   ComponentSignalWatcher
 } from '../events';
 
@@ -263,7 +261,7 @@ export class MappedArray<T, U = any> {
             mappedArray = processedArray.map(expr.map as (item: T, index: number) => U);
           } else if (typeof expr.map === 'string') {
             // String template mapping
-            mappedArray = processedArray.map((item: any, index) => {
+            mappedArray = processedArray.map((item: any, _index) => {
               if (typeof item === 'object' && item !== null) {
                 return parseTemplateLiteral(expr.map as string, item);
               }
