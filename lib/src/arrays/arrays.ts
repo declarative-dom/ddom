@@ -8,7 +8,8 @@ import {
 import {
   Signal,
   SignalNode,
-  createEffect
+  createEffect,
+  ComponentSignalWatcher
 } from '../events';
 
 import {
@@ -153,6 +154,7 @@ export function isMappedArrayExpr<T>(value: any): value is MappedArrayExpr<T, an
  * Reactive array implementation that integrates with the Signal system.
  * Processes arrays through a complete pipeline of filtering, sorting, mapping, and composition.
  * Automatically re-renders when source data changes through Signal reactivity.
+ * Each MappedArray instance has its own isolated signal watcher for better resource management.
  * 
  * @template T - The type of items in the source array
  * @template U - The type of items after mapping transformation
@@ -169,6 +171,7 @@ export function isMappedArrayExpr<T>(value: any): value is MappedArrayExpr<T, an
 export class MappedArray<T, U = any> {
   private sourceSignal: SignalNode<T[]>;
   private computed: Signal.Computed<U[]>;
+  private signalWatcher: ComponentSignalWatcher;
   /**
    * Creates a new MappedArray instance with the specified configuration.
    * Sets up the reactive pipeline for processing array data through filtering,
@@ -183,6 +186,9 @@ export class MappedArray<T, U = any> {
     private expr: MappedArrayExpr<T, U>,
     private parentElement?: Element
   ) {
+    // Initialize isolated signal watcher for this MappedArray
+    this.signalWatcher = new ComponentSignalWatcher();
+    
     // Handle different source types
     if (Signal.isState(expr.items) || Signal.isComputed(expr.items)) {
       this.sourceSignal = expr.items;
@@ -320,6 +326,14 @@ export class MappedArray<T, U = any> {
     } else {
       throw new Error('Cannot set array value on non-state source');
     }
+  }
+  
+  /**
+   * Dispose of this MappedArray and all its resources.
+   * Implements explicit resource management for automatic cleanup.
+   */
+  dispose(): void {
+    this.signalWatcher.dispose();
   }
 }
 

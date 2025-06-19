@@ -20,6 +20,7 @@ import {
 import {
 	createEffect,
 	createReactiveProperty,
+	ComponentSignalWatcher,
 	Signal
 } from '../events';
 
@@ -554,6 +555,9 @@ export function adoptArray<T>(
 	};
 
 	// Set up reactive effect that handles both initial render and updates
+	// Use component-specific watcher if available, otherwise fall back to global
+	const componentWatcher = (globalThis as any).__ddom_component_watcher as ComponentSignalWatcher | undefined;
+	
 	const effectCleanup = createEffect(() => {
 		// Get the current items within the effect to establish dependency tracking
 		const currentItems = reactiveArray.get();
@@ -563,7 +567,7 @@ export function adoptArray<T>(
 
 		// Return empty cleanup since we're not deferring the update
 		return () => { };
-	});
+	}, componentWatcher);
 
 	// Note: effectCleanup could be returned if the caller needs to clean up manually,
 	// but typically the effect will be cleaned up when the parent element is removed
