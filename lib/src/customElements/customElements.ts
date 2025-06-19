@@ -17,6 +17,7 @@ import {
 
 import {
 	createEffect,
+	ComponentSignalWatcher,
 	Signal
 } from '../events';
 
@@ -54,9 +55,13 @@ export function define(elements: CustomElementSpec[]) {
 				#container: HTMLElement | ShadowRoot;
 				#internals?: ElementInternals;
 				#initialized = false;
+				#signalWatcher: ComponentSignalWatcher;
 
 				constructor() {
 					super();
+
+					// Initialize component-specific signal watcher
+					this.#signalWatcher = new ComponentSignalWatcher();
 
 					// Initialize internals once
 					try {
@@ -84,6 +89,7 @@ export function define(elements: CustomElementSpec[]) {
 
 				disconnectedCallback() {
 					this.#controller.abort();
+					this.#signalWatcher.dispose();
 					(spec.disconnectedCallback as any)?.call(this);
 				}
 
@@ -93,8 +99,9 @@ export function define(elements: CustomElementSpec[]) {
 						this.#container.innerHTML = '';
 					}
 
-					// Make abort signal available globally for cleanup
+					// Make abort signal and component watcher available globally for cleanup
 					(globalThis as any).__ddom_abort_signal = this.#controller.signal;
+					(globalThis as any).__ddom_component_watcher = this.#signalWatcher;
 
 					try {
 						// Add properties that already exist on the element to ignoreKeys
@@ -111,6 +118,7 @@ export function define(elements: CustomElementSpec[]) {
 						adoptNode(spec, this.#container, false, instanceIgnoreKeys);
 					} finally {
 						delete (globalThis as any).__ddom_abort_signal;
+						delete (globalThis as any).__ddom_component_watcher;
 					}
 				}
 

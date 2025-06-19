@@ -1,6 +1,7 @@
 import {
 	Signal,
-	createEffect
+	createEffect,
+	ComponentSignalWatcher
 } from '../events';
 
 import {
@@ -69,7 +70,7 @@ export function computedTemplate(template: string, contextNode: Node): Signal.Co
 /**
  * Sets up reactive template binding for a property.
  * Creates a computed signal and effect that updates the property when template dependencies change.
- * Uses AbortController for modern cleanup pattern.
+ * Uses AbortController for modern cleanup pattern and component-specific watcher when available.
  * 
  * @param el - The DOM element
  * @param property - The property name to bind
@@ -83,6 +84,9 @@ export function bindPropertyTemplate(
 ): () => void {
   const computedValue = computedTemplate(template, el);
   
+  // Use component-specific watcher if available, otherwise fall back to global
+  const componentWatcher = (globalThis as any).__ddom_component_watcher as ComponentSignalWatcher | undefined;
+  
   const cleanup = createEffect(() => {
     const newValue = computedValue.get();
     
@@ -90,7 +94,7 @@ export function bindPropertyTemplate(
     if (el[property] !== newValue) {
       el[property] = newValue;
     }
-  });
+  }, componentWatcher);
 
   // Use AbortController signal for automatic cleanup if available
   const signal = (globalThis as any).__ddom_abort_signal;
@@ -104,7 +108,7 @@ export function bindPropertyTemplate(
 /**
  * Sets up reactive template binding for an attribute.
  * Creates a computed signal and effect that updates the attribute when template dependencies change.
- * Uses AbortController for modern cleanup pattern.
+ * Uses AbortController for modern cleanup pattern and component-specific watcher when available.
  * 
  * @param el - The DOM element
  * @param attribute - The attribute name to bind
@@ -118,6 +122,9 @@ export function bindAttributeTemplate(
 ): () => void {
   const computedValue = computedTemplate(template, el);
   
+  // Use component-specific watcher if available, otherwise fall back to global
+  const componentWatcher = (globalThis as any).__ddom_component_watcher as ComponentSignalWatcher | undefined;
+  
   const cleanup = createEffect(() => {
     const newValue = computedValue.get();
     const currentValue = el.getAttribute(attribute);
@@ -130,7 +137,7 @@ export function bindAttributeTemplate(
         el.setAttribute(attribute, String(newValue));
       }
     }
-  });
+  }, componentWatcher);
 
   // Use AbortController signal for automatic cleanup if available
   const signal = (globalThis as any).__ddom_abort_signal;
