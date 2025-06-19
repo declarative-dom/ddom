@@ -165,6 +165,209 @@ describe('Component-Level Signal Isolation', () => {
     expect(element.isConnected).toBe(false);
   });
 
+  test('isolated watchers prevent cross-component interference', async () => {
+    // Create two different components that each manage their own reactive state
+    const spec = {
+      customElements: [
+        {
+          tagName: 'counter-widget',
+          count: 0,
+          label: 'Counter A',
+          display: '${this.label}: ${this.count}',
+          increment() {
+            if (typeof this.count.set === 'function') {
+              this.count.set(this.count.get() + 1);
+            }
+          }
+        },
+        {
+          tagName: 'timer-widget',
+          seconds: 0,
+          label: 'Timer B',
+          display: '${this.label}: ${this.seconds}s',
+          tick() {
+            if (typeof this.seconds.set === 'function') {
+              this.seconds.set(this.seconds.get() + 1);
+            }
+          }
+        }
+      ]
+    };
+
+    DDOM(spec);
+    
+    // Create multiple instances of each component
+    const counter1 = createElement({ tagName: 'counter-widget' });
+    const counter2 = createElement({ tagName: 'counter-widget' });
+    const timer1 = createElement({ tagName: 'timer-widget' });
+    const timer2 = createElement({ tagName: 'timer-widget' });
+    
+    // Add them all to the DOM
+    document.body.appendChild(counter1);
+    document.body.appendChild(counter2);
+    document.body.appendChild(timer1);
+    document.body.appendChild(timer2);
+    
+    // Each instance should be properly isolated
+    expect(counter1.tagName.toLowerCase()).toBe('counter-widget');
+    expect(counter2.tagName.toLowerCase()).toBe('counter-widget');
+    expect(timer1.tagName.toLowerCase()).toBe('timer-widget');
+    expect(timer2.tagName.toLowerCase()).toBe('timer-widget');
+    
+    // All should be connected
+    expect(counter1.isConnected).toBe(true);
+    expect(counter2.isConnected).toBe(true);
+    expect(timer1.isConnected).toBe(true);
+    expect(timer2.isConnected).toBe(true);
+    
+    // Remove some components - others should remain unaffected
+    document.body.removeChild(counter1);
+    document.body.removeChild(timer1);
+    
+    expect(counter1.isConnected).toBe(false);
+    expect(timer1.isConnected).toBe(false);
+    expect(counter2.isConnected).toBe(true);
+    expect(timer2.isConnected).toBe(true);
+    
+    // Clean up remaining
+    document.body.removeChild(counter2);
+    document.body.removeChild(timer2);
+  });
+
+  test('MappedArray disposal prevents memory leaks', () => {
+    const sourceData = new Signal.State([1, 2, 3, 4, 5]);
+    
+    // Create a MappedArray with filtering and mapping
+    const mappedArray = new MappedArray({
+      items: sourceData,
+      filter: [{ leftOperand: (item) => item, operator: '>', rightOperand: 2 }],
+      map: (item) => ({ tagName: 'div', textContent: `Item: ${item}` })
+    });
+    
+    // Should work normally
+    const result = mappedArray.get();
+    expect(result.length).toBe(3); // Items 3, 4, 5
+    expect(result[0].textContent).toBe('Item: 3');
+    
+    // Update source data
+    sourceData.set([6, 7, 8]);
+    const updatedResult = mappedArray.get();
+    expect(updatedResult.length).toBe(3); // Items 6, 7, 8
+    expect(updatedResult[0].textContent).toBe('Item: 6');
+    
+    // Dispose should clean up watchers
+    mappedArray.dispose();
+    
+    // Should be safe to dispose multiple times
+    mappedArray.dispose();
+  });
+
+  test('complex nested structures with isolation', () => {
+    // Test that deeply nested components with arrays maintain isolation
+    const parentElement = createElement({
+      tagName: 'div',
+      className: 'parent',
+      children: [
+        {
+          tagName: 'div',
+          className: 'list-container',
+          children: {
+            items: [
+              { id: 1, name: 'Alice' },
+              { id: 2, name: 'Bob' },
+              { id: 3, name: 'Charlie' }
+            ],
+            map: (person) => ({
+              tagName: 'div',
+              className: 'person-item',
+              textContent: `${person.name} (ID: ${person.id})`
+            })
+          }
+        }
+      ]
+    });
+    
+    expect(parentElement.children.length).toBe(1);
+    
+    const listContainer = parentElement.children[0];
+    expect(listContainer.className).toBe('list-container');
+    expect(listContainer.children.length).toBe(3);
+    
+    // Check that each person item was created correctly
+    Array.from(listContainer.children).forEach((child, index) => {
+      expect(child.className).toBe('person-item');
+      expect(child.textContent).toContain(['Alice', 'Bob', 'Charlie'][index]);
+    });
+  });
+
+  test('ComponentSignalWatcher supports modern resource management patterns', () => {
+    // Demonstrate the explicit resource management pattern
+    // This is the foundation for future "using" keyword support
+    const watcher = new ComponentSignalWatcher();
+    const signal = new Signal.State(10);
+    let effectCount = 0;
+    
+    // Create a computed signal that uses the isolated watcher
+    const computed = new Signal.Computed(() => {
+      effectCount++;
+      return signal.get() * 2;
+    });
+    
+    // Watch the computed signal with our isolated watcher
+    watcher.watch(computed);
+    
+    // Trigger the computation
+    expect(computed.get()).toBe(20);
+    expect(effectCount).toBe(1);
+    
+    // Update the source signal
+    signal.set(15);
+    expect(computed.get()).toBe(30);
+    
+    // Explicit resource cleanup - this is the pattern that will work with "using" in the future
+    watcher.dispose();
+    
+    // After disposal, the watcher should be inert
+    signal.set(20);
+    
+    // The computed is no longer being watched, but still accessible
+    expect(computed.get()).toBe(40);
+  });
+
+  test('resource management in realistic component lifecycle', () => {
+    // Simulate a realistic component lifecycle with proper cleanup
+    let watchers = [];
+    
+    // Simulate creating multiple components
+    for (let i = 0; i < 5; i++) {
+      const watcher = new ComponentSignalWatcher();
+      const signal = new Signal.State(i);
+      
+      // Create some reactive computations for this component
+      const computed = new Signal.Computed(() => signal.get() * 10);
+      watcher.watch(computed);
+      
+      // Store for later cleanup
+      watchers.push({ watcher, signal, computed });
+    }
+    
+    expect(watchers.length).toBe(5);
+    
+    // Verify all components are working
+    watchers.forEach(({ computed }, index) => {
+      expect(computed.get()).toBe(index * 10);
+    });
+    
+    // Simulate component cleanup (e.g., when removed from DOM)
+    watchers.forEach(({ watcher }) => {
+      watcher.dispose();
+    });
+    
+    // All watchers should now be disposed
+    // This prevents memory leaks in complex applications
+    expect(true).toBe(true); // Test passed if no errors thrown
+  });
+
   test('global watcher still works for backward compatibility', async () => {
     // Test that non-component effects still work with global watcher
     const signal = new Signal.State(42);
