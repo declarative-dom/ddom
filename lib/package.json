@@ -5,7 +5,8 @@
 	},
 	"description": "Library for building UI components using a Declarative DOM JavaScript object literals.",
 	"dependencies": {
-		"@declarative-dom/types": "0.2.2"
+		"@declarative-dom/types": "0.2.2",
+		"observable-polyfill": "^0.0.6"
 	},
 	"devDependencies": {
 		"@rollup/plugin-node-resolve": "^16.0.1",

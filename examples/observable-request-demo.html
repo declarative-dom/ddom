@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Observable Request Demo - DDOM</title>
+    <script type="module">
+        import DDOM from '../lib/dist/index.js';
+        import demoSpec from './observable-request-demo.js';
+        
+        // Make DDOM available globally for the demo
+        window.DDOM = DDOM;
+        
+        // Initialize the demo
+        DDOM.render(demoSpec, document);
+    </script>
+</head>
+<body>
+    <!-- Content will be rendered by DDOM -->
+</body>
+</html>

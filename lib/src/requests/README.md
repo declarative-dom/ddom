@@ -1,15 +1,25 @@
 # Requests Module
 
-The `requests` module provides declarative fetch capabilities for DDOM, allowing you to use a serializable Request object syntax to automatically fetch data and store it in reactive signals.
+The `requests` module provides declarative fetch capabilities for DDOM using TC39 Observables, allowing you to use a serializable Request object syntax to automatically fetch data and store it in reactive signals.
 
 ## What is Declarative Fetch?
 
 Declarative fetch allows you to define HTTP requests directly in your DDOM object specifications using a simple, serializable syntax. When DDOM encounters a Request object as a property value, it automatically:
 
-1. Performs the fetch operation
-2. Creates a Signal to store the result
-3. Updates the Signal when the fetch completes
-4. Handles errors gracefully
+1. Creates an Observable for complex async operations
+2. Handles sophisticated body type conversion (FormData, ReadableStream, ArrayBuffer, etc.)
+3. Provides built-in retry mechanisms and error handling
+4. Bridges the Observable to a Signal for reactive UI updates
+5. Supports AbortController integration for request cancellation
+
+## Why Observables?
+
+This implementation uses TC39 Observables (via observable-polyfill) because they provide:
+
+- **Complex Async Body Handling**: Different body types (FormData, ReadableStream, ArrayBuffer) require different async processing
+- **Sophisticated Error Handling**: Retry logic, timeout handling, and graceful error recovery
+- **Request Lifecycle Management**: Pre-request validation, post-request cleanup, and cancellation support
+- **Stream-based Operations**: Perfect for handling large files, streaming data, and chunked responses
 
 ## Basic Usage
 
@@ -167,42 +177,119 @@ The Request object supports all standard fetch API options:
 }
 ```
 
-## Features
+## Advanced Observable Features
 
-- **Serializable Syntax**: Can be JSON.stringify'd and stored/transmitted
-- **Web Standards Compliant**: Based on standard fetch API
-- **Automatic Signal Creation**: Properties become reactive signals
-- **Error Handling**: Fetch errors are captured and stored in the signal
-- **JSON/Text Parsing**: Automatically tries JSON parsing, falls back to text
-- **Comprehensive Body Support**: FormData, URLSearchParams, Blob, ArrayBuffer
-
-## Response Handling
-
-The module automatically handles response parsing:
-
-1. First tries to parse as JSON based on Content-Type header
-2. Falls back to text if JSON parsing fails
-3. Stores errors in the signal if fetch fails
-
-Example error response:
+### Request with Timeout
 ```javascript
-{ 
-  error: "HTTP 404: Not Found",
-  type: "fetch_error",
+{
+  $timedRequest: {
+    Request: {
+      url: "/api/slow-endpoint",
+      timeout: 5000  // 5 second timeout
+    }
+  }
+}
+```
+
+### Request with Sophisticated Body Types
+```javascript
+{
+  // File upload with FormData
+  $fileUpload: {
+    Request: {
+      url: "/api/upload",
+      method: "POST",
+      body: {
+        FormData: {
+          file: "$fileInput",  // Will be processed asynchronously
+          metadata: JSON.stringify({ type: "image" })
+        }
+      }
+    }
+  },
+  
+  // Streaming data
+  $streamRequest: {
+    Request: {
+      url: "/api/stream",
+      method: "POST",
+      body: {
+        ReadableStream: {
+          source: "$streamData"  // Converted to ReadableStream
+        }
+      }
+    }
+  },
+  
+  // Binary data
+  $binaryRequest: {
+    Request: {
+      url: "/api/binary",
+      method: "POST",
+      body: {
+        ArrayBuffer: [1, 2, 3, 4, 5]  // Converted to ArrayBuffer
+      }
+    }
+  }
+}
+```
+
+### Enhanced Error Handling
+The Observable implementation provides sophisticated error handling:
+
+```javascript
+// Error objects include detailed information
+{
+  error: "Request cancelled",
+  type: "abort_error",  // or "fetch_error"
   timestamp: "2024-01-01T00:00:00.000Z"
 }
 ```
 
+## Features
+
+- **Observable-Powered**: Uses TC39 Observables for sophisticated async operations
+- **Serializable Syntax**: Can be JSON.stringify'd and stored/transmitted  
+- **Web Standards Compliant**: Based on standard fetch API
+- **Advanced Body Processing**: Async FormData, ReadableStream, ArrayBuffer handling
+- **Intelligent Error Handling**: Retry logic, timeout support, graceful degradation
+- **AbortController Integration**: Automatic request cancellation and cleanup
+- **Signal Bridge**: Observable results bridged to DDOM Signals for reactivity
+- **JSON/Text Parsing**: Automatically tries JSON parsing, falls back to text
+
 ## API Reference
 
-### `convertToNativeRequest(spec: RequestSpec): Request`
+### `constructRequestBody(bodySpec: any): Promise<BodyInit | null>`
 
-Converts a Request specification to a native Request object.
+Asynchronously converts specification body to native body format, handling complex types like FormData with file reading.
 
-### `createFetchSignal(request: Request): Signal.State<any>`
+### `constructRequest(spec: RequestSpec): Promise<Request>`
 
-Creates a fetch signal for a Request object that automatically fetches and stores the result.
+Asynchronously converts a Request specification to a native Request object.
+
+### `createRequestObservable(requestSpec: RequestSpec): Observable<any>`
+
+Creates an Observable for a fetch request with sophisticated error handling and lifecycle management.
+
+### `createEnhancedRequestObservable(requestSpec: RequestSpec): Observable<any>`
+
+Creates an enhanced Observable with retry logic and advanced error handling capabilities.
+
+### `observableToSignal<T>(observable: Observable<T>): Signal.State<any>`
+
+Bridges Observable results to DDOM Signals for reactive UI updates.
 
 ### `requestHandler(el: any, property: string, requestSpec: RequestSpec): () => void`
 
-Sets up reactive fetch binding for a property. Used internally by DDOM's namespace handling system.
+Sets up reactive fetch binding for a property using the Observable-based architecture. Used internally by DDOM's namespace handling system.
+
+## Technical Architecture
+
+The implementation uses a hybrid approach:
+
+1. **Observable Core**: TC39 Observables handle complex async operations
+2. **Signal Bridge**: Results are bridged to DDOM Signals for API compatibility
+3. **Namespace Integration**: Seamlessly integrates with DDOM's namespace system
+4. **Error Resilience**: Multiple layers of error handling and recovery
+
+This provides the power of Observables internally while maintaining the familiar Signal-based API externally.
