@@ -17,6 +17,7 @@ import {
 } from '../templates';
 
 import {
+	isPropertyAccessor,
   resolvePropertyAccessor
 } from '../accessors';
 
@@ -272,7 +273,7 @@ export class MappedArray<T, U = any> {
             // Static object mapping with template support
             mappedArray = processedArray.map((item: any, index) => {
               if (typeof expr.map === 'object' && expr.map !== null) {
-                return transformObjectTemplate(expr.map, item, index);
+                return transformObjectTemplate(expr.map, item, index, (parentElement || document.body) as Node);
               }
               return expr.map;
             }) as U[];
@@ -345,29 +346,35 @@ export class MappedArray<T, U = any> {
  * @param template - The template to transform (object, array, string, or function)
  * @param context - The context object containing values for template substitution
  * @param index - The current index in the array (for function evaluation)
+ * @param el - The element context for resolving property accessors
  * @returns The transformed template with all substitutions applied
  * @example
  * ```typescript
  * const result = transformObjectTemplate(
  *   { tagName: 'div', textContent: '{name}', className: (item) => item.active ? 'active' : '' },
  *   { name: 'John', active: true },
- *   0
+ *   0,
+ *   document.createElement('div')
  * );
  * // Returns: { tagName: 'div', textContent: 'John', className: 'active' }
  * ```
  */
-function transformObjectTemplate(template: any, context: any, index: number = 0): any {
+function transformObjectTemplate(template: any, context: any, index: number = 0, el: Node): any {
   if (typeof template === 'function') {
     // Function values are evaluated immediately with item and index
     return template(context, index);
   } else if (typeof template === 'string') {
+    if (isPropertyAccessor(template)) {
+      // Resolve property accessors
+      return resolvePropertyAccessor(template, el);
+    }
     return template;
   } else if (Array.isArray(template)) {
-    return template.map((item, itemIndex) => transformObjectTemplate(item, context, itemIndex));
+    return template.map((item, itemIndex) => transformObjectTemplate(item, context, itemIndex, el));
   } else if (template && typeof template === 'object') {
     const result: any = {};
     for (const [key, value] of Object.entries(template)) {
-      result[key] = transformObjectTemplate(value, context, index);
+      result[key] = transformObjectTemplate(value, context, index, el);
     }
     return result;
   }
