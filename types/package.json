@@ -43,5 +43,5 @@
 		"upgrade": "npx npm-check-updates -u && npm install"
 	},
 	"types": "dist/index.d.ts",
-	"version": "0.3.2"
+	"version": "0.3.3"
 }

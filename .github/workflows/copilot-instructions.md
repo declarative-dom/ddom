@@ -1,0 +1,2 @@
+Use ultra-modern JavaScript patterns, with no concern for compatibility. Elegance, conciseness, modularity, efficiency, and readability are prioritized over compatibility with older environments.
+Use conventional commits to describe the changes made in any pull request.
