@@ -56,7 +56,7 @@ export default {
         },
         {
           tagName: 'p',
-          textContent: 'No more $-prefixed properties! Template literals with \\$\{...\} get automatic reactivity.',
+          textContent: 'No more $-prefixed properties! Template literals with \\${...} get automatic reactivity.',
           style: {
             textAlign: 'center',
             color: '#666',
@@ -111,7 +111,7 @@ export default {
         map: {
           tagName: 'dynamic-list-item',
           // These are also transparent signal proxies now
-          item: (item, index) => item,
+          item: (item, _index) => item,
           index: (item, index) => index,
         }
       },
@@ -157,7 +157,7 @@ export default {
                   backgroundColor: '#fff'
                 }
               },
-              onblur: function (event) {
+              onblur: function (_event) {
                 const newText = this.textContent.trim();
                 const listItem = this.parentNode.parentNode;
                 const index = listItem.index.get();
@@ -192,7 +192,7 @@ export default {
                 cursor: 'pointer',
                 fontSize: '0.875em'
               },
-              onclick: function (event) {
+              onclick: function (_event) {
                 const listItem = this.parentNode.parentNode;
                 const index = listItem.index.get();
                 if (confirm(`Are you sure you want to remove "${listItem.item.get()}"?`)) {

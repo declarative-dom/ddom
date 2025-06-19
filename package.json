@@ -15,6 +15,8 @@
 		"test:ui": "vitest --ui",
 		"test:coverage": "vitest run --coverage",
 		"build": "npm run build --workspaces",
+		"lint": "oxlint .",
+		"lint:fix": "oxlint . --fix",
 		"release": "npm run release --workspaces && release-it",
 		"upgrade": "npx npm-check-updates -u && npm install"
 	},
@@ -29,6 +31,7 @@
 		"@vitest/ui": "^3.2.4",
 		"jsdom": "^26.1.0",
 		"node-fetch": "^3.3.2",
+		"oxlint": "^1.2.0",
 		"release-it": "^19.0.3",
 		"vitest": "^3.2.4"
 	},

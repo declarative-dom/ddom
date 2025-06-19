@@ -1,0 +1,19 @@
+{
+  "rules": {
+    "no-unused-vars": "warn",
+    "no-useless-escape": "warn"
+  },
+  "plugins": ["typescript"],
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2022": true
+  },
+  "ignorePatterns": [
+    "node_modules/**",
+    "dist/**",
+    "coverage/**",
+    ".nyc_output/**",
+    "*.min.js"
+  ]
+}

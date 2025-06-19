@@ -114,7 +114,7 @@ export default {
 					element.style.opacity = '0.5';
 				};
 				
-				element.ondragend = (e) => {
+				element.ondragend = (_e) => {
 					element.style.opacity = '1';
 				};
 				
@@ -166,7 +166,7 @@ export default {
 					};
 				};
 				
-				element.ondragend = (e) => {
+				element.ondragend = (_e) => {
 					element.style.opacity = '1';
 					window.builderApp.draggedElement = null;
 					// Remove any drop indicators
@@ -512,7 +512,7 @@ export default {
 		element.appendChild(indicator);
 	},
 
-	handleCanvasElementDrop: function (targetIndex, event) {
+	handleCanvasElementDrop: function (targetIndex, _event) {
 		if (!this.draggedCanvasElement) return;
 
 		const indicator = document.querySelector('.canvas-drop-indicator');
@@ -543,7 +543,7 @@ export default {
 		this.selectElement(movedElement.id);
 	},
 
-	findElementsArrayForTreeItem: function(treeItem) {
+	findElementsArrayForTreeItem: function(_treeItem) {
 		// This would need to be implemented to find the parent elements array
 		// For now, default to the main children array
 		return this.currentStructure.document.body.children;
@@ -566,7 +566,7 @@ export default {
 		});
 
 		// Store original text and hide it
-		const originalText = domElement.textContent;
+		const _originalText = domElement.textContent;
 		domElement.textContent = '';
 
 		// Add input to element
@@ -1075,7 +1075,7 @@ export default {
 			};
 		};
 
-		element.ondragend = (e) => {
+		element.ondragend = (_e) => {
 			element.style.opacity = '1';
 			this.draggedCanvasElement = null;
 			// Remove drop indicators
@@ -1181,7 +1181,7 @@ export default {
 		return ['div', 'section', 'article', 'main', 'aside', 'header', 'footer', 'nav'].includes(dataElement.tagName);
 	},
 
-	showContainerDropIndicator: function (element, event) {
+	showContainerDropIndicator: function (element, _event) {
 		// Remove existing indicators in this element
 		element.querySelectorAll('.container-drop-indicator').forEach(el => el.remove());
 
@@ -1213,7 +1213,7 @@ export default {
 		element.appendChild(indicator);
 	},
 
-	handleDropIntoContainer: function (containerElement, containerPath, event) {
+	handleDropIntoContainer: function (containerElement, _containerPath, _event) {
 		if (!this.draggedCanvasElement) return;
 
 		// Remove the dragged element from its current location

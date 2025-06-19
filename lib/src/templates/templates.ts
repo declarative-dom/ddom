@@ -4,9 +4,7 @@ import {
 	ComponentSignalWatcher
 } from '../events';
 
-import {
-  resolvePropertyAccessor
-} from '../accessors';
+
 
 /**
  * Evaluates JavaScript template literals using DOM nodes as context.

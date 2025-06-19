@@ -1,5 +1,4 @@
 import {
-	HTMLElementSpec,
 	StyleExpr,
 } from '../../../types/src';
 

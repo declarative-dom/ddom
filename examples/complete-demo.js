@@ -255,12 +255,12 @@ export default {
 										},
 										{
 											tagName: 'p',
-											textContent: 'Template literals with \\$\{...\} automatically get computed signals:'
+											textContent: 'Template literals with \\${...} automatically get computed signals:'
 										},
 										{
 											tagName: 'div',
 											className: 'code-block',
-											textContent: "textContent: 'Hello \\$\{this.name\}!'  // ← Automatic reactivity",
+											textContent: "textContent: 'Hello \\${this.name}!'  // ← Automatic reactivity",
 											style: {
 												background: '#263238',
 												color: '#80cbc4',

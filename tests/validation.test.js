@@ -2,10 +2,7 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import DDOM, { createElement, createReactiveProperty, resolvePropertyAccessor, Signal } from '../lib/dist/index.js';
 
 describe('DDOM Core Functionality', () => {
-  let testApp;
-
   beforeEach(() => {
-    testApp = null;
     // Clean up any global test variables
     if (typeof window !== 'undefined') {
       delete window.testData;
@@ -169,7 +166,6 @@ describe('DDOM Core Functionality', () => {
       expect(element.id).toBe('test-element');
 
       // The id property should be set initially but changes might be ignored
-      const originalId = element.id;
       const originalTagName = element.tagName;
       
       // Try to change protected properties

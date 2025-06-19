@@ -1,13 +1,9 @@
 import {
 	MappedArrayExpr,
 	StyleExpr,
-	CustomElementSpec,
 	DocumentSpec,
 	DOMSpec,
-	ElementSpec,
-	HTMLBodyElementSpec,
 	HTMLElementSpec,
-	HTMLHeadElementSpec,
 	WindowSpec,
 	DOMNode,
 } from '../../../types/src';
@@ -516,7 +512,7 @@ export function adoptArray<T>(
 	};
 
 	// Helper function to update element properties efficiently
-	const updateElementProperties = (element: Element, newItem: any, oldItem: any) => {
+	const _updateElementProperties = (element: Element, newItem: any, oldItem: any) => {
 		if (!oldItem) return;
 
 		// Compare properties and only update what changed
@@ -558,7 +554,7 @@ export function adoptArray<T>(
 	// Use component-specific watcher if available, otherwise fall back to global
 	const componentWatcher = (globalThis as any).__ddom_component_watcher as ComponentSignalWatcher | undefined;
 	
-	const effectCleanup = createEffect(() => {
+	const _effectCleanup = createEffect(() => {
 		// Get the current items within the effect to establish dependency tracking
 		const currentItems = reactiveArray.get();
 

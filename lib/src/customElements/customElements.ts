@@ -1,14 +1,7 @@
 import {
 	CustomElementSpec,
-	HTMLBodyElementSpec,
-	HTMLElementSpec,
-	HTMLHeadElementSpec,
-	WindowSpec,
 	DocumentSpec,
-	DOMSpec,
-	ElementSpec,
-	DOMNode,
-	StyleExpr,
+	HTMLElementSpec,
 } from '../../../types/src';
 
 import {
@@ -16,9 +9,7 @@ import {
 } from '../elements';
 
 import {
-	createEffect,
 	ComponentSignalWatcher,
-	Signal
 } from '../events';
 
 import {

@@ -397,11 +397,11 @@ export default {
 									children: [
 										{
 											tagName: 'p',
-											textContent: 'Template literals with \\$\{...\} automatically get computed signals:'
+											textContent: 'Template literals with \\${...} automatically get computed signals:'
 										},
 										{
 											tagName: 'code-block',
-											code: "textContent: 'Hello \\$\{this.name\}!'  // ← Automatic reactivity"
+											code: "textContent: 'Hello \\${this.name}!'  // ← Automatic reactivity"
 										},
 										{
 											tagName: 'demo-controls',
