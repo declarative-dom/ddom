@@ -3,51 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DDOM Declarative Fetch Demo</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: #333;
-        }
+    <title>DDOM Comprehensive Fetch Demo</title>
+</head>
+<body>
+    <script type="module">
+        import { adoptWindow } from '../lib/dist/index.js';
+        import comprehensiveDemo from './comprehensive-fetch-demo.js';
+
+        // Make DDOM available globally for the onMounted callback
+        import DDOM from '../lib/dist/index.js';
+        window.DDOM = DDOM;
+
+        console.log('Loading DDOM Comprehensive Fetch Demo...');
         
-        .container {
-            background: white;
-            border-radius: 12px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-        
-        h1 {
-            color: #2c3e50;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        .demo-section {
-            margin: 30px 0;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border-left: 4px solid #007bff;
-        }
-        
-        .demo-section h2 {
-            color: #495057;
-            margin-top: 0;
-        }
-        
-        .data-display {
-            background: #2d3748;
-            color: #a0aec0;
-            padding: 15px;
-            border-radius: 6px;
-            font-family: 'Monaco', 'Menlo', monospace;
-            font-size: 14px;
+        // Create the DDOM application
+        const app = adoptWindow(comprehensiveDemo);
+        console.log('DDOM Comprehensive Fetch Demo loaded:', app);
+    </script>
+</body>
+</html>
             overflow-x: auto;
             margin: 15px 0;
             white-space: pre-wrap;

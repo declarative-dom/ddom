@@ -4,7 +4,9 @@ This directory contains dedicated tests for the DDOM Request namespace functiona
 
 ## Test Files
 
-### 1. request-namespace-basic-test.html
+All tests are now located in the `tests/` directory:
+
+### 1. request-namespace-basic.html / request-namespace-basic.js
 Tests basic Request namespace functionality including:
 - Simple GET requests
 - POST requests with JSON bodies
@@ -12,14 +14,14 @@ Tests basic Request namespace functionality including:
 - Reactive signal updates
 - JSONPlaceholder API integration
 
-### 2. request-namespace-body-types-test.html
+### 2. request-namespace-body-types.html / request-namespace-body-types.js
 Tests various body type conversions:
 - JSON object bodies (automatic JSON.stringify)
 - Array bodies (automatic JSON.stringify)
 - FormData bodies (using FormData wrapper syntax)
 - URLSearchParams bodies (using URLSearchParams wrapper syntax)
 
-### 3. request-namespace-error-handling-test.html
+### 3. request-namespace-error-handling.html / request-namespace-error-handling.js
 Tests error handling scenarios:
 - 404 Not Found errors
 - Network errors (invalid URLs)
@@ -30,8 +32,8 @@ Tests error handling scenarios:
 ## Usage
 
 1. Build the library: `npm run build` (from the `lib` directory)
-2. Start a local server: `python3 -m http.server 8080` (from the `examples` directory)
-3. Open test files in a browser: `http://localhost:8080/request-namespace-basic-test.html`
+2. Start a local server: `python3 -m http.server 8080` (from the root directory)
+3. Open test files in a browser: `http://localhost:8080/tests/request-namespace-basic.html`
 
 ## Expected Results
 
@@ -45,12 +47,12 @@ All tests should demonstrate:
 
 ## Test Structure
 
-Each test file follows this pattern:
-1. Creates DDOM components with Request namespace specifications
-2. Uses `DDOM.createElement` to create elements
-3. Sets up `DDOM.createEffect` for reactive updates
-4. Displays results in the UI with success/error styling
-5. Shows raw JSON responses for debugging
+Each test is built entirely with DDOM:
+1. HTML files only provide basic bootstrapping
+2. JavaScript files contain complete DDOM declarative specifications
+3. All UI, styling, and interactions are declared in DDOM objects
+4. Reactive effects are set up in the `onMounted` callback
+5. Results display with success/error styling using DDOM styles
 
 ## Key Features Tested
 
@@ -67,4 +69,4 @@ Each test file follows this pattern:
 - Tests use JSONPlaceholder (https://jsonplaceholder.typicode.com) for real API calls
 - Error handling tests intentionally trigger various error conditions
 - All tests demonstrate the serializable Request namespace syntax
-- Legacy `new Request()` syntax is no longer supported or tested
+- Tests are completely declarative using DDOM syntax (no imperative DOM manipulation)

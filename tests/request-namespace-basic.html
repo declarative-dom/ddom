@@ -3,22 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DDOM Declarative Fetch - Issue Examples</title>
+    <title>Request Namespace Basic Tests</title>
 </head>
 <body>
     <script type="module">
         import { adoptWindow } from '../lib/dist/index.js';
-        import issueExamples from './issue-examples-demo.js';
+        import basicTests from './request-namespace-basic.js';
 
         // Make DDOM available globally for the onMounted callback
         import DDOM from '../lib/dist/index.js';
         window.DDOM = DDOM;
 
-        console.log('Loading DDOM Issue Examples Demo...');
+        console.log('Loading Request Namespace Basic Tests...');
         
         // Create the DDOM application
-        const app = adoptWindow(issueExamples);
-        console.log('DDOM Issue Examples Demo loaded:', app);
+        const app = adoptWindow(basicTests);
+        console.log('Request Namespace Basic Tests loaded:', app);
     </script>
 </body>
 </html>
