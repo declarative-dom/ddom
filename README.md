@@ -5,6 +5,8 @@
 
 # Declarative DOM
 
+## ⚠️ This is a preview of an in-progress schema definition and could change at any time. Do not use this in production. ⚠️
+
 **Declarative DOM** *(or DDOM)* is a JavaScript object schema for building web applications. It is designed to encompass all modern web development features within an object syntax that closely follows the [DOM](https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model), [CSSOM](https://developer.mozilla.org/en-US/docs/Web/API/CSS_Object_Model), and related web standards.
 
 Just as JSON provides a syntax and grammar for defining arbitrary data, DDOM defines a type-enforced structure for defining web applications (documents, nodes, and custom elements) in a declarative manner which attempts to mirror and extend the [official DOM API Standard](https://dom.spec.whatwg.org/).
@@ -353,7 +355,7 @@ DDOM maintains strict alignment with DOM APIs and web standards. In general, DDO
 
 DDOM prioritizes:
 - **Familiar syntax** - Works like normal JavaScript
-- **Zero learning curve** - No special DSL to learn
+- **Minimal learning curve** - Standards-alignment instead of DSLs
 - **Predictable behavior** - Standard property access patterns
 - **Debugging friendly** - Properties work in dev tools
 
@@ -367,3 +369,7 @@ DDOM prioritizes:
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Notices
+
+The contents of this repository have been developed with support from one or more generative artificial intelligence solutions.
