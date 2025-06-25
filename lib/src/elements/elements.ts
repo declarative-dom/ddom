@@ -29,12 +29,12 @@ import {
 	isTemplateLiteral,
 	bindPropertyTemplate,
 	bindAttributeTemplate,
-} from '../templates';
-
-import {
 	isPropertyAccessor,
-	resolvePropertyAccessor
-} from '../accessors';
+	resolvePropertyAccessor,
+	isGetterDescriptor,
+	isSetterDescriptor,
+	bindAccessorProperty,
+} from '../properties';
 
 // Properties that are immutable after element creation (structural identity)
 const IMMUTABLE_PROPERTIES = new Set(['id', 'tagName']);
@@ -151,8 +151,12 @@ const ddomHandlers: {
 	},
 	default: (spec, el, key, descriptor) => {
 		if (!Object.prototype.hasOwnProperty.call(el, key)) {
+			// Handle native getter/setter properties (ES6+ syntax)
+			if (isGetterDescriptor(descriptor) || isSetterDescriptor(descriptor)) {
+				bindAccessorProperty(el, key, descriptor);
+			}
 			// Handle property accessor strings
-			if (typeof descriptor.value === 'string' && isPropertyAccessor(descriptor.value)) {
+			else if (typeof descriptor.value === 'string' && isPropertyAccessor(descriptor.value)) {
 				const resolved = resolvePropertyAccessor(descriptor.value, (el as Node));
 				if (resolved !== null) {
 					// Pass through any resolved value (signals, objects, arrays, functions, etc.)
@@ -171,8 +175,8 @@ const ddomHandlers: {
 				(el as any)[key] = descriptor.value;
 			} else {
 				// For non-function, non-templated properties, wrap in transparent signal proxy
-				// but only if not protected (id, tagName)
-				if (!IMPERATIVE_PROPERTIES.has(key)) {
+				// but only if not protected (id, tagName) and not internal properties (starting with _)
+				if (!IMPERATIVE_PROPERTIES.has(key) && !key.startsWith('_')) {
 					// check to see if it's a signal already
 					if (typeof descriptor.value === 'object' && descriptor.value !== null && Signal.isState(descriptor.value)) {
 						// If it's already a signal, just set it directly
@@ -181,7 +185,7 @@ const ddomHandlers: {
 						createReactiveProperty(el, key, descriptor.value);
 					}
 				} else {
-					// Protected properties are set once and never reactive
+					// Protected properties and internal properties are set once and never reactive
 					(el as any)[key] = descriptor.value;
 				}
 			}
