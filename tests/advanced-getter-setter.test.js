@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import DDOM, { createElement } from '../lib/dist/index.js';
+import { createElement } from '../lib/dist/index.js';
 
 describe('Advanced Getter/Setter Examples', () => {
   let container;

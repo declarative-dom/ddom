@@ -11,13 +11,11 @@ import {
 } from '../events';
 
 import {
-  parseTemplateLiteral
-} from '../templates';
-
-import {
 	isPropertyAccessor,
+  parseTemplateLiteral,
   resolvePropertyAccessor
-} from '../accessors';
+} from '../properties';
+
 
 /**
  * Evaluates a filter expression against an item in an array.
