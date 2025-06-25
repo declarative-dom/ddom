@@ -19,7 +19,7 @@ DDOM is developed as a [specification](spec/spec.md), a [collection of types](ty
 Create reactive applications and web components with simple JavaScript objects:
 
 ```javascript
-import DDOM from './lib/dist/index.js';
+import DDOM from '@declarative-dom/lib';
 
 DDOM.customElements.define({
   tagName: 'my-app',
@@ -241,7 +241,7 @@ npm run lint:fix
 </head>
 <body>
     <script type="module">
-        import DDOM from './lib/dist/index.js';
+        import DDOM from '@declarative-dom/lib';
         
         // Create a reactive app
         const app = DDOM({
