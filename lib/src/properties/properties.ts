@@ -260,36 +260,51 @@ export function bindGetterProperty(
     }
   });
 
+  // Check if this is a standard DOM property that should be automatically updated
+  const isDOMProperty = property === 'textContent' || property === 'innerHTML' || 
+                       property === 'value' || property === 'title' || property === 'className';
+  
   // Use component-specific watcher if available, otherwise fall back to global
   const componentWatcher = (globalThis as any).__ddom_component_watcher as ComponentSignalWatcher | undefined;
   
-  // Set up an effect that updates the property value
-  const cleanup = createEffect(() => {
-    const newValue = computedValue.get();
+  if (isDOMProperty) {
+    // For DOM properties, set up an effect that updates the actual DOM property
+    const cleanup = createEffect(() => {
+      const newValue = computedValue.get();
+      
+      // Update the actual DOM property directly
+      if (property === 'textContent') {
+        (el as Element).textContent = newValue;
+      } else if (property === 'innerHTML') {
+        (el as Element).innerHTML = newValue;
+      } else if (property === 'value' && 'value' in el) {
+        el.value = newValue;
+      } else if (property === 'title') {
+        (el as Element).setAttribute('title', newValue);
+      } else if (property === 'className') {
+        (el as Element).className = newValue;
+      }
+    }, componentWatcher);
+
+    // Use AbortController signal for automatic cleanup if available
+    const signal = (globalThis as any).__ddom_abort_signal;
+    if (signal && !signal.aborted) {
+      signal.addEventListener('abort', cleanup, { once: true });
+    }
     
-    // Define a simple getter that returns the computed value
+    return cleanup;
+  } else {
+    // For non-DOM properties, define a getter that returns the computed value
     Object.defineProperty(el, property, {
-      get: () => newValue,
+      get: function() {
+        return computedValue.get();
+      },
       configurable: true,
       enumerable: true
     });
-  }, componentWatcher);
-
-  // Initial call to set up the property
-  const initialValue = computedValue.get();
-  Object.defineProperty(el, property, {
-    get: () => initialValue,
-    configurable: true,
-    enumerable: true
-  });
-
-  // Use AbortController signal for automatic cleanup if available
-  const signal = (globalThis as any).__ddom_abort_signal;
-  if (signal && !signal.aborted) {
-    signal.addEventListener('abort', cleanup, { once: true });
+    
+    return () => {}; // No cleanup needed for simple getters
   }
-
-  return cleanup;
 }
 
 /**
