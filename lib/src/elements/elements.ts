@@ -37,16 +37,10 @@ function extractAndProcessDollarProperties(
 	el: DOMNode,
 	specDescriptors: Record<string, PropertyDescriptor>
 ): DollarProperties {
-	console.log('extractAndProcessDollarProperties called');
-	console.log('spec keys:', Object.keys(spec));
-	
 	const dollarEntries = Object.entries(specDescriptors)
 		.filter(([key]) => key.startsWith('$'));
 	
-	console.log('Found dollar entries:', dollarEntries.map(([key]) => key));
-	
 	if (dollarEntries.length === 0) {
-		console.log('No dollar properties found');
 		return { names: [], values: [] };
 	}
 	
@@ -55,19 +49,16 @@ function extractAndProcessDollarProperties(
 	
 	// Process each dollar property first to get their signal values
 	dollarEntries.forEach(([key, descriptor]) => {
-		console.log(`Processing dollar property: ${key}`, descriptor.value);
 		// Process the property to initialize it (creates signals, etc.)
 		processProperty(spec, el, key, descriptor);
 		
 		// Get the processed value from the element
 		const processedValue = (el as any)[key];
-		console.log(`Processed value for ${key}:`, processedValue);
 		
 		names.push(key);
 		values.push(processedValue);
 	});
 	
-	console.log('Final dollar properties:', { names, values });
 	return { names, values };
 }
 
@@ -113,18 +104,25 @@ export function adoptDocument(spec: DocumentSpec) {
  * }, myElement);
  * ```
  */
-export function adoptNode(spec: DOMSpec, el: DOMNode, css: boolean = true, ignoreKeys: string[] = []): void {
+export function adoptNode(spec: DOMSpec, el: DOMNode, css: boolean = true, ignoreKeys: string[] = [], parentDollarProperties?: DollarProperties): void {
 	// Process all properties using descriptors - handles both values and native getters/setters
 	const specDescriptors = Object.getOwnPropertyDescriptors(spec);
 
-	// Extract and process dollar properties first
-	const dollarProperties = extractAndProcessDollarProperties(spec, el, specDescriptors);
+	// Extract and process dollar properties first (only if no parent dollar properties)
+	const localDollarProperties = parentDollarProperties || extractAndProcessDollarProperties(spec, el, specDescriptors);
 	
-	let allIgnoreKeys = ['children', ...ignoreKeys, ...dollarProperties.names];
+	// If we have dollar properties, attach them to this element as well for accessibility
+	if (localDollarProperties.names.length > 0) {
+		localDollarProperties.names.forEach((name, index) => {
+			(el as any)[name] = localDollarProperties.values[index];
+		});
+	}
+	
+	let allIgnoreKeys = ['children', ...ignoreKeys, ...localDollarProperties.names];
 
 	// Handle protected properties first (id, tagName) - set once, never reactive
 	if ('id' in spec && spec.id !== undefined && el instanceof HTMLElement) {
-		processProperty(spec, el, 'id', specDescriptors.id, css, dollarProperties);
+		processProperty(spec, el, 'id', specDescriptors.id, css, localDollarProperties);
 		allIgnoreKeys.push('id');
 	}
 
@@ -133,7 +131,7 @@ export function adoptNode(spec: DOMSpec, el: DOMNode, css: boolean = true, ignor
 		if (allIgnoreKeys.includes(key)) {
 			return;
 		}
-		processProperty(spec, el, key, descriptor, css, dollarProperties);
+		processProperty(spec, el, key, descriptor, css, localDollarProperties);
 	});
 
 	// Handle children last to ensure all properties are set before appending
@@ -141,13 +139,13 @@ export function adoptNode(spec: DOMSpec, el: DOMNode, css: boolean = true, ignor
 		const children = spec.children;
 		if (isMappedArrayExpr(children)) {
 			try {
-				adoptArray(children, el as Element, css);
+				adoptArray(children, el as Element, css, localDollarProperties);
 			} catch (error) {
 				console.warn(`Failed to process MappedArrayExpr for children:`, error);
 			}
 		} else if (Array.isArray(children)) {
 			children.forEach((child: HTMLElementSpec) => {
-				appendChild(child, el as DOMNode, css);
+				appendChild(child, el as DOMNode, css, localDollarProperties);
 			});
 		} else {
 			console.warn(`Invalid children value for key "children":`, children);
@@ -193,7 +191,7 @@ export function adoptWindow(spec: WindowSpec) {
  * }, document.body);
  * ```
  */
-export function appendChild(spec: HTMLElementSpec, parentNode: DOMNode, css: boolean = true): HTMLElement {
+export function appendChild(spec: HTMLElementSpec, parentNode: DOMNode, css: boolean = true, parentDollarProperties?: DollarProperties): HTMLElement {
 	const el = document.createElement(spec.tagName) as HTMLElement;
 
 	// Append the element to the provided parent node
@@ -202,7 +200,7 @@ export function appendChild(spec: HTMLElementSpec, parentNode: DOMNode, css: boo
 	}
 
 	// Apply all properties using the unified dispatch table
-	adoptNode(spec, el, css, ['id', 'parentNode', 'tagName']);
+	adoptNode(spec, el, css, ['id', 'parentNode', 'tagName'], parentDollarProperties);
 
 	return el;
 }
@@ -225,11 +223,11 @@ export function appendChild(spec: HTMLElementSpec, parentNode: DOMNode, css: boo
  * });
  * ```
  */
-export function createElement(spec: HTMLElementSpec, css: boolean = true): HTMLElement {
+export function createElement(spec: HTMLElementSpec, css: boolean = true, parentDollarProperties?: DollarProperties): HTMLElement {
 	const el = document.createElement(spec.tagName) as HTMLElement;
 
 	// Apply all properties using the unified dispatch table
-	adoptNode(spec, el, css, ['id', 'parentNode', 'tagName']);
+	adoptNode(spec, el, css, ['id', 'parentNode', 'tagName'], parentDollarProperties);
 
 	return el;
 }
@@ -251,6 +249,7 @@ export function adoptArray<T>(
 	arrayExpr: MappedArrayExpr<T, any>,
 	parentElement: Element,
 	css = true,
+	parentDollarProperties?: DollarProperties
 ): void {
 	// Create the reactive MappedArrayExpr instance
 	const reactiveArray = new MappedArray(arrayExpr, parentElement);
@@ -316,7 +315,7 @@ export function adoptArray<T>(
 		keysToCreate.forEach(key => {
 			const item = items.find(item => (item.id || JSON.stringify(item)) === key);
 			if (item) {
-				const element = createElement(item, css);
+				const element = createElement(item, css, parentDollarProperties);
 				newComponentsByKey.set(key, element);
 			}
 		});

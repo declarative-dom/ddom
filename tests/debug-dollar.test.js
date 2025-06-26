@@ -31,6 +31,32 @@ describe('Dollar Property Debug', () => {
     expect(window.$testValue).toBeDefined();
   });
 
+  test('debug template function call', () => {
+    const spec = {
+      $name: 'Alice',
+      document: {
+        body: {
+          children: [{
+            tagName: 'div',
+            id: 'debug-test',
+            get textContent() {
+              console.log('Getter called with this:', this);
+              console.log('Getter $name:', this.$name);
+              return 'Hello from getter!';
+            }
+          }]
+        }
+      }
+    };
+
+    DDOM(spec);
+    
+    const element = document.getElementById('debug-test');
+    console.log('Element textContent from getter:', element.textContent);
+    
+    expect(element).toBeDefined();
+  });
+
   test('debug simple template literal', () => {
     const spec = {
       $name: 'Alice',

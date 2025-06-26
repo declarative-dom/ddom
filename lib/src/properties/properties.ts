@@ -218,7 +218,7 @@ function processAttribute(el: Element, attrName: string, attrValue: any, dollarP
  * Creates an async property handler wrapper to reduce boilerplate.
  */
 function createHandler(
-  handlerFn: (value: any, el: DOMNode) => void,
+  handlerFn: (value: any, el: DOMNode, dollarProperties?: DollarProperties) => void,
   condition?: (el: DOMNode, css?: boolean) => boolean
 ) {
   return (
@@ -233,7 +233,7 @@ function createHandler(
     if (!value || (condition && !condition(el, css))) return;
 
     try {
-      handlerFn(value, el);
+      handlerFn(value, el, dollarProperties);
     } catch (error) {
       console.warn(`Handler failed for property "${key}":`, error);
     }
@@ -286,31 +286,31 @@ export function handleAttributesProperty(
 /**
  * Simplified async handlers using createHandler wrapper
  */
-export const handleCustomElementsProperty = createHandler((value, el) =>
+export const handleCustomElementsProperty = createHandler((value, el, dollarProperties) =>
   define(value)
 );
 
 export const handleDocumentProperty = createHandler(
-  (value, el) => adoptNode(value as DocumentSpec, document),
+  (value, el, dollarProperties) => adoptNode(value as DocumentSpec, document, true, [], dollarProperties),
   (el) => el === window
 );
 
 export const handleBodyProperty = createHandler(
-  (value, el) => adoptNode(value as HTMLElementSpec, document.body),
+  (value, el, dollarProperties) => adoptNode(value as HTMLElementSpec, document.body, true, [], dollarProperties),
   (el) => el === document || 'documentElement' in el
 );
 
 export const handleHeadProperty = createHandler(
-  (value, el) => adoptNode(value as HTMLElementSpec, document.head),
+  (value, el, dollarProperties) => adoptNode(value as HTMLElementSpec, document.head, true, [], dollarProperties),
   (el) => el === document || 'documentElement' in el
 );
 
-export const handleWindowProperty = createHandler((value, el) =>
-  adoptNode(value as WindowSpec, window)
+export const handleWindowProperty = createHandler(
+  (value, el, dollarProperties) => adoptNode(value as WindowSpec, window, true, [], dollarProperties)
 );
 
 export const handleStyleProperty = createHandler(
-  (value, el) => adoptStyles(el as Element, value),
+  (value, el, dollarProperties) => adoptStyles(el as Element, value),
   (el, css) => el instanceof Element && css == true
 );
 
@@ -560,42 +560,31 @@ function createTemplateWithDollarProperties(
   template: string,
   dollarProperties?: DollarProperties
 ): (context: any) => string {
-  console.log('createTemplateWithDollarProperties called with:', { template, dollarProperties });
-  
   if (!dollarProperties || dollarProperties.names.length === 0) {
-    console.log('No dollar properties, using bindTemplate');
     return bindTemplate(template);
   }
 
-  console.log('Creating template with dollar properties:', dollarProperties.names);
-  
   // For template literals, we need to provide a reactive evaluation
   // that can access signal values properly
   return (context: any) => {
     try {
-      console.log('Evaluating template with context:', context);
       // Create evaluation context with current signal values
       const evaluationContext = { ...context };
       
       // Add dollar properties to the evaluation context
       dollarProperties.names.forEach((name, index) => {
         const value = dollarProperties.values[index];
-        console.log(`Processing ${name}:`, value);
         // If it's a signal, get its current value for template evaluation
         if (typeof value === 'object' && value !== null && 'get' in value) {
           const signalValue = value.get();
-          console.log(`${name} signal value:`, signalValue);
           evaluationContext[name] = signalValue;
         } else {
           evaluationContext[name] = value;
         }
       });
       
-      console.log('Final evaluation context:', evaluationContext);
-      
       // Create and execute template function with enriched context
       const result = new Function('return `' + template + '`').call(evaluationContext);
-      console.log('Template result:', result);
       return result;
     } catch (error) {
       console.warn('Template evaluation failed:', error);
