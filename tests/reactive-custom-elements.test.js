@@ -117,7 +117,7 @@ describe('Reactive Custom Elements Example', () => {
           tagName: 'input',
           attributes: {
             type: 'checkbox',
-            checked: '${this.parentNode.item.completed.get()}'
+            checked: '${this.parentNode.item.get().completed}'
           },
           onchange: function (event) {
             const todoItem = event.target.parentNode;
@@ -128,7 +128,7 @@ describe('Reactive Custom Elements Example', () => {
         },
         {
           tagName: 'span',
-          textContent: '${this.parentNode.item.text.get()}'
+          textContent: '${this.parentNode.item.get().text}'
         },
         {
           tagName: 'button',
