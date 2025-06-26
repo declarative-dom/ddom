@@ -31,6 +31,43 @@ describe('Dollar Property Debug', () => {
     expect(window.$testValue).toBeDefined();
   });
 
+  test('debug function injection', () => {
+    let clickedName = null;
+    
+    const spec = {
+      $userName: 'Bob',
+      document: {
+        body: {
+          children: [{
+            tagName: 'button',
+            id: 'debug-function',
+            onclick: function(event) {
+              console.log('Function called with $userName:', $userName);
+              console.log('$userName type:', typeof $userName);
+              if ($userName && 'get' in $userName) {
+                console.log('$userName.get():', $userName.get());
+                const result = 'Signal value: ' + $userName.get();
+                console.log('Setting clickedName to:', result);
+                clickedName = result;
+                console.log('clickedName after assignment:', clickedName);
+              } else {
+                clickedName = 'Direct value: ' + $userName;
+              }
+            }
+          }]
+        }
+      }
+    };
+
+    DDOM(spec);
+    
+    const button = document.getElementById('debug-function');
+    button.click();
+    
+    console.log('Final clickedName:', clickedName);
+    expect(clickedName).toBeDefined();
+  });
+
   test('debug template function call', () => {
     const spec = {
       $name: 'Alice',

@@ -541,20 +541,39 @@ function wrapFunctionWithDollarProperties(
   }
 
   // For functions, inject the signals themselves so users can call .get() and .set()
-  try {
-    // Create new function with dollar properties as parameters
-    return new Function(
-      ...dollarProperties.names,
-      `return (${fn.toString()}).apply(this, Array.from(arguments).slice(${dollarProperties.names.length}));`
-    ).bind(null, ...dollarProperties.values);
-  } catch (error) {
-    console.warn('Failed to wrap function with dollar properties:', error);
-    return fn;
-  }
+  // We need to preserve the original closure, so we can't use new Function()
+  return function(this: any, ...args: any[]) {
+    // Create a new execution context with dollar properties
+    const originalFn = fn;
+    
+    // Temporarily add dollar properties to the global scope for the function execution
+    const globalBackup: Record<string, any> = {};
+    dollarProperties!.names.forEach((name, index) => {
+      if (name in globalThis) {
+        globalBackup[name] = (globalThis as any)[name];
+      }
+      (globalThis as any)[name] = dollarProperties!.values[index];
+    });
+    
+    try {
+      // Call the original function with preserved context and arguments
+      return originalFn.apply(this, args);
+    } finally {
+      // Restore global scope
+      dollarProperties!.names.forEach((name) => {
+        if (name in globalBackup) {
+          (globalThis as any)[name] = globalBackup[name];
+        } else {
+          delete (globalThis as any)[name];
+        }
+      });
+    }
+  };
 }
 
 /**
  * Creates template function with dollar property injection.
+ * For template literals, inject the current signal values.
  */
 function createTemplateWithDollarProperties(
   template: string,
@@ -564,28 +583,24 @@ function createTemplateWithDollarProperties(
     return bindTemplate(template);
   }
 
-  // For template literals, we need to provide a reactive evaluation
-  // that can access signal values properly
+  // For template literals, create a function that dynamically gets signal values
   return (context: any) => {
     try {
-      // Create evaluation context with current signal values
-      const evaluationContext = { ...context };
-      
-      // Add dollar properties to the evaluation context
-      dollarProperties.names.forEach((name, index) => {
-        const value = dollarProperties.values[index];
-        // If it's a signal, get its current value for template evaluation
+      // Get current signal values for template evaluation
+      const currentValues = dollarProperties.values.map(value => {
         if (typeof value === 'object' && value !== null && 'get' in value) {
-          const signalValue = value.get();
-          evaluationContext[name] = signalValue;
-        } else {
-          evaluationContext[name] = value;
+          return value.get();
         }
+        return value;
       });
       
-      // Create and execute template function with enriched context
-      const result = new Function('return `' + template + '`').call(evaluationContext);
-      return result;
+      // Create template function with the current values
+      const templateFn = new Function(
+        ...dollarProperties.names,
+        'return `' + template + '`'
+      );
+      
+      return templateFn.call(context, ...currentValues);
     } catch (error) {
       console.warn('Template evaluation failed:', error);
       return template;

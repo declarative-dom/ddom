@@ -49,7 +49,7 @@ describe('Dollar Property Injection', () => {
             tagName: 'button',
             id: 'function-test',
             onclick: function(event) {
-              clickedName = $userName + ' (' + $userAge + ')';
+              clickedName = $userName.get() + ' (' + $userAge.get() + ')';
             }
           }]
         }
@@ -76,7 +76,7 @@ describe('Dollar Property Injection', () => {
             tagName: 'div',
             id: 'getter-test',
             get fullName() {
-              return `${$firstName} ${$lastName}`;
+              return `${$firstName.get()} ${$lastName.get()}`;
             }
           }]
         }
@@ -101,7 +101,7 @@ describe('Dollar Property Injection', () => {
             tagName: 'div',
             id: 'setter-test',
             set testValue(value) {
-              setterValue = `${$prefix} ${value}`;
+              setterValue = `${$prefix.get()} ${value}`;
             }
           }]
         }
@@ -143,6 +143,39 @@ describe('Dollar Property Injection', () => {
     expect(element.getAttribute('data-theme')).toBe('dark');
     expect(element.getAttribute('data-size')).toBe('large');
     expect(element.getAttribute('class')).toBe('component theme-dark size-large');
+  });
+
+  test('debug custom element', () => {
+    const spec = {
+      customElements: [{
+        tagName: 'debug-card',
+        $userName: 'Carol',
+        $userRole: 'Admin',
+        get displayText() {
+          console.log('Custom element getter - this:', this);
+          console.log('Custom element $userName:', this.$userName);
+          console.log('Global $userName:', typeof globalThis !== 'undefined' ? globalThis.$userName : 'undefined');
+          return `${$userName.get()} - ${$userRole.get()}`;
+        }
+      }],
+      document: {
+        body: {
+          children: [{
+            tagName: 'debug-card',
+            id: 'debug-custom-element'
+          }]
+        }
+      }
+    };
+
+    DDOM(spec);
+    
+    const element = document.getElementById('debug-custom-element');
+    console.log('Element:', element);
+    console.log('Element $userName:', element ? element.$userName : 'element is null');
+    console.log('Element displayText:', element && 'displayText' in element ? element.displayText : 'undefined');
+    
+    expect(element).toBeDefined();
   });
 
   test('should work with custom elements', () => {
