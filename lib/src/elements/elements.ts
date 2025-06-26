@@ -1,6 +1,5 @@
 import {
 	MappedArrayExpr,
-	StyleExpr,
 	DocumentSpec,
 	DOMSpec,
 	HTMLElementSpec,
@@ -15,191 +14,13 @@ import {
 
 import {
 	createEffect,
-	createReactiveProperty,
 	ComponentSignalWatcher,
-	Signal
 } from '../events';
 
 import {
-	insertRules,
-} from '../styleSheets';
+	processProperty,
+} from '../properties';
 
-import {
-	parseTemplateLiteral,
-	isTemplateLiteral,
-	bindPropertyTemplate,
-	bindAttributeTemplate,
-} from '../templates';
-
-import {
-	isPropertyAccessor,
-	resolvePropertyAccessor
-} from '../accessors';
-
-// Properties that are immutable after element creation (structural identity)
-const IMMUTABLE_PROPERTIES = new Set(['id', 'tagName']);
-
-// Properties that should use imperative updates rather than signal assignment (mutable state)
-const IMPERATIVE_PROPERTIES = new Set([
-	...Object.getOwnPropertyNames(Node.prototype),
-	...Object.getOwnPropertyNames(Element.prototype),
-	...Object.getOwnPropertyNames(HTMLElement.prototype)
-]);
-
-const ddomHandlers: {
-	[key: string]: (spec: DOMSpec, el: DOMNode, key: string, descriptor: PropertyDescriptor, css?: boolean) => void;
-} = {
-	attributes: (spec, el, key, descriptor) => {
-		const value = descriptor.value;
-		if (value && typeof value === 'object') {
-			for (const [attrName, attrValue] of Object.entries(value)) {
-				if (typeof attrValue === 'string') {
-					// Check if this is a reactive template expression
-					if (isTemplateLiteral(attrValue) && el instanceof Element) {
-						// Set up fine-grained reactivity for this attribute
-						bindAttributeTemplate(el, attrName, attrValue);
-					} else {
-						// Static string - evaluate once and set
-						const evaluatedValue = parseTemplateLiteral(attrValue, el as Node);
-						if (el instanceof Element) {
-							if (typeof evaluatedValue === 'boolean') {
-								// Handle boolean attributes
-								if (evaluatedValue) {
-									el.setAttribute(attrName, '');
-								} else {
-									el.removeAttribute(attrName);
-								}
-							} else {
-								// Set other attributes directly
-								el.setAttribute(attrName, evaluatedValue as string);
-							}
-						}
-					}
-				} else if (typeof attrValue === 'function') {
-					// eval function attributes
-					const evaluatedValue = attrValue(el);
-					if (el instanceof Element) {
-						if (typeof evaluatedValue === 'boolean') {
-							// Handle boolean attributes
-							if (evaluatedValue) {
-								el.setAttribute(attrName, '');
-							} else {
-								el.removeAttribute(attrName);
-							}
-						} else {
-							// Set other attributes directly
-							el.setAttribute(attrName, evaluatedValue as string);
-						}
-					}
-				} else {
-					// Direct value assignment
-					if (el instanceof Element) {
-						if (typeof attrValue === 'boolean') {
-							// Handle boolean attributes
-							if (attrValue) {
-								el.setAttribute(attrName, '');
-							} else {
-								el.removeAttribute(attrName);
-							}
-						} else {
-							// Set other attributes directly
-							el.setAttribute(attrName, attrValue as string);
-						}
-					}
-				}
-			}
-		}
-	},
-	customElements: (spec, el, key, descriptor) => {
-		const value = descriptor.value;
-		if (value) {
-			// Import define dynamically to avoid circular dependency
-			import('../customElements').then(({ define }) => {
-				define(value);
-			});
-		}
-	},
-	document: (spec, el, key, descriptor) => {
-		const value = descriptor.value;
-		if (value && el === window) {
-			adoptDocument(value as DocumentSpec);
-		}
-	},
-	body: (spec, el, key, descriptor) => {
-		const value = descriptor.value;
-		if (value && (el === document || 'documentElement' in el)) {
-			adoptNode(value as HTMLElementSpec, document.body);
-		}
-	},
-	head: (spec, el, key, descriptor) => {
-		const value = descriptor.value;
-		if (value && (el === document || 'documentElement' in el)) {
-			adoptNode(value as HTMLElementSpec, document.head);
-		}
-	},
-	style: (spec, el, key, descriptor, css) => {
-		const value = descriptor.value;
-		if (css && value && typeof value === 'object') {
-			adoptStyles((el as Element), value);
-		}
-	},
-	window: (spec, el, key, descriptor) => {
-		const value = descriptor.value;
-		if (value) {
-			adoptWindow(value as WindowSpec);
-		}
-	},
-	default: (spec, el, key, descriptor) => {
-		if (!Object.prototype.hasOwnProperty.call(el, key)) {
-			// Handle property accessor strings
-			if (typeof descriptor.value === 'string' && isPropertyAccessor(descriptor.value)) {
-				const resolved = resolvePropertyAccessor(descriptor.value, (el as Node));
-				if (resolved !== null) {
-					// Pass through any resolved value (signals, objects, arrays, functions, etc.)
-					(el as any)[key] = resolved;
-				} else {
-					console.warn(`Failed to resolve property accessor "${descriptor.value}" for property "${key}"`);
-				}
-			}
-			// Handle template literal strings
-			else if (typeof descriptor.value === 'string' && isTemplateLiteral(descriptor.value) && !IMMUTABLE_PROPERTIES.has(key)) {
-				// Set up fine-grained reactivity - the template will auto-update when dependencies change
-				bindPropertyTemplate(el, key, descriptor.value);
-			}
-			// Handle non-event function properties
-			else if (typeof descriptor.value === 'function') {
-				(el as any)[key] = descriptor.value;
-			} else {
-				// For non-function, non-templated properties, wrap in transparent signal proxy
-				// but only if not protected (id, tagName)
-				if (!IMPERATIVE_PROPERTIES.has(key)) {
-					// check to see if it's a signal already
-					if (typeof descriptor.value === 'object' && descriptor.value !== null && Signal.isState(descriptor.value)) {
-						// If it's already a signal, just set it directly
-						(el as any)[key] = descriptor.value;
-					} else {
-						createReactiveProperty(el, key, descriptor.value);
-					}
-				} else {
-					// Protected properties are set once and never reactive
-					(el as any)[key] = descriptor.value;
-				}
-			}
-		} else {
-			// if the property already exists on the element, update it if it's a signal
-			const existingValue = (el as any)[key];
-
-			if (typeof existingValue === 'object' && existingValue !== null && Signal.isState(existingValue)) {
-				// If existing value is a signal, update its value (not replace the signal)
-				existingValue.set(descriptor.value);
-			} else if (typeof existingValue != 'object' || !Signal.isComputed(existingValue)) {
-				// Otherwise, just set the value directly
-				// we're about to overwrite an existing property, so we can set it directly
-				(el as any)[key] = descriptor.value;
-			}
-		}
-	}
-};
 
 
 /**
@@ -252,7 +73,7 @@ export function adoptNode(spec: DOMSpec, el: DOMNode, css: boolean = true, ignor
 
 	// Handle protected properties first (id, tagName) - set once, never reactive
 	if ('id' in spec && spec.id !== undefined && el instanceof HTMLElement) {
-		el.id = parseTemplateLiteral(spec.id as string, el as Node);
+		processProperty(spec, el, 'id', specDescriptors.id);
 		allIgnoreKeys.push('id');
 	}
 
@@ -261,8 +82,7 @@ export function adoptNode(spec: DOMSpec, el: DOMNode, css: boolean = true, ignor
 		if (allIgnoreKeys.includes(key)) {
 			return;
 		}
-		const handler = ddomHandlers[key] || ddomHandlers.default;
-		handler(spec, el, key, descriptor, css);
+		processProperty(spec, el, key, descriptor, css);
 	});
 
 	// Handle children last to ensure all properties are set before appending
@@ -362,62 +182,6 @@ export function createElement(spec: HTMLElementSpec, css: boolean = true): HTMLE
 
 	return el;
 }
-
-
-/**
- * Inserts CSS rules for a given element based on its declarative styles.
- * This function generates unique selectors and applies styles to the global DDOM stylesheet.
- * 
- * @param el The DOM element to apply styles to
- * @param styles The declarative CSS properties object
- * @example
- * ```typescript
- * adoptStyles(myElement, {
- *   color: 'red',
- *   fontSize: '16px',
- *   ':hover': { backgroundColor: 'blue' }
- * });
- * ```
- */
-function adoptStyles(el: Element, styles: StyleExpr): void {
-	// Generate a unique selector for this element
-	let selector: string;
-
-	if (el.id) {
-		// Use ID if available
-		selector = `#${el.id}`;
-	} else {
-		// Generate a path-based selector
-		const path: string[] = [];
-		let current: Element | null = el;
-
-		while (current && current !== document.documentElement) {
-			const tagName = current.tagName.toLowerCase();
-			const parent: Element | null = current.parentElement;
-
-			if (parent) {
-				const siblings = Array.from(parent.children).filter((child: Element) =>
-					child.tagName.toLowerCase() === tagName
-				);
-
-				if (siblings.length === 1) {
-					path.unshift(tagName);
-				} else {
-					const index = siblings.indexOf(current) + 1;
-					path.unshift(`${tagName}:nth-of-type(${index})`);
-				}
-			} else {
-				path.unshift(tagName);
-			}
-
-			current = parent;
-		}
-
-		selector = path.join(' > ');
-	}
-	insertRules(styles as StyleExpr, selector);
-}
-
 
 /**
  * Adopts a MappedArrayExpr and renders its items as DOM elements in the parent container

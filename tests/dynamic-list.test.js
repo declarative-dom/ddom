@@ -145,11 +145,11 @@ describe('Dynamic List Example', () => {
     const containerSpec = {
       tagName: 'dynamic-list-items',
       children: {
-        items: 'items',
+        items: ['Apple', 'Banana', 'Cherry'],
         map: {
           tagName: 'dynamic-list-item',
-          item: (item, _index) => item,
-          index: (item, index) => index,
+          item: (item, _) => item,
+          index: (_, index) => index,
         }
       }
     };
