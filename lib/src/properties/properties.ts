@@ -173,9 +173,10 @@ function bindReactiveTemplate(
   template: string,
   contextNode: Node,
   updateFn: (value: string) => void,
-  shouldUpdate?: (newValue: string, currentValue?: string) => boolean
+  shouldUpdate?: (newValue: string, currentValue?: string) => boolean,
+  dollarProperties?: DollarProperties
 ): () => void {
-  const computedValue = computedTemplate(template, contextNode);
+  const computedValue = computedTemplate(template, contextNode, dollarProperties);
   return createReactiveBinding(computedValue, updateFn, shouldUpdate);
 }
 
@@ -195,16 +196,17 @@ function setAttributeValue(el: Element, name: string, value: any): void {
 /**
  * Processes a single attribute with automatic reactive/static detection.
  */
-function processAttribute(el: Element, attrName: string, attrValue: any): void {
+function processAttribute(el: Element, attrName: string, attrValue: any, dollarProperties?: DollarProperties): void {
   if (typeof attrValue === 'string' && isTemplateLiteral(attrValue)) {
     // Reactive template expression
-    bindAttributeTemplate(el, attrName, attrValue);
+    bindAttributeTemplate(el, attrName, attrValue, dollarProperties);
   } else if (typeof attrValue === 'function') {
-    // Function attribute - evaluate once
-    setAttributeValue(el, attrName, attrValue(el));
+    // Function attribute - evaluate once with dollar properties
+    const wrappedFunction = wrapFunctionWithDollarProperties(attrValue, dollarProperties);
+    setAttributeValue(el, attrName, wrappedFunction(el));
   } else if (typeof attrValue === 'string') {
-    // Static string - evaluate once
-    const evaluatedValue = parseTemplateLiteral(attrValue, el);
+    // Static string - evaluate once with dollar properties
+    const evaluatedValue = parseTemplateLiteralWithDollarProperties(attrValue, el, dollarProperties);
     setAttributeValue(el, attrName, evaluatedValue);
   } else {
     // Direct value
@@ -224,7 +226,8 @@ function createHandler(
     el: DOMNode,
     key: string,
     descriptor: PropertyDescriptor,
-    css: boolean = true
+    css: boolean = true,
+    dollarProperties?: DollarProperties
   ): void => {
     const value = descriptor.value;
     if (!value || (condition && !condition(el, css))) return;
@@ -240,15 +243,24 @@ function createHandler(
 //  === HANDLERS ===
 
 /**
+ * Type definition for dollar property injection data.
+ */
+export type DollarProperties = {
+  names: string[];
+  values: any[];
+};
+
+/**
  * Type definition for DDOM property handlers.
- * Each handler receives the spec, element, property key, descriptor, and optional CSS flag.
+ * Each handler receives the spec, element, property key, descriptor, optional CSS flag, and dollar properties.
  */
 export type DDOMPropertyHandler = (
   spec: DOMSpec,
   el: DOMNode,
   key: string,
   descriptor: PropertyDescriptor,
-  css?: boolean
+  css?: boolean,
+  dollarProperties?: DollarProperties
 ) => void;
 
 /**
@@ -259,13 +271,15 @@ export function handleAttributesProperty(
   spec: DOMSpec,
   el: DOMNode,
   key: string,
-  descriptor: PropertyDescriptor
+  descriptor: PropertyDescriptor,
+  css?: boolean,
+  dollarProperties?: DollarProperties
 ): void {
   const value = descriptor.value;
   if (!value || typeof value !== 'object' || !(el instanceof Element)) return;
 
   Object.entries(value).forEach(([attrName, attrValue]) =>
-    processAttribute(el, attrName, attrValue)
+    processAttribute(el, attrName, attrValue, dollarProperties)
   );
 }
 
@@ -306,13 +320,14 @@ export const handleStyleProperty = createHandler(
 function assignPropertyValue(
   el: any,
   key: string,
-  descriptor: PropertyDescriptor
+  descriptor: PropertyDescriptor,
+  dollarProperties?: DollarProperties
 ): void {
   const value = descriptor.value;
 
   // Handle ES6 getter/setter
   if (isGetterDescriptor(descriptor) || isSetterDescriptor(descriptor)) {
-    bindAccessorProperty(el, key, descriptor);
+    bindAccessorProperty(el, key, descriptor, dollarProperties);
     return;
   }
 
@@ -335,13 +350,13 @@ function assignPropertyValue(
     isTemplateLiteral(value) &&
     !IMMUTABLE_PROPERTIES.has(key)
   ) {
-    bindPropertyTemplate(el, key, value);
+    bindPropertyTemplate(el, key, value, dollarProperties);
     return;
   }
 
   // Handle functions
   if (typeof value === 'function') {
-    el[key] = value;
+    el[key] = wrapFunctionWithDollarProperties(value, dollarProperties);
     return;
   }
 
@@ -366,10 +381,12 @@ export function handleDefaultProperty(
   spec: DOMSpec,
   el: DOMNode,
   key: string,
-  descriptor: PropertyDescriptor
+  descriptor: PropertyDescriptor,
+  css?: boolean,
+  dollarProperties?: DollarProperties
 ): void {
   if (!Object.prototype.hasOwnProperty.call(el, key)) {
-    assignPropertyValue(el, key, descriptor);
+    assignPropertyValue(el, key, descriptor, dollarProperties);
   } else {
     // Property exists - update if it's a signal
     const existingValue = (el as any)[key];
@@ -468,13 +485,15 @@ export const bindTemplate = (template: string) => (context: any) =>
  *
  * @param template - The template string to make reactive
  * @param contextNode - The DOM node to use as context
+ * @param dollarProperties - Dollar-prefixed properties for injection
  * @returns A Computed Signal that re-evaluates the template when dependencies change
  */
 export function computedTemplate(
   template: string,
-  contextNode: Node
+  contextNode: Node,
+  dollarProperties?: DollarProperties
 ): Signal.Computed<string> {
-  const templateFn = bindTemplate(template);
+  const templateFn = createTemplateWithDollarProperties(template, dollarProperties);
 
   return new Signal.Computed(() => {
     try {
@@ -494,14 +513,128 @@ export function computedTemplate(
 export function bindPropertyTemplate(
   el: any,
   property: string,
-  template: string
+  template: string,
+  dollarProperties?: DollarProperties
 ): () => void {
   return bindReactiveTemplate(
     template,
     el,
     (newValue) => (el[property] = newValue),
-    (newValue) => el[property] !== newValue
+    (newValue) => el[property] !== newValue,
+    dollarProperties
   );
+}
+
+// === DOLLAR PROPERTY INJECTION UTILITIES ===
+
+/**
+ * Wraps a function with dollar property injection.
+ * Creates a new function that has access to dollar-prefixed properties as direct variables.
+ * For functions, we inject the signal objects so users can call .get() and .set().
+ */
+function wrapFunctionWithDollarProperties(
+  fn: Function,
+  dollarProperties?: DollarProperties
+): Function {
+  if (!dollarProperties || dollarProperties.names.length === 0) {
+    return fn;
+  }
+
+  // For functions, inject the signals themselves so users can call .get() and .set()
+  try {
+    // Create new function with dollar properties as parameters
+    return new Function(
+      ...dollarProperties.names,
+      `return (${fn.toString()}).apply(this, Array.from(arguments).slice(${dollarProperties.names.length}));`
+    ).bind(null, ...dollarProperties.values);
+  } catch (error) {
+    console.warn('Failed to wrap function with dollar properties:', error);
+    return fn;
+  }
+}
+
+/**
+ * Creates template function with dollar property injection.
+ */
+function createTemplateWithDollarProperties(
+  template: string,
+  dollarProperties?: DollarProperties
+): (context: any) => string {
+  console.log('createTemplateWithDollarProperties called with:', { template, dollarProperties });
+  
+  if (!dollarProperties || dollarProperties.names.length === 0) {
+    console.log('No dollar properties, using bindTemplate');
+    return bindTemplate(template);
+  }
+
+  console.log('Creating template with dollar properties:', dollarProperties.names);
+  
+  // For template literals, we need to provide a reactive evaluation
+  // that can access signal values properly
+  return (context: any) => {
+    try {
+      console.log('Evaluating template with context:', context);
+      // Create evaluation context with current signal values
+      const evaluationContext = { ...context };
+      
+      // Add dollar properties to the evaluation context
+      dollarProperties.names.forEach((name, index) => {
+        const value = dollarProperties.values[index];
+        console.log(`Processing ${name}:`, value);
+        // If it's a signal, get its current value for template evaluation
+        if (typeof value === 'object' && value !== null && 'get' in value) {
+          const signalValue = value.get();
+          console.log(`${name} signal value:`, signalValue);
+          evaluationContext[name] = signalValue;
+        } else {
+          evaluationContext[name] = value;
+        }
+      });
+      
+      console.log('Final evaluation context:', evaluationContext);
+      
+      // Create and execute template function with enriched context
+      const result = new Function('return `' + template + '`').call(evaluationContext);
+      console.log('Template result:', result);
+      return result;
+    } catch (error) {
+      console.warn('Template evaluation failed:', error);
+      return template;
+    }
+  };
+}
+
+/**
+ * Parses template literal with dollar property injection for static evaluation.
+ */
+function parseTemplateLiteralWithDollarProperties(
+  template: string,
+  contextNode: Node,
+  dollarProperties?: DollarProperties
+): string {
+  if (!dollarProperties || dollarProperties.names.length === 0) {
+    return parseTemplateLiteral(template, contextNode);
+  }
+
+  // For static evaluation, use current signal values
+  const values = dollarProperties.values.map(value => {
+    if (typeof value === 'object' && value !== null && 'get' in value) {
+      return value.get();
+    }
+    return value;
+  });
+
+  try {
+    // Create function with dollar properties injected
+    const templateFn = new Function(
+      ...dollarProperties.names,
+      'return `' + template + '`'
+    );
+    return templateFn.call(contextNode, ...values);
+  } catch (error) {
+    console.warn(`Template evaluation with dollar properties failed: ${error}, Template: ${template}`);
+    return parseTemplateLiteral(template, contextNode);
+  }
 }
 
 /**
@@ -510,7 +643,8 @@ export function bindPropertyTemplate(
 export function bindAttributeTemplate(
   el: Element,
   attribute: string,
-  template: string
+  template: string,
+  dollarProperties?: DollarProperties
 ): () => void {
   return bindReactiveTemplate(
     template,
@@ -522,7 +656,8 @@ export function bindAttributeTemplate(
         el.setAttribute(attribute, String(newValue));
       }
     },
-    (newValue) => el.getAttribute(attribute) !== newValue
+    (newValue) => el.getAttribute(attribute) !== newValue,
+    dollarProperties
   );
 }
 
@@ -577,12 +712,16 @@ export function resolvePropertyAccessor(
 export function bindGetterProperty(
   el: any,
   property: string,
-  getter: () => any
+  getter: () => any,
+  dollarProperties?: DollarProperties
 ): () => void {
+  // Wrap getter with dollar properties if available
+  const wrappedGetter = wrapFunctionWithDollarProperties(getter, dollarProperties);
+  
   // Create a computed signal from the getter
   const computedValue = new Signal.Computed(() => {
     try {
-      return getter.call(el);
+      return wrappedGetter.call(el);
     } catch (error) {
       console.warn(
         `Getter evaluation failed for property "${property}":`,
@@ -663,16 +802,22 @@ export function bindSetterProperty(
 export function bindAccessorProperty(
   el: any,
   property: string,
-  descriptor: PropertyDescriptor
+  descriptor: PropertyDescriptor,
+  dollarProperties?: DollarProperties
 ): (() => void) | undefined {
   if (IMPERATIVE_PROPERTIES.has(property) && descriptor.get) {
     // if it's a DOM property with a getter, bind it as a computed signal
     // This allows the getter to be reactive and update the property dynamically
-    return bindGetterProperty(el, property, descriptor.get);
+    return bindGetterProperty(el, property, descriptor.get, dollarProperties);
   } else {
+    const wrappedGetter = descriptor.get ? 
+      wrapFunctionWithDollarProperties(descriptor.get, dollarProperties) as (() => any) : undefined;
+    const wrappedSetter = descriptor.set ? 
+      wrapFunctionWithDollarProperties(descriptor.set, dollarProperties) as ((value: any) => void) : undefined;
+      
     Object.defineProperty(el, property, {
-      ...(descriptor.set && { set: descriptor.set }),
-      ...(descriptor.get && { get: descriptor.get }),
+      ...(wrappedSetter && { set: wrappedSetter }),
+      ...(wrappedGetter && { get: wrappedGetter }),
       configurable: true,
       enumerable: true,
     });
@@ -689,16 +834,18 @@ export function bindAccessorProperty(
  * @param key - The property key
  * @param descriptor - The property descriptor
  * @param css - Whether to process CSS styles (default: true)
+ * @param dollarProperties - Dollar-prefixed properties for injection
  */
 export function processProperty(
   spec: DOMSpec,
   el: DOMNode,
   key: string,
   descriptor: PropertyDescriptor,
-  css: boolean = true
+  css: boolean = true,
+  dollarProperties?: DollarProperties
 ): void {
   const handler = getHandler(key);
-  handler(spec, el, key, descriptor, css);
+  handler(spec, el, key, descriptor, css, dollarProperties);
 }
 
 // === UTILITY FUNCTIONS ===

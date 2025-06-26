@@ -15,13 +15,61 @@ import {
 import {
 	createEffect,
 	ComponentSignalWatcher,
+	Signal,
 } from '../events';
 
 import {
 	processProperty,
+	DollarProperties,
 } from '../properties';
 
-
+/**
+ * Extracts dollar-prefixed properties from a spec and processes them into signals.
+ * Returns the processed dollar properties for injection into other properties.
+ * 
+ * @param spec - The declarative DOM specification
+ * @param el - The target DOM node
+ * @param specDescriptors - Property descriptors from the spec
+ * @returns Object containing dollar property names and their processed values
+ */
+function extractAndProcessDollarProperties(
+	spec: DOMSpec,
+	el: DOMNode,
+	specDescriptors: Record<string, PropertyDescriptor>
+): DollarProperties {
+	console.log('extractAndProcessDollarProperties called');
+	console.log('spec keys:', Object.keys(spec));
+	
+	const dollarEntries = Object.entries(specDescriptors)
+		.filter(([key]) => key.startsWith('$'));
+	
+	console.log('Found dollar entries:', dollarEntries.map(([key]) => key));
+	
+	if (dollarEntries.length === 0) {
+		console.log('No dollar properties found');
+		return { names: [], values: [] };
+	}
+	
+	const names: string[] = [];
+	const values: any[] = [];
+	
+	// Process each dollar property first to get their signal values
+	dollarEntries.forEach(([key, descriptor]) => {
+		console.log(`Processing dollar property: ${key}`, descriptor.value);
+		// Process the property to initialize it (creates signals, etc.)
+		processProperty(spec, el, key, descriptor);
+		
+		// Get the processed value from the element
+		const processedValue = (el as any)[key];
+		console.log(`Processed value for ${key}:`, processedValue);
+		
+		names.push(key);
+		values.push(processedValue);
+	});
+	
+	console.log('Final dollar properties:', { names, values });
+	return { names, values };
+}
 
 /**
  * Adopts a DocumentSpec into the current document context.
@@ -66,14 +114,17 @@ export function adoptDocument(spec: DocumentSpec) {
  * ```
  */
 export function adoptNode(spec: DOMSpec, el: DOMNode, css: boolean = true, ignoreKeys: string[] = []): void {
-	let allIgnoreKeys = ['children', ...ignoreKeys];
-
 	// Process all properties using descriptors - handles both values and native getters/setters
 	const specDescriptors = Object.getOwnPropertyDescriptors(spec);
 
+	// Extract and process dollar properties first
+	const dollarProperties = extractAndProcessDollarProperties(spec, el, specDescriptors);
+	
+	let allIgnoreKeys = ['children', ...ignoreKeys, ...dollarProperties.names];
+
 	// Handle protected properties first (id, tagName) - set once, never reactive
 	if ('id' in spec && spec.id !== undefined && el instanceof HTMLElement) {
-		processProperty(spec, el, 'id', specDescriptors.id);
+		processProperty(spec, el, 'id', specDescriptors.id, css, dollarProperties);
 		allIgnoreKeys.push('id');
 	}
 
@@ -82,7 +133,7 @@ export function adoptNode(spec: DOMSpec, el: DOMNode, css: boolean = true, ignor
 		if (allIgnoreKeys.includes(key)) {
 			return;
 		}
-		processProperty(spec, el, key, descriptor, css);
+		processProperty(spec, el, key, descriptor, css, dollarProperties);
 	});
 
 	// Handle children last to ensure all properties are set before appending
