@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createElement } from '../lib/dist/index.js';
 
 describe('Advanced Getter/Setter Examples', () => {
@@ -7,12 +7,19 @@ describe('Advanced Getter/Setter Examples', () => {
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
+    // Use fake timers to control microtask execution
+    vi.useFakeTimers({ toFake: ['nextTick', 'queueMicrotask'] });
+  });
+
+  afterEach(() => {
+    // Clean up fake timers after each test
+    vi.useRealTimers();
   });
 
   test('should support complex computed property example from issue', () => {
     // Example similar to the one in the issue description
     const element = createElement({
-      tagName: 'player-card',
+      tagName: 'div',
       name: 'John',
       $score: 85,  // Reactive signal
       $level: 3,   // Reactive signal
@@ -47,10 +54,12 @@ describe('Advanced Getter/Setter Examples', () => {
     
     // Test reactive getter - should update when signal changes
     element.$score.set(95);
+    vi.runAllTicks(); // Flush microtasks (including reactive effects)
     expect(element.textContent).toBe('Expert (Level 5)');
     
     // Test with lower score
     element.$score.set(45);
+    vi.runAllTicks(); // Flush microtasks (including reactive effects)
     expect(element.textContent).toBe('Beginner (Level 5)');
   });
 
@@ -72,9 +81,11 @@ describe('Advanced Getter/Setter Examples', () => {
     
     // Should be reactive
     element.$count.set(25);
+    vi.runAllTicks(); // Flush microtasks (including reactive effects)
     expect(element.textContent).toBe('Current count: 25');
     
     element.$count.set(0);
+    vi.runAllTicks(); // Flush microtasks (including reactive effects)
     expect(element.textContent).toBe('Current count: 0');
   });
 
@@ -109,10 +120,12 @@ describe('Advanced Getter/Setter Examples', () => {
     
     // Update individual properties
     element.$score.set(95);
+    vi.runAllTicks(); // Flush microtasks (including reactive effects)
     expect(element.title).toBe('Expert');
     expect(element.displayName).toBe('Jane Smith - Expert');
     
     element.$firstName.set('Dr. Jane');
+    vi.runAllTicks(); // Flush microtasks (including reactive effects)
     expect(element.fullName).toBe('Dr. Jane Smith');
     expect(element.displayName).toBe('Dr. Jane Smith - Expert');
   });
@@ -149,6 +162,9 @@ describe('Advanced Getter/Setter Examples', () => {
   });
 
   afterEach(() => {
+    // Clean up fake timers after each test
+    vi.useRealTimers();
+    
     if (container && container.parentNode) {
       container.parentNode.removeChild(container);
     }

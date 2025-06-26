@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createElement } from '../lib/dist/index.js';
 
 describe('Getter/Setter Support', () => {
@@ -8,12 +8,19 @@ describe('Getter/Setter Support', () => {
     // Create a clean container for each test
     container = document.createElement('div');
     document.body.appendChild(container);
+    // Use fake timers to control microtask execution
+    vi.useFakeTimers({ toFake: ['nextTick', 'queueMicrotask'] });
     
     // Clean up any global variables
     if (typeof window !== 'undefined') {
       delete window.testValue;
       delete window.testSignal;
     }
+  });
+
+  afterEach(() => {
+    // Clean up fake timers after each test
+    vi.useRealTimers();
   });
 
   test('should support native ES6 getter syntax', () => {

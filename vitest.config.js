@@ -7,6 +7,7 @@ export default defineConfig({
     setupFiles: ['./tests/setup.js'],
     include: ['tests/**/*.test.js'],
     exclude: ['tests/**/node_modules/**'],
+    pool: 'threads',
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

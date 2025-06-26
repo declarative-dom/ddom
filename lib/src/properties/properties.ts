@@ -1,43 +1,37 @@
 /**
  * Consolidated Properties Module
- * 
+ *
  * This module provides a comprehensive property handling system for DDOM, combining:
  * - Template literals with ${...} expressions and reactive binding
  * - Property accessor strings (window.*, document.*, this.*)
  * - Native ES6 getter/setter support with computed signals
  * - Dynamic property handlers for special DDOM properties
  * - Unified property resolution and binding logic
- * 
+ *
  * The module uses modern JavaScript patterns with ultra-fine-grained reactivity,
  * automatic cleanup, and optimized performance.
  */
 
-import {
-	define,
-} from '../customElements';
+import { define } from '../customElements';
+
+import { adoptNode } from '../elements';
 
 import {
-  adoptNode,
-} from '../elements';
-
-import {
-	Signal,
-	createEffect,
-	ComponentSignalWatcher,
-	createReactiveProperty
+  Signal,
+  createEffect,
+  ComponentSignalWatcher,
+  createReactiveProperty,
 } from '../events';
 
-import {
-	insertRules,
-} from '../styleSheets';
+import { insertRules } from '../styleSheets';
 
 import {
-	DocumentSpec,
-	DOMNode,
-	DOMSpec,
-	HTMLElementSpec,
-	StyleExpr,
-	WindowSpec,
+  DocumentSpec,
+  DOMNode,
+  DOMSpec,
+  HTMLElementSpec,
+  StyleExpr,
+  WindowSpec,
 } from '../../../types/src';
 
 // === PROPERTY DETECTION AND CLASSIFICATION ===
@@ -53,28 +47,28 @@ export const IMMUTABLE_PROPERTIES = new Set(['id', 'tagName']);
  * These are native DOM properties that should be set directly rather than wrapped in signals.
  */
 export const IMPERATIVE_PROPERTIES = new Set([
-	...Object.getOwnPropertyNames(Node.prototype),
-	...Object.getOwnPropertyNames(Element.prototype),
-	...Object.getOwnPropertyNames(HTMLElement.prototype)
+  ...Object.getOwnPropertyNames(Node.prototype),
+  ...Object.getOwnPropertyNames(Element.prototype),
+  ...Object.getOwnPropertyNames(HTMLElement.prototype),
 ]);
 
 /**
  * Detects if a string is a template literal containing reactive expressions.
  * Simple detection - just looks for ${. To display literal ${} in text,
  * escape the dollar sign with a backslash: \${
- * 
+ *
  * @param value - The string to check
  * @returns True if the string contains reactive expressions
  */
 export function isTemplateLiteral(value: string): boolean {
-	return value.includes('${');
+  return value.includes('${');
 }
 
 /**
  * Detects if a string is a property accessor expression.
  * Property accessors use JavaScript dot notation to access object properties.
  * Supports patterns like "window.data", "document.settings", "this.parentNode.value"
- * 
+ *
  * @param value - The string to check
  * @returns True if the string appears to be a property accessor
  * @example
@@ -86,29 +80,31 @@ export function isTemplateLiteral(value: string): boolean {
  * ```
  */
 export function isPropertyAccessor(value: string): boolean {
-	return value.startsWith('window.') || 
-		   value.startsWith('document.') || 
-		   value.startsWith('this.');
+  return (
+    value.startsWith('window.') ||
+    value.startsWith('document.') ||
+    value.startsWith('this.')
+  );
 }
 
 /**
  * Detects if a property descriptor contains a getter function.
- * 
+ *
  * @param descriptor - The property descriptor to check
  * @returns True if the descriptor has a getter
  */
 export function isGetterDescriptor(descriptor: PropertyDescriptor): boolean {
-	return descriptor.get !== undefined;
+  return descriptor.get !== undefined;
 }
 
 /**
  * Detects if a property descriptor contains a setter function.
- * 
+ *
  * @param descriptor - The property descriptor to check
  * @returns True if the descriptor has a setter
  */
 export function isSetterDescriptor(descriptor: PropertyDescriptor): boolean {
-	return descriptor.set !== undefined;
+  return descriptor.set !== undefined;
 }
 
 /**
@@ -120,18 +116,20 @@ export function isSetterDescriptor(descriptor: PropertyDescriptor): boolean {
  * - Functions
  * - Template literals (handled separately)
  * - Property accessors (resolved separately)
- * 
+ *
  * @param key - The property name
  * @param value - The property value
  * @returns True if the property should be wrapped in a signal
  */
 export function shouldBeSignal(key: string, value: any): boolean {
-	return !IMMUTABLE_PROPERTIES.has(key) &&
-		   !IMPERATIVE_PROPERTIES.has(key) &&
-		   !key.startsWith('_') &&
-		   typeof value !== 'function' &&
-		   !(typeof value === 'string' && isTemplateLiteral(value)) &&
-		   !(typeof value === 'string' && isPropertyAccessor(value));
+  return (
+    !IMMUTABLE_PROPERTIES.has(key) &&
+    !IMPERATIVE_PROPERTIES.has(key) &&
+    !key.startsWith('_') &&
+    typeof value !== 'function' &&
+    !(typeof value === 'string' && isTemplateLiteral(value)) &&
+    !(typeof value === 'string' && isPropertyAccessor(value))
+  );
 }
 
 // === REACTIVE BINDING UTILITIES ===
@@ -145,11 +143,13 @@ function createReactiveBinding<T>(
   updateFn: (value: T) => void,
   shouldUpdate?: (newValue: T, currentValue?: T) => boolean
 ): () => void {
-  const componentWatcher = (globalThis as any).__ddom_component_watcher as ComponentSignalWatcher | undefined;
-  
+  const componentWatcher = (globalThis as any).__ddom_component_watcher as
+    | ComponentSignalWatcher
+    | undefined;
+
   const cleanup = createEffect(() => {
     const newValue = computedSignal.get();
-    
+
     // Only update if shouldUpdate returns true (or if no shouldUpdate provided)
     if (!shouldUpdate || shouldUpdate(newValue)) {
       updateFn(newValue);
@@ -244,10 +244,10 @@ function createHandler(
  * Each handler receives the spec, element, property key, descriptor, and optional CSS flag.
  */
 export type DDOMPropertyHandler = (
-  spec: DOMSpec, 
-  el: DOMNode, 
-  key: string, 
-  descriptor: PropertyDescriptor, 
+  spec: DOMSpec,
+  el: DOMNode,
+  key: string,
+  descriptor: PropertyDescriptor,
   css?: boolean
 ) => void;
 
@@ -256,15 +256,15 @@ export type DDOMPropertyHandler = (
  * Supports reactive templates, function attributes, and static values.
  */
 export function handleAttributesProperty(
-  spec: DOMSpec, 
-  el: DOMNode, 
-  key: string, 
+  spec: DOMSpec,
+  el: DOMNode,
+  key: string,
   descriptor: PropertyDescriptor
 ): void {
   const value = descriptor.value;
   if (!value || typeof value !== 'object' || !(el instanceof Element)) return;
 
-  Object.entries(value).forEach(([attrName, attrValue]) => 
+  Object.entries(value).forEach(([attrName, attrValue]) =>
     processAttribute(el, attrName, attrValue)
   );
 }
@@ -272,8 +272,8 @@ export function handleAttributesProperty(
 /**
  * Simplified async handlers using createHandler wrapper
  */
-export const handleCustomElementsProperty = createHandler(
-  (value, el) => define(value)
+export const handleCustomElementsProperty = createHandler((value, el) =>
+  define(value)
 );
 
 export const handleDocumentProperty = createHandler(
@@ -291,8 +291,8 @@ export const handleHeadProperty = createHandler(
   (el) => el === document || 'documentElement' in el
 );
 
-export const handleWindowProperty = createHandler(
-  (value, el) => adoptNode(value as WindowSpec, window)
+export const handleWindowProperty = createHandler((value, el) =>
+  adoptNode(value as WindowSpec, window)
 );
 
 export const handleStyleProperty = createHandler(
@@ -303,38 +303,48 @@ export const handleStyleProperty = createHandler(
 /**
  * Unified property value assignment with all the DDOM logic.
  */
-function assignPropertyValue(el: any, key: string, descriptor: PropertyDescriptor): void {
+function assignPropertyValue(
+  el: any,
+  key: string,
+  descriptor: PropertyDescriptor
+): void {
   const value = descriptor.value;
-  
+
   // Handle ES6 getter/setter
   if (isGetterDescriptor(descriptor) || isSetterDescriptor(descriptor)) {
     bindAccessorProperty(el, key, descriptor);
     return;
   }
-  
+
   // Handle property accessor strings
   if (typeof value === 'string' && isPropertyAccessor(value)) {
     const resolved = resolvePropertyAccessor(value, el);
     if (resolved !== null) {
       el[key] = resolved;
     } else {
-      console.warn(`Failed to resolve property accessor "${value}" for property "${key}"`);
+      console.warn(
+        `Failed to resolve property accessor "${value}" for property "${key}"`
+      );
     }
     return;
   }
-  
+
   // Handle template literals
-  if (typeof value === 'string' && isTemplateLiteral(value) && !IMMUTABLE_PROPERTIES.has(key)) {
+  if (
+    typeof value === 'string' &&
+    isTemplateLiteral(value) &&
+    !IMMUTABLE_PROPERTIES.has(key)
+  ) {
     bindPropertyTemplate(el, key, value);
     return;
   }
-  
+
   // Handle functions
   if (typeof value === 'function') {
     el[key] = value;
     return;
   }
-  
+
   // Handle reactive properties
   if (shouldBeSignal(key, value)) {
     if (typeof value === 'object' && value !== null && Signal.isState(value)) {
@@ -344,7 +354,7 @@ function assignPropertyValue(el: any, key: string, descriptor: PropertyDescripto
     }
     return;
   }
-  
+
   // Default: set directly
   el[key] = value;
 }
@@ -353,9 +363,9 @@ function assignPropertyValue(el: any, key: string, descriptor: PropertyDescripto
  * Much simpler default handler!
  */
 export function handleDefaultProperty(
-  spec: DOMSpec, 
-  el: DOMNode, 
-  key: string, 
+  spec: DOMSpec,
+  el: DOMNode,
+  key: string,
   descriptor: PropertyDescriptor
 ): void {
   if (!Object.prototype.hasOwnProperty.call(el, key)) {
@@ -363,10 +373,17 @@ export function handleDefaultProperty(
   } else {
     // Property exists - update if it's a signal
     const existingValue = (el as any)[key];
-    
-    if (typeof existingValue === 'object' && existingValue !== null && Signal.isState(existingValue)) {
+
+    if (
+      typeof existingValue === 'object' &&
+      existingValue !== null &&
+      Signal.isState(existingValue)
+    ) {
       existingValue.set(descriptor.value);
-    } else if (typeof existingValue !== 'object' || !Signal.isComputed(existingValue)) {
+    } else if (
+      typeof existingValue !== 'object' ||
+      !Signal.isComputed(existingValue)
+    ) {
       (el as any)[key] = descriptor.value;
     }
   }
@@ -377,7 +394,7 @@ export function handleDefaultProperty(
  * This function serves as an index/dispatcher that returns the correct handler
  * based on the property name. Uses a switch statement for optimal performance
  * and clear code organization.
- * 
+ *
  * @param key - The property key to get a handler for
  * @returns The appropriate handler function for the property
  * @example
@@ -390,44 +407,44 @@ export function getHandler(key: string): DDOMPropertyHandler {
   switch (key) {
     case 'attributes':
       return handleAttributesProperty;
-    
+
     case 'customElements':
       return handleCustomElementsProperty;
-    
+
     case 'document':
       return handleDocumentProperty;
-    
+
     case 'body':
       return handleBodyProperty;
-    
+
     case 'head':
       return handleHeadProperty;
-    
+
     case 'style':
       return handleStyleProperty;
-    
+
     case 'window':
       return handleWindowProperty;
-    
+
     default:
       return handleDefaultProperty;
   }
 }
-
-
-
 
 // === TEMPLATE LITERAL PROCESSING ===
 
 /**
  * Evaluates JavaScript template literals using DOM nodes as context.
  * Uses native JavaScript template literal syntax with the context node as 'this'.
- * 
+ *
  * @param template - The template string to evaluate as a JavaScript template literal
  * @param contextNode - The DOM node to use as the context ('this') for template evaluation
  * @returns The template string evaluated with the context
  */
-export function parseTemplateLiteral(template: string, contextNode: Node): string {
+export function parseTemplateLiteral(
+  template: string,
+  contextNode: Node
+): string {
   try {
     return new Function('return `' + template + '`').call(contextNode);
   } catch (error) {
@@ -438,29 +455,34 @@ export function parseTemplateLiteral(template: string, contextNode: Node): strin
 
 /**
  * Creates a template function bound to a specific context.
- * 
+ *
  * @param template - The template string to bind
  * @returns A function that evaluates the template with the given context
  */
-export const bindTemplate = (template: string) => (context: any) => 
+export const bindTemplate = (template: string) => (context: any) =>
   new Function('return `' + template + '`').call(context);
 
 /**
  * Creates a Computed Signal that automatically re-evaluates a template
  * when its dependencies change.
- * 
+ *
  * @param template - The template string to make reactive
  * @param contextNode - The DOM node to use as context
  * @returns A Computed Signal that re-evaluates the template when dependencies change
  */
-export function computedTemplate(template: string, contextNode: Node): Signal.Computed<string> {
+export function computedTemplate(
+  template: string,
+  contextNode: Node
+): Signal.Computed<string> {
   const templateFn = bindTemplate(template);
-  
+
   return new Signal.Computed(() => {
     try {
       return templateFn(contextNode);
     } catch (error) {
-      console.warn(`Computed template evaluation failed: ${error}, Template: ${template}`);
+      console.warn(
+        `Computed template evaluation failed: ${error}, Template: ${template}`
+      );
       return template;
     }
   });
@@ -470,14 +492,14 @@ export function computedTemplate(template: string, contextNode: Node): Signal.Co
  * Sets up reactive template binding for a property.
  */
 export function bindPropertyTemplate(
-  el: any, 
-  property: string, 
+  el: any,
+  property: string,
   template: string
 ): () => void {
   return bindReactiveTemplate(
     template,
     el,
-    (newValue) => el[property] = newValue,
+    (newValue) => (el[property] = newValue),
     (newValue) => el[property] !== newValue
   );
 }
@@ -486,8 +508,8 @@ export function bindPropertyTemplate(
  * Sets up reactive template binding for an attribute.
  */
 export function bindAttributeTemplate(
-  el: Element, 
-  attribute: string, 
+  el: Element,
+  attribute: string,
   template: string
 ): () => void {
   return bindReactiveTemplate(
@@ -509,7 +531,7 @@ export function bindAttributeTemplate(
 /**
  * Resolves a property accessor string to its actual value.
  * Supports any resolvable JavaScript property path, including signals, objects, arrays, functions, etc.
- * 
+ *
  * @param accessor - The property accessor string
  * @param contextNode - The context node for resolving "this" references
  * @returns The resolved value or null if resolution fails
@@ -517,18 +539,21 @@ export function bindAttributeTemplate(
  * ```typescript
  * // Access a signal
  * const signal = resolvePropertyAccessor('this.parentNode.$count', element);
- * 
+ *
  * // Access any object property
  * const config = resolvePropertyAccessor('window.appConfig', element);
- * 
+ *
  * // Access nested properties
  * const user = resolvePropertyAccessor('document.currentUser.profile', element);
- * 
+ *
  * // Access arrays
  * const items = resolvePropertyAccessor('this.parentNode.itemList', element);
  * ```
  */
-export function resolvePropertyAccessor(accessor: string, contextNode: Node): any {
+export function resolvePropertyAccessor(
+  accessor: string,
+  contextNode: Node
+): any {
   try {
     const resolved = new Function('return ' + accessor).call(contextNode);
     return resolved;
@@ -543,7 +568,7 @@ export function resolvePropertyAccessor(accessor: string, contextNode: Node): an
 /**
  * Converts a getter function into a computed signal and sets up reactive property binding.
  * This enables ES6 getter syntax to work with DDOM's reactive system.
- * 
+ *
  * @param el - The DOM element
  * @param property - The property name
  * @param getter - The getter function
@@ -559,27 +584,38 @@ export function bindGetterProperty(
     try {
       return getter.call(el);
     } catch (error) {
-      console.warn(`Getter evaluation failed for property "${property}":`, error);
+      console.warn(
+        `Getter evaluation failed for property "${property}":`,
+        error
+      );
       return undefined;
     }
   });
-  
+
   const isDOMProperty = IMPERATIVE_PROPERTIES.has(property);
-  
+
   if (isDOMProperty) {
-    // For DOM properties, set up reactive updates using the unified binding utility
-    return createReactiveBinding(
-      computedValue,
-      (newValue) => (el as any)[property] = newValue
-    );
+    // For DOM properties, set up reactive updates that modify the actual DOM property
+    return createReactiveBinding(computedValue, (newValue) => {
+      // Use Object.getOwnPropertyDescriptor to get the native setter if it exists
+      const descriptor = Object.getOwnPropertyDescriptor(
+        Object.getPrototypeOf(el),
+        property
+      );
+      if (descriptor && descriptor.set) {
+        descriptor.set.call(el, newValue);
+      } else {
+        (el as any)[property] = newValue;
+      }
+    });
   } else {
     // For non-DOM properties, define a getter that returns the computed value
     Object.defineProperty(el, property, {
       get: () => computedValue.get(),
       configurable: true,
-      enumerable: true
+      enumerable: true,
     });
-    
+
     return () => {}; // No cleanup needed for simple getters
   }
 }
@@ -587,7 +623,7 @@ export function bindGetterProperty(
 /**
  * Sets up a setter function as a reactive property updater.
  * This enables ES6 setter syntax to work with DDOM's reactive system.
- * 
+ *
  * @param el - The DOM element
  * @param property - The property name
  * @param setter - The setter function
@@ -599,15 +635,18 @@ export function bindSetterProperty(
 ): void {
   // Define a property with the setter that can be called reactively
   Object.defineProperty(el, property, {
-    set: function(value: any) {
+    set: function (value: any) {
       try {
         setter.call(this, value);
       } catch (error) {
-        console.warn(`Setter evaluation failed for property "${property}":`, error);
+        console.warn(
+          `Setter evaluation failed for property "${property}":`,
+          error
+        );
       }
     },
     configurable: true,
-    enumerable: true
+    enumerable: true,
   });
 }
 
@@ -615,7 +654,7 @@ export function bindSetterProperty(
  * Sets up getter and/or setter for a property with ES6 accessor support.
  * For getters: Creates computed signal + effect that updates the property
  * For setters: Defines the property with the setter function
- * 
+ *
  * @param el - The DOM element
  * @param property - The property name
  * @param descriptor - The property descriptor with get and/or set
@@ -626,35 +665,25 @@ export function bindAccessorProperty(
   property: string,
   descriptor: PropertyDescriptor
 ): (() => void) | undefined {
-  if (descriptor.get && descriptor.set) {
-    // Both getter and setter - use the original approach for now
-    Object.defineProperty(el, property, {
-      get: descriptor.get,
-      set: descriptor.set,
-      configurable: true,
-      enumerable: true
-    });
-    return undefined;
-  } else if (descriptor.get) {
-    // Getter only - create computed signal for reactivity
+  if (IMPERATIVE_PROPERTIES.has(property) && descriptor.get) {
+    // if it's a DOM property with a getter, bind it as a computed signal
+    // This allows the getter to be reactive and update the property dynamically
     return bindGetterProperty(el, property, descriptor.get);
-  } else if (descriptor.set) {
-    // Setter only - define property with setter
+  } else {
     Object.defineProperty(el, property, {
-      set: descriptor.set,
+      ...(descriptor.set && { set: descriptor.set }),
+      ...(descriptor.get && { get: descriptor.get }),
       configurable: true,
-      enumerable: true
+      enumerable: true,
     });
     return undefined;
   }
-  
-  return undefined;
 }
 
 /**
  * Processes a property using the appropriate DDOM handler.
  * This is the main entry point for property processing, dispatching to specialized handlers.
- * 
+ *
  * @param spec - The declarative DOM specification
  * @param el - The target DOM node
  * @param key - The property key
@@ -677,21 +706,21 @@ export function processProperty(
 /**
  * Adopts CSS styles for an element using scoped selectors.
  * Generates unique selectors and applies styles to the global DDOM stylesheet.
- * 
+ *
  * @param el - The DOM element to apply styles to
  * @param styles - The declarative CSS properties object
  */
 async function adoptStyles(el: Element, styles: StyleExpr): Promise<void> {
   // Generate a unique selector for this element
   const selector = el.id ? `#${el.id}` : generatePathSelector(el);
-  
+
   insertRules(styles, selector);
 }
 
 /**
  * Generates a path-based CSS selector for an element.
  * Creates a unique selector using element hierarchy and nth-of-type selectors.
- * 
+ *
  * @param el - The element to generate a selector for
  * @returns A unique CSS selector string
  */
