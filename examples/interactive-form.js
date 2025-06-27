@@ -70,11 +70,11 @@ export default {
       },
 
       attributes: {
-        'data-valid': () => this.$isValid(),
-        'data-show-error': () => this.$shouldShowError(),
-        'data-field-type': () => this.$type.get(),
-        'data-is-input': () => this.$isInputField(),
-        'data-is-textarea': () => this.$isTextareaField(),
+        'data-valid': function() { return this.$isValid(); },
+        'data-show-error': function() { return this.$shouldShowError(); },
+        'data-field-type': function() { return this.$type.get(); },
+        'data-is-input': function() { return this.$isInputField(); },
+        'data-is-textarea': function() { return this.$isTextareaField(); },
       },
 
       style: {
@@ -132,8 +132,11 @@ export default {
             return this.$type.get();
           },
           get placeholder() {
+            // debug
+            console.log('Placeholder:', this.$placeholder.get());
             return this.$placeholder.get();
           },
+          // placeholder: '${this.$placeholder.get()}', // Use template literal for placeholder
           get value() {
             return this.$value.get();
           },
@@ -280,7 +283,7 @@ export default {
           $errorMessage: 'Name must be at least 2 characters',
           validator: (value) => value.trim().length >= 2,
           // Inherit the value signal from parent
-          $value: '$name',
+          $value: 'this.$name',
         },
         {
           tagName: 'form-field',
@@ -291,7 +294,7 @@ export default {
           validator: (value) =>
             value.includes('@') && value.includes('.') && value.length > 5,
           // Inherit the value signal from parent
-          $value: '$email',
+          $value: 'this.$email',
         },
         {
           tagName: 'form-field',
@@ -302,7 +305,7 @@ export default {
           $errorMessage: 'Message must be at least 10 characters',
           validator: (value) => value.trim().length >= 10,
           // Inherit the value signal from parent
-          $value: '$message',
+          $value: 'this.$message',
         },
         {
           tagName: 'div',
@@ -317,7 +320,7 @@ export default {
               type: 'button',
               textContent: 'Submit Form',
               className: 'submit-button',
-              disabled: () => !this.$isFormValid(),
+              disabled: function() { return !this.$isFormValid(); },
               style: {
                 flex: '1',
                 padding: '0.75em',
@@ -386,8 +389,9 @@ export default {
                 },
                 {
                   tagName: 'div',
-                  textContent: () =>
-                    `Valid: ${this.$isFormValid() ? "Yes" : "No"}`,
+                  textContent: function() {
+                    return `Valid: ${this.$isFormValid() ? "Yes" : "No"}`;
+                  },
                   className: 'form-status',
                   style: {
                     marginTop: '0.5em',

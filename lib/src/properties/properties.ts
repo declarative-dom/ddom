@@ -73,8 +73,7 @@ export function isPropertyAccessor(value: string): boolean {
   return (
     value.startsWith('window.') ||
     value.startsWith('document.') ||
-    value.startsWith('this.') ||
-    (value.startsWith('$') && !value.startsWith('${'))
+    value.startsWith('this.')
   );
 }
 
@@ -110,7 +109,7 @@ export function isSetterDescriptor(descriptor: PropertyDescriptor): boolean {
 export function shouldBeSignal(key: string, value: any): boolean {
   return (
     key.startsWith('$') && 
-    !key.startsWith('${') && // Not a template literal
+    !(typeof value === 'string' && value.includes('${')) && // Not a template literal
     typeof value !== 'function'
   );
 }

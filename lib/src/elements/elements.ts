@@ -73,6 +73,8 @@ export function adoptNode(
 
   // Inherit parent reactive properties directly (simple assignment)
   if (scopeReactiveProperties) {
+	// debug
+	console.debug('Inheriting scope reactive properties:', scopeReactiveProperties);
     Object.assign(el, scopeReactiveProperties);
   }
 
@@ -95,7 +97,7 @@ export function adoptNode(
   let allIgnoreKeys = [
     'children',
     ...ignoreKeys,
-    ...Object.keys(allReactiveProperties),
+    ...Object.keys(allReactiveProperties || {}),
   ];
 
   // Handle protected properties first (id, tagName) - set once, never reactive
