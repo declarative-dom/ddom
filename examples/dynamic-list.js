@@ -47,7 +47,7 @@ export default {
       children: [
         {
           tagName: 'h1',
-          textContent: 'Dynamic List - New Reactivity Model',
+          textContent: 'Dynamic List - DDOM Reactivity Model',
           style: {
             color: '#333',
             textAlign: 'center',

@@ -143,7 +143,7 @@ Styles are represented as objects with CSSOM camelCase property names and suppor
 }
 ```
 
-### 🎯 Inherited / Reactive Properties
+### 🎯 Scoped & Reactive Properties
 
 Properties prefixed with `$` are shared / inherited across the current scope, and non-function properties automatically become Signals to facilitate reactivity. The type of signal depends on the value:
 
