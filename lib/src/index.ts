@@ -2,18 +2,18 @@ import { adoptDocument, adoptNode, adoptWindow, appendChild, createElement } fro
 import { adoptStyleSheet, clearStyleSheet } from './styleSheets/styleSheets';
 import { define } from './customElements/customElements';
 import { MappedArray } from './arrays/arrays';
-import { createEffect, createReactiveProperty, ComponentSignalWatcher } from './events/Signal';
+import { createEffect, ComponentSignalWatcher } from './events/Signal';
 import { Signal } from 'signal-polyfill';
-import { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate, isPropertyAccessor, resolvePropertyAccessor } from './properties';
+import { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate, isPropertyAccessor, resolvePropertyAccessor, createReactiveProperty } from './properties';
 
 // Named exports for compatibility
 export { adoptDocument, adoptNode, adoptWindow, createElement } from './elements/elements';
 export { adoptStyleSheet, clearStyleSheet } from './styleSheets/styleSheets';
 export { define } from './customElements/customElements';
-export { createEffect, createReactiveProperty, ComponentSignalWatcher } from './events/Signal';
+export { createEffect, ComponentSignalWatcher } from './events/Signal';
 export { Signal } from 'signal-polyfill';
 export { MappedArray } from './arrays/arrays';
-export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate, isPropertyAccessor, resolvePropertyAccessor } from './properties';
+export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate, isPropertyAccessor, resolvePropertyAccessor, createReactiveProperty } from './properties';
 
 // Default export: DDOM function with namespace properties
 function DDOM(spec: any) {

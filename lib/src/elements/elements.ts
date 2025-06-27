@@ -17,10 +17,7 @@ import { processProperty } from '../properties';
 /**
  * Type definition for scope property injection data.
  */
-export type ReactiveProperties = {
-  names: string[];
-  values: (Signal.State<any> | Signal.Computed<any>)[];
-};
+export type ReactiveProperties = Record<string, Signal.State<any> | Signal.Computed<any> | Function>;
 
 
 /**
@@ -76,9 +73,7 @@ export function adoptNode(
 
   // Inherit parent reactive properties directly (simple assignment)
   if (scopeReactiveProperties) {
-    scopeReactiveProperties.names.forEach((name, index) => {
-      (el as any)[name] = scopeReactiveProperties.values[index];
-    });
+    Object.assign(el, scopeReactiveProperties);
   }
 
   // Filter reactive properties from spec for processing and child inheritance
@@ -93,20 +88,14 @@ export function adoptNode(
 
   // Combine parent and local reactive properties for children
   const allReactiveProperties: ReactiveProperties = {
-    names: [...(scopeReactiveProperties?.names ?? [])],
-    values: [...(scopeReactiveProperties?.values ?? [])],
+    ...scopeReactiveProperties,
+    ...Object.fromEntries(localReactiveProperties.map(([key]) => [key, (el as any)[key]]))
   };
-  
-  // Add this element's reactive properties
-  localReactiveProperties.forEach(([key]) => {
-    allReactiveProperties.names.push(key);
-    allReactiveProperties.values.push((el as any)[key]);
-  });
 
   let allIgnoreKeys = [
     'children',
     ...ignoreKeys,
-    ...allReactiveProperties.names,
+    ...Object.keys(allReactiveProperties),
   ];
 
   // Handle protected properties first (id, tagName) - set once, never reactive

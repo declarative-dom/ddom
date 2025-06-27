@@ -20,7 +20,6 @@ import {
   Signal,
   createEffect,
   ComponentSignalWatcher,
-  createReactiveProperty,
 } from '../events';
 
 import { insertRules } from '../styleSheets';
@@ -114,6 +113,23 @@ export function shouldBeSignal(key: string, value: any): boolean {
     !key.startsWith('${') && // Not a template literal
     typeof value !== 'function'
   );
+}
+
+// === REACTIVE PROPERTY CREATION ===
+
+/**
+ * Creates a reactive property using a direct Signal.State object.
+ * This ensures proper dependency tracking with the TC39 Signals polyfill.
+ * 
+ * @param el - The element to attach the property to
+ * @param property - The property name
+ * @param initialValue - The initial value for the property
+ * @returns The Signal.State instance
+ */
+export function createReactiveProperty(el: any, property: string, initialValue: any): Signal.State<any> {
+  const signal = new Signal.State(initialValue);
+  el[property] = signal;
+  return signal;
 }
 
 // === REACTIVE BINDING UTILITIES ===
