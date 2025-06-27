@@ -1,71 +1,32 @@
 import {
-	MappedArrayExpr,
-	DocumentSpec,
-	DOMSpec,
-	HTMLElementSpec,
-	WindowSpec,
-	DOMNode,
+  MappedArrayExpr,
+  DocumentSpec,
+  DOMSpec,
+  HTMLElementSpec,
+  WindowSpec,
+  DOMNode,
 } from '../../../types/src';
 
-import {
-	MappedArray,
-	isMappedArrayExpr,
-} from '../arrays';
+import { MappedArray, isMappedArrayExpr } from '../arrays';
 
-import {
-	createEffect,
-	ComponentSignalWatcher,
-	Signal,
-} from '../events';
+import { createEffect, ComponentSignalWatcher, Signal } from '../events';
 
-import {
-	processProperty,
-	DollarProperties,
-} from '../properties';
+import { processProperty } from '../properties';
+
 
 /**
- * Extracts dollar-prefixed properties from a spec and processes them into signals.
- * Returns the processed dollar properties for injection into other properties.
- * 
- * @param spec - The declarative DOM specification
- * @param el - The target DOM node
- * @param specDescriptors - Property descriptors from the spec
- * @returns Object containing dollar property names and their processed values
+ * Type definition for scope property injection data.
  */
-function extractAndProcessDollarProperties(
-	spec: DOMSpec,
-	el: DOMNode,
-	specDescriptors: Record<string, PropertyDescriptor>
-): DollarProperties {
-	const dollarEntries = Object.entries(specDescriptors)
-		.filter(([key]) => key.startsWith('$'));
-	
-	if (dollarEntries.length === 0) {
-		return { names: [], values: [] };
-	}
-	
-	const names: string[] = [];
-	const values: any[] = [];
-	
-	// Process each dollar property first to get their signal values
-	dollarEntries.forEach(([key, descriptor]) => {
-		// Process the property to initialize it (creates signals, etc.)
-		processProperty(spec, el, key, descriptor);
-		
-		// Get the processed value from the element
-		const processedValue = (el as any)[key];
-		
-		names.push(key);
-		values.push(processedValue);
-	});
-	
-	return { names, values };
-}
+export type ReactiveProperties = {
+  names: string[];
+  values: (Signal.State<any> | Signal.Computed<any>)[];
+};
+
 
 /**
  * Adopts a DocumentSpec into the current document context.
  * This function applies the declarative document properties to the global document object.
- * 
+ *
  * @param spec The declarative document object to adopt
  * @example
  * ```typescript
@@ -76,20 +37,19 @@ function extractAndProcessDollarProperties(
  * ```
  */
 export function adoptDocument(spec: DocumentSpec) {
-	adoptNode(spec, document);
+  adoptNode(spec, document);
 }
-
 
 /**
  * Renders a declarative DOM specification on an existing DOM node.
  * This function applies properties from the declarative object to the target element,
  * handling children, attributes, styles, and other properties appropriately.
- * 
+ *
  * Uses the new reactivity model:
  * - Template literals with ${...} get computed signals + effects
  * - Non-function, non-templated properties get transparent signal proxies
  * - Protected properties (id, tagName) are set once and never reactive
- * 
+ *
  * @param spec The declarative DOM object to adopt
  * @param el The target DOM node to apply properties to
  * @param css Whether to process CSS styles (default: true)
@@ -104,60 +64,88 @@ export function adoptDocument(spec: DocumentSpec) {
  * }, myElement);
  * ```
  */
-export function adoptNode(spec: DOMSpec, el: DOMNode, css: boolean = true, ignoreKeys: string[] = [], parentDollarProperties?: DollarProperties): void {
-	// Process all properties using descriptors - handles both values and native getters/setters
-	const specDescriptors = Object.getOwnPropertyDescriptors(spec);
+export function adoptNode(
+  spec: DOMSpec,
+  el: DOMNode,
+  css: boolean = true,
+  ignoreKeys: string[] = [],
+  scopeReactiveProperties?: ReactiveProperties
+): void {
+  // Process all properties using descriptors - handles both values and native getters/setters
+  const specDescriptors = Object.getOwnPropertyDescriptors(spec);
 
-	// Extract and process dollar properties first (only if no parent dollar properties)
-	const localDollarProperties = parentDollarProperties || extractAndProcessDollarProperties(spec, el, specDescriptors);
-	
-	// If we have dollar properties, attach them to this element as well for accessibility
-	if (localDollarProperties.names.length > 0) {
-		localDollarProperties.names.forEach((name, index) => {
-			(el as any)[name] = localDollarProperties.values[index];
-		});
-	}
-	
-	let allIgnoreKeys = ['children', ...ignoreKeys, ...localDollarProperties.names];
+  // Inherit parent reactive properties directly (simple assignment)
+  if (scopeReactiveProperties) {
+    scopeReactiveProperties.names.forEach((name, index) => {
+      (el as any)[name] = scopeReactiveProperties.values[index];
+    });
+  }
 
-	// Handle protected properties first (id, tagName) - set once, never reactive
-	if ('id' in spec && spec.id !== undefined && el instanceof HTMLElement) {
-		processProperty(spec, el, 'id', specDescriptors.id, css, localDollarProperties);
-		allIgnoreKeys.push('id');
-	}
+  // Filter reactive properties from spec for processing and child inheritance
+  const localReactiveProperties = Object.entries(specDescriptors).filter(([key]) =>
+    key.startsWith('$')
+  );
 
-	// Process all other properties with new reactivity model
-	Object.entries(specDescriptors).forEach(([key, descriptor]) => {
-		if (allIgnoreKeys.includes(key)) {
-			return;
-		}
-		processProperty(spec, el, key, descriptor, css, localDollarProperties);
-	});
+  // Process reactive properties directly on this element
+  localReactiveProperties.forEach(([key, descriptor]) => {
+    processProperty(spec, el, key, descriptor, css);
+  });
 
-	// Handle children last to ensure all properties are set before appending
-	if ('children' in spec && spec.children) {
-		const children = spec.children;
-		if (isMappedArrayExpr(children)) {
-			try {
-				adoptArray(children, el as Element, css, localDollarProperties);
-			} catch (error) {
-				console.warn(`Failed to process MappedArrayExpr for children:`, error);
-			}
-		} else if (Array.isArray(children)) {
-			children.forEach((child: HTMLElementSpec) => {
-				appendChild(child, el as DOMNode, css, localDollarProperties);
-			});
-		} else {
-			console.warn(`Invalid children value for key "children":`, children);
-		}
-	}
+  // Combine parent and local reactive properties for children
+  const allReactiveProperties: ReactiveProperties = {
+    names: [...(scopeReactiveProperties?.names ?? [])],
+    values: [...(scopeReactiveProperties?.values ?? [])],
+  };
+  
+  // Add this element's reactive properties
+  localReactiveProperties.forEach(([key]) => {
+    allReactiveProperties.names.push(key);
+    allReactiveProperties.values.push((el as any)[key]);
+  });
+
+  let allIgnoreKeys = [
+    'children',
+    ...ignoreKeys,
+    ...allReactiveProperties.names,
+  ];
+
+  // Handle protected properties first (id, tagName) - set once, never reactive
+  if ('id' in spec && spec.id !== undefined && el instanceof HTMLElement) {
+    processProperty(spec, el, 'id', specDescriptors.id, css);
+    allIgnoreKeys.push('id');
+  }
+
+  // Process all other properties with new reactivity model
+  Object.entries(specDescriptors).forEach(([key, descriptor]) => {
+    if (allIgnoreKeys.includes(key)) {
+      return;
+    }
+    processProperty(spec, el, key, descriptor, css);
+  });
+
+  // Handle children last to ensure all properties are set before appending
+  if ('children' in spec && spec.children) {
+    const children = spec.children;
+    if (isMappedArrayExpr(children)) {
+      try {
+        adoptArray(children, el as Element, css, allReactiveProperties);
+      } catch (error) {
+        console.warn(`Failed to process MappedArrayExpr for children:`, error);
+      }
+    } else if (Array.isArray(children)) {
+      children.forEach((child: HTMLElementSpec) => {
+        appendChild(child, el as DOMNode, css, allReactiveProperties);
+      });
+    } else {
+      console.warn(`Invalid children value for key "children":`, children);
+    }
+  }
 }
-
 
 /**
  * Adopts a WindowSpec into the current window context.
  * This function applies the declarative window properties to the global window object.
- * 
+ *
  * @param spec The declarative window object to adopt
  * @example
  * ```typescript
@@ -168,16 +156,15 @@ export function adoptNode(spec: DOMSpec, el: DOMNode, css: boolean = true, ignor
  * ```
  */
 export function adoptWindow(spec: WindowSpec) {
-	adoptNode(spec, window);
+  adoptNode(spec, window);
 }
-
 
 /**
  * Creates an HTML element from a declarative element definition and appends it to a parent node.
  * This function constructs a real DOM element based on the provided declarative structure,
  * applying all properties, attributes, children, and event handlers, then immediately appends
  * it to the specified parent node.
- * 
+ *
  * @param spec The declarative HTML element definition
  * @param parentNode The parent node to append the created element to
  * @param css Whether to process CSS styles (default: true)
@@ -191,26 +178,36 @@ export function adoptWindow(spec: WindowSpec) {
  * }, document.body);
  * ```
  */
-export function appendChild(spec: HTMLElementSpec, parentNode: DOMNode, css: boolean = true, parentDollarProperties?: DollarProperties): HTMLElement {
-	const el = document.createElement(spec.tagName) as HTMLElement;
+export function appendChild(
+  spec: HTMLElementSpec,
+  parentNode: DOMNode,
+  css: boolean = true,
+  scopeReactiveProperties?: ReactiveProperties
+): HTMLElement {
+  const el = document.createElement(spec.tagName) as HTMLElement;
 
-	// Append the element to the provided parent node
-	if ('appendChild' in parentNode) {
-		parentNode.appendChild(el);
-	}
+  // Append the element to the provided parent node
+  if ('appendChild' in parentNode) {
+    parentNode.appendChild(el);
+  }
 
-	// Apply all properties using the unified dispatch table
-	adoptNode(spec, el, css, ['id', 'parentNode', 'tagName'], parentDollarProperties);
+  // Apply all properties using the unified dispatch table
+  adoptNode(
+    spec,
+    el,
+    css,
+    ['id', 'parentNode', 'tagName'],
+    scopeReactiveProperties
+  );
 
-	return el;
+  return el;
 }
-
 
 /**
  * Creates an HTML element from a declarative element definition.
  * This function constructs a real DOM element based on the provided declarative structure,
  * applying all properties, attributes, children, and event handlers.
- * 
+ *
  * @param spec The declarative HTML element definition
  * @param css Whether to process CSS styles (default: true)
  * @returns The created HTML element
@@ -223,237 +220,262 @@ export function appendChild(spec: HTMLElementSpec, parentNode: DOMNode, css: boo
  * });
  * ```
  */
-export function createElement(spec: HTMLElementSpec, css: boolean = true, parentDollarProperties?: DollarProperties): HTMLElement {
-	const el = document.createElement(spec.tagName) as HTMLElement;
+export function createElement(
+  spec: HTMLElementSpec,
+  css: boolean = true,
+  scopeReactiveProperties?: ReactiveProperties
+): HTMLElement {
+  const el = document.createElement(spec.tagName) as HTMLElement;
 
-	// Apply all properties using the unified dispatch table
-	adoptNode(spec, el, css, ['id', 'parentNode', 'tagName'], parentDollarProperties);
+  // Apply all properties using the unified dispatch table
+  adoptNode(
+    spec,
+    el,
+    css,
+    ['id', 'parentNode', 'tagName'],
+    scopeReactiveProperties
+  );
 
-	return el;
+  return el;
 }
 
 /**
  * Adopts a MappedArrayExpr and renders its items as DOM elements in the parent container
- * 
+ *
  * This function creates a reactive MappedArrayExpr instance and renders each mapped item
  * as a DOM element, properly handling reactive properties and leveraging existing element
  * creation functions.
- * 
+ *
  * Uses modern fine-grained updates instead of clearing and re-rendering everything.
- * 
+ *
  * @param arrayExpr - The MappedArray configuration
  * @param parentElement - The parent DOM element to render items into
  * @param css - Whether to process CSS styles (default: true)
  */
 export function adoptArray<T>(
-	arrayExpr: MappedArrayExpr<T, any>,
-	parentElement: Element,
-	css = true,
-	parentDollarProperties?: DollarProperties
+  arrayExpr: MappedArrayExpr<T, any>,
+  parentElement: Element,
+  css = true,
+  scopeReactiveProperties?: ReactiveProperties
 ): void {
-	// Create the reactive MappedArrayExpr instance
-	const reactiveArray = new MappedArray(arrayExpr, parentElement);
+  // Create the reactive MappedArrayExpr instance
+  const reactiveArray = new MappedArray(arrayExpr, parentElement);
 
-	// Keep track of rendered elements by index for efficient updates
-	const renderedElements = new Map<number, Element>();
-	let previousItems: any[] = [];
+  // Keep track of rendered elements by index for efficient updates
+  const renderedElements = new Map<number, Element>();
+  let previousItems: any[] = [];
 
-	// Function to update the current array state with fine-grained updates
-	// True key-based diffing inspired by the futuristic ComponentRepeater
-	const updateArray = (items: any[]) => {
-		// Track components by stable keys, not indices
-		const currentKeys = new Set<string>();
-		const newComponentsByKey = new Map<string, Element>();
-		const keysToCreate = new Set<string>();
-		const keysToUpdate = new Set<string>();
-		const keysToRemove = new Set<string>();
+  // Function to update the current array state with fine-grained updates
+  // True key-based diffing inspired by the futuristic ComponentRepeater
+  const updateArray = (items: any[]) => {
+    // Track components by stable keys, not indices
+    const currentKeys = new Set<string>();
+    const newComponentsByKey = new Map<string, Element>();
+    const keysToCreate = new Set<string>();
+    const keysToUpdate = new Set<string>();
+    const keysToRemove = new Set<string>();
 
-		// Build sets of current and new keys
-		const previousKeys = new Set(previousItems.map(item => item.id || JSON.stringify(item)));
+    // Build sets of current and new keys
+    const previousKeys = new Set(
+      previousItems.map((item) => item.id || JSON.stringify(item))
+    );
 
-		items.forEach((item: any) => {
-			if (item && typeof item === 'object' && item.tagName) {
-				const key = item.id || JSON.stringify(item);
-				currentKeys.add(key);
+    items.forEach((item: any) => {
+      if (item && typeof item === 'object' && item.tagName) {
+        const key = item.id || JSON.stringify(item);
+        currentKeys.add(key);
 
-				if (previousKeys.has(key)) {
-					// Check if properties changed
-					const previousItem = previousItems.find(prev => 
-						(prev.id || JSON.stringify(prev)) === key
-					);
-					if (!deepEqual(item, previousItem)) {
-						keysToUpdate.add(key);
-					}
-				} else {
-					keysToCreate.add(key);
-				}
-			}
-		});
+        if (previousKeys.has(key)) {
+          // Check if properties changed
+          const previousItem = previousItems.find(
+            (prev) => (prev.id || JSON.stringify(prev)) === key
+          );
+          if (!deepEqual(item, previousItem)) {
+            keysToUpdate.add(key);
+          }
+        } else {
+          keysToCreate.add(key);
+        }
+      }
+    });
 
-		// Native Set difference operations (simulated)
-		for (const key of previousKeys) {
-			if (!currentKeys.has(key)) {
-				keysToRemove.add(key);
-			}
-		}
+    // Native Set difference operations (simulated)
+    for (const key of previousKeys) {
+      if (!currentKeys.has(key)) {
+        keysToRemove.add(key);
+      }
+    }
 
-		// Remove unused components
-		keysToRemove.forEach(key => {
-			const index = previousItems.findIndex(item => 
-				(item.id || JSON.stringify(item)) === key
-			);
-			if (index >= 0) {
-				const element = renderedElements.get(index);
-				if (element && element.parentNode === parentElement) {
-					element.remove();
-				}
-				renderedElements.delete(index);
-			}
-		});
+    // Remove unused components
+    keysToRemove.forEach((key) => {
+      const index = previousItems.findIndex(
+        (item) => (item.id || JSON.stringify(item)) === key
+      );
+      if (index >= 0) {
+        const element = renderedElements.get(index);
+        if (element && element.parentNode === parentElement) {
+          element.remove();
+        }
+        renderedElements.delete(index);
+      }
+    });
 
-		// Create new components
-		keysToCreate.forEach(key => {
-			const item = items.find(item => (item.id || JSON.stringify(item)) === key);
-			if (item) {
-				const element = createElement(item, css, parentDollarProperties);
-				newComponentsByKey.set(key, element);
-			}
-		});
+    // Create new components
+    keysToCreate.forEach((key) => {
+      const item = items.find(
+        (item) => (item.id || JSON.stringify(item)) === key
+      );
+      if (item) {
+        const element = createElement(item, css, scopeReactiveProperties);
+        newComponentsByKey.set(key, element);
+      }
+    });
 
-		// Update existing components (property-level diffing)
-		keysToUpdate.forEach(key => {
-			const item = items.find(item => (item.id || JSON.stringify(item)) === key);
-			const previousIndex = previousItems.findIndex(prev => 
-				(prev.id || JSON.stringify(prev)) === key
-			);
+    // Update existing components (property-level diffing)
+    keysToUpdate.forEach((key) => {
+      const item = items.find(
+        (item) => (item.id || JSON.stringify(item)) === key
+      );
+      const previousIndex = previousItems.findIndex(
+        (prev) => (prev.id || JSON.stringify(prev)) === key
+      );
 
-			if (item && previousIndex >= 0) {
-				const element = renderedElements.get(previousIndex);
-				if (element) {
+      if (item && previousIndex >= 0) {
+        const element = renderedElements.get(previousIndex);
+        if (element) {
+          // Granular property updates
+          Object.entries(item).forEach(([prop, value]) => {
+            if (prop !== 'tagName' && (element as any)[prop] !== value) {
+              if (typeof value === 'object' && value !== null) {
+                // For complex objects, use adoptNode for deep updates
+                adoptNode({ [prop]: value } as any, element as any, css);
+              } else {
+                (element as any)[prop] = value;
+              }
+            }
+          });
 
-					// Granular property updates
-					Object.entries(item).forEach(([prop, value]) => {
-						if (prop !== 'tagName' && (element as any)[prop] !== value) {
-							if (typeof value === 'object' && value !== null) {
-								// For complex objects, use adoptNode for deep updates
-								adoptNode({ [prop]: value } as any, element as any, css);
-							} else {
-								(element as any)[prop] = value;
-							}
-						}
-					});
+          newComponentsByKey.set(key, element);
+        }
+      }
+    });
 
-					newComponentsByKey.set(key, element);
-				}
-			}
-		});
+    // Reuse unchanged components
+    currentKeys.forEach((key) => {
+      if (!keysToCreate.has(key) && !keysToUpdate.has(key)) {
+        const previousIndex = previousItems.findIndex(
+          (prev) => (prev.id || JSON.stringify(prev)) === key
+        );
+        if (previousIndex >= 0) {
+          const element = renderedElements.get(previousIndex);
+          if (element) {
+            newComponentsByKey.set(key, element);
+          }
+        }
+      }
+    });
 
-		// Reuse unchanged components
-		currentKeys.forEach(key => {
-			if (!keysToCreate.has(key) && !keysToUpdate.has(key)) {
-				const previousIndex = previousItems.findIndex(prev => 
-					(prev.id || JSON.stringify(prev)) === key
-				);
-				if (previousIndex >= 0) {
-					const element = renderedElements.get(previousIndex);
-					if (element) {
-						newComponentsByKey.set(key, element);
-					}
-				}
-			}
-		});
+    // Efficient DOM manipulation with fragments
+    const orderedElements = items
+      .map((item) => newComponentsByKey.get(item.id || JSON.stringify(item)))
+      .filter((element): element is Element => element !== undefined);
 
-		// Efficient DOM manipulation with fragments
-		const orderedElements = items
-			.map(item => newComponentsByKey.get(item.id || JSON.stringify(item)))
-			.filter((element): element is Element => element !== undefined);
+    // Surgical DOM manipulation - only touch what changed (inspired by React reconciliation)
+    if (
+      keysToCreate.size > 0 ||
+      keysToRemove.size > 0 ||
+      keysToUpdate.size > 0
+    ) {
+      // Get current children
+      const currentChildren = Array.from(parentElement.children);
 
-		// Surgical DOM manipulation - only touch what changed (inspired by React reconciliation)
-		if (keysToCreate.size > 0 || keysToRemove.size > 0 || keysToUpdate.size > 0) {
+      if (orderedElements.length === 0) {
+        // Clear all children if no elements needed
+        parentElement.replaceChildren();
+      } else if (currentChildren.length === 0) {
+        // Initial render - use fragment
+        const fragment = document.createDocumentFragment();
+        orderedElements.forEach((element) => fragment.appendChild(element));
+        parentElement.appendChild(fragment);
+      } else {
+        // Precise DOM updates - only move/add/remove what's needed
+        const currentElementSet = new Set(currentChildren);
+        const newElementSet = new Set(orderedElements);
 
-			// Get current children
-			const currentChildren = Array.from(parentElement.children);
+        // Remove elements that shouldn't be there anymore
+        for (const element of currentChildren) {
+          if (!newElementSet.has(element)) {
+            element.remove();
+          }
+        }
 
-			if (orderedElements.length === 0) {
-				// Clear all children if no elements needed
-				parentElement.replaceChildren();
-			} else if (currentChildren.length === 0) {
-				// Initial render - use fragment
-				const fragment = document.createDocumentFragment();
-				orderedElements.forEach(element => fragment.appendChild(element));
-				parentElement.appendChild(fragment);
-			} else {
-				// Precise DOM updates - only move/add/remove what's needed
-				const currentElementSet = new Set(currentChildren);
-				const newElementSet = new Set(orderedElements);
+        // Add/reorder elements to match desired order
+        for (let i = 0; i < orderedElements.length; i++) {
+          const desiredElement = orderedElements[i];
+          const currentElement = parentElement.children[i];
 
-				// Remove elements that shouldn't be there anymore
-				for (const element of currentChildren) {
-					if (!newElementSet.has(element)) {
-						element.remove();
-					}
-				}
+          if (currentElement !== desiredElement) {
+            // Insert element at correct position
+            if (i >= parentElement.children.length) {
+              // Append to end
+              parentElement.appendChild(desiredElement);
+            } else {
+              // Insert before current element at this position
+              parentElement.insertBefore(
+                desiredElement,
+                parentElement.children[i]
+              );
+            }
+          }
+        }
+      }
+    }
 
-				// Add/reorder elements to match desired order
-				for (let i = 0; i < orderedElements.length; i++) {
-					const desiredElement = orderedElements[i];
-					const currentElement = parentElement.children[i];
+    // Update tracking structures
+    renderedElements.clear();
+    orderedElements.forEach((element, index) => {
+      renderedElements.set(index, element);
+    });
+    previousItems = [...items];
+  };
 
-					if (currentElement !== desiredElement) {
-						// Insert element at correct position
-						if (i >= parentElement.children.length) {
-							// Append to end
-							parentElement.appendChild(desiredElement);
-						} else {
-							// Insert before current element at this position
-							parentElement.insertBefore(desiredElement, parentElement.children[i]);
-						}
-					}
-				}
-			}
-		}
+  // Efficient deep equality with Object.is optimization
+  const deepEqual = (a: any, b: any): boolean => {
+    if (Object.is(a, b)) return true;
+    if (a == null || b == null) return false;
+    if (typeof a !== typeof b || typeof a !== 'object') return false;
 
-		// Update tracking structures
-		renderedElements.clear();
-		orderedElements.forEach((element, index) => {
-			renderedElements.set(index, element);
-		});
-		previousItems = [...items];
-	};
+    // ID-based fast comparison for objects with stable IDs
+    if (a.id && b.id) {
+      return a.id === b.id;
+    }
 
-	// Efficient deep equality with Object.is optimization
-	const deepEqual = (a: any, b: any): boolean => {
-		if (Object.is(a, b)) return true;
-		if (a == null || b == null) return false;
-		if (typeof a !== typeof b || typeof a !== 'object') return false;
+    const keysA = Object.keys(a);
+    const keysB = Object.keys(b);
 
-		// ID-based fast comparison for objects with stable IDs
-		if (a.id && b.id) {
-			return a.id === b.id;
-		}
+    return (
+      keysA.length === keysB.length &&
+      keysA.every((key) => deepEqual(a[key], b[key]))
+    );
+  };
 
-		const keysA = Object.keys(a);
-		const keysB = Object.keys(b);
+  // Set up reactive effect that handles both initial render and updates
+  // Use component-specific watcher if available, otherwise fall back to global
+  const componentWatcher = (globalThis as any).__ddom_component_watcher as
+    | ComponentSignalWatcher
+    | undefined;
 
-		return keysA.length === keysB.length &&
-			keysA.every(key => deepEqual(a[key], b[key]));
-	};
+  const _effectCleanup = createEffect(() => {
+    // Get the current items within the effect to establish dependency tracking
+    const currentItems = reactiveArray.get();
 
-	// Set up reactive effect that handles both initial render and updates
-	// Use component-specific watcher if available, otherwise fall back to global
-	const componentWatcher = (globalThis as any).__ddom_component_watcher as ComponentSignalWatcher | undefined;
+    // Call updateArray immediately with the current items
+    updateArray(currentItems);
 
-	const _effectCleanup = createEffect(() => {
-		// Get the current items within the effect to establish dependency tracking
-		const currentItems = reactiveArray.get();
+    // Return empty cleanup since we're not deferring the update
+    return () => {};
+  }, componentWatcher);
 
-		// Call updateArray immediately with the current items
-		updateArray(currentItems);
-
-		// Return empty cleanup since we're not deferring the update
-		return () => { };
-	}, componentWatcher);
-
-	// Note: effectCleanup could be returned if the caller needs to clean up manually,
-	// but typically the effect will be cleaned up when the parent element is removed
+  // Note: effectCleanup could be returned if the caller needs to clean up manually,
+  // but typically the effect will be cleaned up when the parent element is removed
 }

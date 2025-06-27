@@ -31,61 +31,50 @@ export default {
     {
       tagName: 'form-field',
 
-      // Props passed from parent
-      label: '',
-      type: 'text',
-      placeholder: '',
-      validator: () => true, // Default validator always returns true
-      errorMessage: '',
-      rows: 1,
-      valueSignal: null, // Signal to bind the input value
+      // Reactived properties - these become reactive signals
+      $label: '',
+      $type: 'text',
+      $placeholder: '',
+      $errorMessage: '',
+      $rows: 1,
+      $value: '',
 
-      // Computed validation using the passed signal
-      isValid: function() {
-        if (!this.valueSignal || !DDOM.Signal.isState(this.valueSignal)) return true;
-        const value = this.valueSignal.get();
-        if (typeof value !== 'string') return true; // No validation if not a string
+      // Validator function property
+      validator: () => true,
+
+      // Computed validation using scoped properties (functions, not templates)
+      $isValid: function() {
         const validator = this.validator;
-        return validator ? validator(value) : true;
+        return validator ? validator($value.get()) : true;
       },
-
-      shouldShowError: function() {
-        if (!this.valueSignal || !DDOM.Signal.isState(this.valueSignal)) return false;
-        const value = this.valueSignal.get();
-        if (typeof value !== 'string') return false;
-        return value.length > 0 && !this.isValid();
+      
+      $shouldShowError: function() {
+        return $value.get().length > 0 && !this.$isValid();
       },
-
-      currentErrorMessage: function() {
-        return this.shouldShowError() ? this.errorMessage.get() : '';
+      
+      $currentErrorMessage: function() {
+        return $shouldShowError() ? $errorMessage.get() : '';
       },
-
-      // Computed functions for conditional rendering
-      isInputField: function() {
-        return this.type.get() !== 'textarea';
+      
+      $isInputField: function() {
+        return $type.get() !== 'textarea';
       },
-
-      isTextareaField: function() {
-        return this.type.get() === 'textarea';
+      
+      $isTextareaField: function() {
+        return $type.get() === 'textarea';
       },
 
       // Methods
       updateValue: function (newValue) {
-        // Direct signal binding - update the signal directly
-        if (this.valueSignal && DDOM.Signal.isState(this.valueSignal)) {
-          this.valueSignal.set(newValue);
-        }
+        this.$value.set(newValue);
       },
 
-      connectedCallback: function () {
-        // Set up reactive attributes for CSS styling  
-        DDOM.createEffect(() => {
-          this.setAttribute('data-valid', this.isValid());
-          this.setAttribute('data-show-error', this.shouldShowError());
-          this.setAttribute('data-field-type', this.type.get());
-          this.setAttribute('data-is-input', this.isInputField());
-          this.setAttribute('data-is-textarea', this.isTextareaField());
-        });
+      attributes: {
+        'data-valid': '${$isValid()}',
+        'data-show-error': '${$shouldShowError()}',
+        'data-field-type': '${$type.get()}',
+        'data-is-input': '${$isInputField()}',
+        'data-is-textarea': '${$isTextareaField()}'
       },
 
       style: {
@@ -124,7 +113,7 @@ export default {
       children: [
         {
           tagName: 'label',
-          textContent: '${this.parentNode.label.get()}',
+          textContent: '${$label.get()}',
           style: {
             display: 'block',
             marginBottom: '0.5em',
@@ -133,10 +122,10 @@ export default {
         },
         {
           tagName: 'input',
-          name: '${this.parentNode.label.get()}',
-          type: '${this.parentNode.type.get()}',
-          placeholder: '${this.parentNode.placeholder.get()}',
-          value: '${(this.parentNode.valueSignal && this.parentNode.valueSignal.get()) ? this.parentNode.valueSignal.get() : ""}',
+          name: '${$label.get()}',
+          type: '${$type.get()}',
+          placeholder: '${$placeholder.get()}',
+          value: '${$value.get()}',
           className: 'field-input input-field',
           style: {
             width: '100%',
@@ -146,15 +135,15 @@ export default {
             fontSize: '1em'
           },
           oninput: function (e) {
-            this.parentNode.updateValue(e.target.value);
+            $value.set(e.target.value);
           }
         },
         {
           tagName: 'textarea',
-          name: '${this.parentNode.label.get()}',
-          placeholder: '${this.parentNode.placeholder.get()}',
-          value: '${(this.parentNode.valueSignal && this.parentNode.valueSignal.get()) ? this.parentNode.valueSignal.get() : ""}',
-          rows: '${this.parentNode.rows.get()}',
+          name: '${$label.get()}',
+          placeholder: '${$placeholder.get()}',
+          value: '${$value.get()}',
+          rows: '${$rows.get()}',
           className: 'field-input textarea-field',
           style: {
             width: '100%',
@@ -164,12 +153,12 @@ export default {
             fontSize: '1em'
           },
           oninput: function (e) {
-            this.parentNode.updateValue(e.target.value);
+            $value.set(e.target.value);
           }
         },
         {
           tagName: 'div',
-          textContent: '${this.parentNode.currentErrorMessage()}',
+          textContent: '${$currentErrorMessage()}',
           className: 'error-message',
           style: {
             color: '#dc3545',
@@ -185,33 +174,33 @@ export default {
     {
       tagName: 'contact-form',
 
-      // Reactive form data properties
+      // Reactive form data properties (scoped signals)
       $name: '',
       $email: '',
       $message: '',
 
-      // Form validation computed functions
-      isNameValid: function() {
-        return this.$name.get().trim().length >= 2;
+      // Computed validation using scoped properties (functions for booleans)
+      $isNameValid: function() {
+        return $name.get().trim().length >= 2;
       },
-
-      isEmailValid: function() {
-        const email = this.$email.get();
+      
+      $isEmailValid: function() {
+        const email = $email.get();
         return email.includes('@') && email.includes('.') && email.length > 5;
       },
-
-      isMessageValid: function() {
-        return this.$message.get().trim().length >= 10;
+      
+      $isMessageValid: function() {
+        return $message.get().trim().length >= 10;
       },
-
-      isFormValid: function() {
-        return this.isNameValid() && this.isEmailValid() && this.isMessageValid();
+      
+      $isFormValid: function() {
+        return $isNameValid() && $isEmailValid() && $isMessageValid();
       },
 
       // Form methods
       submitForm: function () {
-        if (this.isFormValid()) {
-          alert(`Form submitted!\nName: ${this.$name.get()}\nEmail: ${this.$email.get()}\nMessage: ${this.$message.get()}`);
+        if ($isFormValid()) {
+          alert(`Form submitted!\nName: ${$name.get()}\nEmail: ${$email.get()}\nMessage: ${$message.get()}`);
           this.resetForm();
         } else {
           alert('Please fill out all fields correctly before submitting.');
@@ -219,16 +208,9 @@ export default {
       },
 
       resetForm: function () {
-        this.$name.set('');
-        this.$email.set('');
-        this.$message.set('');
-      },
-
-      // Set up reactive attributes for CSS styling
-      connectedCallback: function () {
-        DDOM.createEffect(() => {
-          this.setAttribute('data-form-valid', this.isFormValid());
-        });
+        $name.set('');
+        $email.set('');
+        $message.set('');
       },
 
       style: {
@@ -240,51 +222,59 @@ export default {
         borderRadius: '8px',
         boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
 
-        // Form validation styling using attributes
-        '[data-form-valid="true"] .submit-button': {
+        // Form validation styling using computed properties
+        '&[data-form-valid="true"] .submit-button': {
           backgroundColor: '#28a745',
           cursor: 'pointer'
         },
-        '[data-form-valid="false"] .submit-button': {
+        '&[data-form-valid="false"] .submit-button': {
           backgroundColor: '#6c757d',
           cursor: 'not-allowed'
         },
-        '[data-form-valid="true"] .form-status': {
+        '&[data-form-valid="true"] .form-status': {
           color: '#28a745'
         },
-        '[data-form-valid="false"] .form-status': {
+        '&[data-form-valid="false"] .form-status': {
           color: '#dc3545'
         }
+      },
+
+      // Set reactive data attributes
+      attributes: {
+        'data-form-valid': '${$isFormValid()}'
       },
 
       children: [
         {
           tagName: 'form-field',
-          label: 'Name:',
-          type: 'text',
-          placeholder: 'Enter your name (minimum 2 characters)',
+          $label: 'Name',
+          $type: 'text',
+          $placeholder: 'Enter your name (minimum 2 characters)',
+          $errorMessage: 'Name must be at least 2 characters',
           validator: (value) => value.trim().length >= 2,
-          errorMessage: 'Name must be at least 2 characters',
-          valueSignal: 'this.parentNode.$name'
+          // Bind the value signal from parent
+          $value: '$name'
         },
         {
           tagName: 'form-field',
-          label: 'Email:',
-          type: 'email',
-          placeholder: 'Enter your email address',
+          $label: 'Email',
+          $type: 'email',
+          $placeholder: 'Enter your email address',
+          $errorMessage: 'Please enter a valid email address',
           validator: (value) => value.includes('@') && value.includes('.') && value.length > 5,
-          errorMessage: 'Please enter a valid email address',
-          valueSignal: 'this.parentNode.$email'
+          // Bind the value signal from parent
+          $value: '$email'
         },
         {
           tagName: 'form-field',
-          label: 'Message:',
-          type: 'textarea',
-          rows: 4,
-          placeholder: 'Enter your message (minimum 10 characters)',
+          $label: 'Message',
+          $type: 'textarea',
+          $rows: 4,
+          $placeholder: 'Enter your message (minimum 10 characters)',
+          $errorMessage: 'Message must be at least 10 characters',
           validator: (value) => value.trim().length >= 10,
-          errorMessage: 'Message must be at least 10 characters',
-          valueSignal: 'this.parentNode.$message'
+          // Bind the value signal from parent
+          $value: '$message'
         },
         {
           tagName: 'div',
@@ -299,6 +289,7 @@ export default {
               type: 'button',
               textContent: 'Submit Form',
               className: 'submit-button',
+              disabled: '${!$isFormValid()}',
               style: {
                 flex: '1',
                 padding: '0.75em',
@@ -308,7 +299,7 @@ export default {
                 fontSize: '1em'
               },
               onclick: function () {
-                this.parentNode.parentNode.submitForm();
+                parentNode.submitForm();
               }
             },
             {
@@ -326,7 +317,7 @@ export default {
                 cursor: 'pointer'
               },
               onclick: function () {
-                this.parentNode.parentNode.resetForm();
+                parentNode.resetForm();
               }
             }
           ]
@@ -355,20 +346,19 @@ export default {
               children: [
                 {
                   tagName: 'div',
-                  tag: function () { return this.parent.parent.parent.$name },
-                  textContent: 'Name: ${this.parentNode.parentNode.parentNode.$name.get()}'
+                  textContent: 'Name: ${$name.get()}'
                 },
                 {
                   tagName: 'div',
-                  textContent: 'Email: ${this.parentNode.parentNode.parentNode.$email.get()}'
+                  textContent: 'Email: ${$email.get()}'
                 },
                 {
                   tagName: 'div',
-                  textContent: 'Message: ${this.parentNode.parentNode.parentNode.$message.get()}'
+                  textContent: 'Message: ${$message.get()}'
                 },
                 {
                   tagName: 'div',
-                  textContent: 'Valid: ${this.parentNode.parentNode.parentNode.isFormValid() ? "Yes" : "No"}',
+                  textContent: 'Valid: ${$isFormValid() ? "Yes" : "No"}',
                   className: 'form-status',
                   style: {
                     marginTop: '0.5em',

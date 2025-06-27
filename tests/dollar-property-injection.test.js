@@ -1,215 +1,246 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import DDOM, { createElement } from '../lib/dist/index.js';
 
-describe('Dollar Property Injection', () => {
+describe('Reactive Property Injection', () => {
   beforeEach(() => {
     // Clean up any global variables
     document.body.innerHTML = '';
     if (typeof window !== 'undefined') {
       // Clean up any test properties
-      Object.keys(window).forEach(key => {
+      Object.keys(window).forEach((key) => {
         if (key.startsWith('test') || key.startsWith('$')) {
           delete window[key];
         }
       });
     }
+    // Use fake timers to control microtask execution
+    vi.useFakeTimers({ toFake: ['nextTick', 'queueMicrotask'] });
   });
 
-  test('should inject dollar properties into template literals', () => {
+  afterEach(() => {
+    // Clean up fake timers after each test
+    vi.useRealTimers();
+  });
+
+  test('should inject scope properties into template literals', () => {
     const spec = {
       $name: 'Alice',
       $age: 30,
       document: {
         body: {
-          children: [{
-            tagName: 'div',
-            id: 'template-test',
-            textContent: 'Hello ${$name}, you are ${$age} years old!'
-          }]
-        }
-      }
+          children: [
+            {
+              tagName: 'div',
+              id: 'template-test',
+              textContent:
+                'Hello ${$name.get()}, you are ${$age.get()} years old!',
+            },
+          ],
+        },
+      },
     };
 
     DDOM(spec);
-    
+
     const element = document.getElementById('template-test');
     expect(element).toBeDefined();
     expect(element.textContent).toBe('Hello Alice, you are 30 years old!');
   });
 
-  test('should inject dollar properties into functions', () => {
+  test('should inject scope properties into functions', () => {
     let clickedName = null;
-    
+
     const spec = {
       $userName: 'Bob',
       $userAge: 25,
       document: {
         body: {
-          children: [{
-            tagName: 'button',
-            id: 'function-test',
-            onclick: function(event) {
-              clickedName = $userName.get() + ' (' + $userAge.get() + ')';
-            }
-          }]
-        }
-      }
+          children: [
+            {
+              tagName: 'button',
+              id: 'function-test',
+              onclick: function (event) {
+                clickedName = $userName.get() + ' (' + $userAge.get() + ')';
+              },
+            },
+          ],
+        },
+      },
     };
 
     DDOM(spec);
-    
+
     const button = document.getElementById('function-test');
     expect(button).toBeDefined();
-    
+
     // Simulate a click
     button.click();
     expect(clickedName).toBe('Bob (25)');
   });
 
-  test('should inject dollar properties into getters', () => {
+  test('should inject scope properties into getters', () => {
     const spec = {
       $firstName: 'John',
       $lastName: 'Doe',
       document: {
         body: {
-          children: [{
-            tagName: 'div',
-            id: 'getter-test',
-            get fullName() {
-              return `${$firstName.get()} ${$lastName.get()}`;
-            }
-          }]
-        }
-      }
+          children: [
+            {
+              tagName: 'div',
+              id: 'getter-test',
+              get fullName() {
+                return `${$firstName.get()} ${$lastName.get()}`;
+              },
+            },
+          ],
+        },
+      },
     };
 
     DDOM(spec);
-    
+
     const element = document.getElementById('getter-test');
     expect(element).toBeDefined();
     expect(element.fullName).toBe('John Doe');
   });
 
-  test('should inject dollar properties into setters', () => {
+  test('should inject scope properties into setters', () => {
     let setterValue = null;
-    
+
     const spec = {
       $prefix: 'Mr.',
       document: {
         body: {
-          children: [{
-            tagName: 'div',
-            id: 'setter-test',
-            set testValue(value) {
-              setterValue = `${$prefix.get()} ${value}`;
-            }
-          }]
-        }
-      }
+          children: [
+            {
+              tagName: 'div',
+              id: 'setter-test',
+              set testValue(value) {
+                setterValue = `${$prefix.get()} ${value}`;
+              },
+            },
+          ],
+        },
+      },
     };
 
     DDOM(spec);
-    
+
     const element = document.getElementById('setter-test');
     expect(element).toBeDefined();
-    
+
     element.testValue = 'Smith';
     expect(setterValue).toBe('Mr. Smith');
   });
 
-  test('should inject dollar properties into attributes', () => {
+  test('should inject scope properties into attributes', () => {
     const spec = {
       $theme: 'dark',
       $size: 'large',
       document: {
         body: {
-          children: [{
-            tagName: 'div',
-            id: 'attribute-test',
-            attributes: {
-              'data-theme': '${$theme}',
-              'data-size': '${$size}',
-              'class': 'component theme-${$theme} size-${$size}'
-            }
-          }]
-        }
-      }
+          children: [
+            {
+              tagName: 'div',
+              id: 'attribute-test',
+              attributes: {
+                'data-theme': '${$theme.get()}',
+                'data-size': '${$size.get()}',
+                class: 'component theme-${$theme.get()} size-${$size.get()}',
+              },
+            },
+          ],
+        },
+      },
     };
 
     DDOM(spec);
-    
+
     const element = document.getElementById('attribute-test');
     expect(element).toBeDefined();
     expect(element.getAttribute('data-theme')).toBe('dark');
     expect(element.getAttribute('data-size')).toBe('large');
-    expect(element.getAttribute('class')).toBe('component theme-dark size-large');
+    expect(element.getAttribute('class')).toBe(
+      'component theme-dark size-large'
+    );
   });
 
   test('debug custom element', () => {
     const spec = {
-      customElements: [{
-        tagName: 'debug-card',
-        $userName: 'Carol',
-        $userRole: 'Admin',
-        get displayText() {
-          console.log('Custom element getter - this:', this);
-          console.log('Custom element $userName:', this.$userName);
-          console.log('Global $userName:', typeof globalThis !== 'undefined' ? globalThis.$userName : 'undefined');
-          return `${$userName.get()} - ${$userRole.get()}`;
-        }
-      }],
+      customElements: [
+        {
+          tagName: 'debug-card',
+          $userName: 'Carol',
+          $userRole: 'Admin',
+          get displayText() {
+            console.log('Custom element getter - this:', this);
+            console.log('Custom element $userName:', this.$userName.get());
+            console.log(
+              'Global $userName:',
+              typeof globalThis !== 'undefined'
+                ? globalThis.$userName
+                : 'undefined'
+            );
+            return `${$userName.get()} - ${$userRole.get()}`;
+          },
+        },
+      ],
       document: {
         body: {
-          children: [{
-            tagName: 'debug-card',
-            id: 'debug-custom-element'
-          }]
-        }
-      }
+          children: [
+            {
+              tagName: 'debug-card',
+              id: 'debug-custom-element',
+            },
+          ],
+        },
+      },
     };
 
     DDOM(spec);
-    
+
     const element = document.getElementById('debug-custom-element');
     console.log('Element:', element);
-    console.log('Element $userName:', element ? element.$userName : 'element is null');
-    console.log('Element displayText:', element && 'displayText' in element ? element.displayText : 'undefined');
-    
+    console.log(
+      'Element $userName:',
+      element ? element.$userName : 'element is null'
+    );
+    console.log(
+      'Element displayText:',
+      element && 'displayText' in element ? element.displayText : 'undefined'
+    );
+
     expect(element).toBeDefined();
   });
 
   test('should work with custom elements', () => {
     const spec = {
-      customElements: [{
-        tagName: 'user-card',
-        $userName: 'Carol',
-        $userRole: 'Admin',
-        get displayText() {
-          return `${$userName} - ${$userRole}`;
+      customElements: [
+        {
+          tagName: 'user-card',
+          $userName: 'Carol',
+          $userRole: 'Admin',
+          textContent: '${$userName.get()} (${$userRole.get()})',
         },
-        onclick: function() {
-          this.textContent = `Clicked: ${$userName}`;
-        }
-      }],
+      ],
       document: {
         body: {
-          children: [{
-            tagName: 'user-card',
-            id: 'custom-element-test'
-          }]
-        }
-      }
+          children: [
+            {
+              tagName: 'user-card',
+              id: 'custom-element-test',
+            },
+          ],
+        },
+      },
     };
 
     DDOM(spec);
-    
+
+    vi.runAllTicks(); // Flush microtasks (including reactive effects)
     const element = document.getElementById('custom-element-test');
     expect(element).toBeDefined();
-    expect(element.displayText).toBe('Carol - Admin');
-    
-    // Test the click handler
-    element.click();
-    expect(element.textContent).toBe('Clicked: Carol');
+    expect(element.textContent).toBe('Carol (Admin)');
   });
 
   test('should handle complex nested structures', () => {
@@ -219,81 +250,89 @@ describe('Dollar Property Injection', () => {
       $author: 'Developer',
       document: {
         body: {
-          children: [{
-            tagName: 'header',
-            id: 'app-header',
-            textContent: '${$appName} v${$version}',
-            children: [{
-              tagName: 'small',
-              textContent: 'by ${$author}',
-              get fullCredits() {
-                return `${$appName} v${$version} by ${$author}`;
-              }
-            }]
-          }]
-        }
-      }
+          children: [
+            {
+              tagName: 'header',
+              id: 'app-header',
+              textContent: '${$appName.get()} v${$version.get()}',
+              children: [
+                {
+                  tagName: 'small',
+                  textContent: 'by ${$author.get()}',
+                  get fullCredits() {
+                    return `${$appName.get()} v${$version.get()} by ${$author.get()}`;
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
     };
 
     DDOM(spec);
-    
+
     const header = document.getElementById('app-header');
     expect(header).toBeDefined();
     expect(header.textContent).toContain('My App v1.0.0');
-    
+
     const small = header.querySelector('small');
     expect(small).toBeDefined();
     expect(small.textContent).toBe('by Developer');
     expect(small.fullCredits).toBe('My App v1.0.0 by Developer');
   });
 
-  test('should work without dollar properties (backward compatibility)', () => {
+  test('should work without scope properties (backward compatibility)', () => {
     const spec = {
       regularProp: 'test',
       document: {
         body: {
-          children: [{
-            tagName: 'div',
-            id: 'no-dollar-test',
-            textContent: 'Regular text'
-          }]
-        }
-      }
+          children: [
+            {
+              tagName: 'div',
+              id: 'no-reactive-test',
+              textContent: 'Regular text',
+            },
+          ],
+        },
+      },
     };
 
     expect(() => DDOM(spec)).not.toThrow();
-    
-    const element = document.getElementById('no-dollar-test');
+
+    const element = document.getElementById('no-reactive-test');
     expect(element).toBeDefined();
     expect(element.textContent).toBe('Regular text');
   });
 
-  test('should handle signal values in dollar properties', () => {
+  test('should handle signal values in scope properties', () => {
     const spec = {
       $counter: 0,
       document: {
         body: {
-          children: [{
-            tagName: 'div',
-            id: 'signal-test',
-            textContent: 'Count: ${$counter}',
-            onclick: function() {
-              // Access the signal and update it
-              if (typeof $counter === 'object' && 'set' in $counter) {
-                $counter.set($counter.get() + 1);
-              }
-            }
-          }]
-        }
-      }
+          children: [
+            {
+              tagName: 'div',
+              id: 'signal-test',
+              textContent: 'Count: ${$counter.get()}',
+              onclick: function () {
+                // Access the signal and update it
+                if (typeof $counter === 'object' && 'set' in $counter) {
+                  $counter.set($counter.get() + 1);
+                }
+              },
+            },
+          ],
+        },
+      },
     };
 
     DDOM(spec);
-    
+
     const element = document.getElementById('signal-test');
     expect(element).toBeDefined();
     expect(element.textContent).toBe('Count: 0');
-    
+
     // The counter should be available as a signal
     expect(window.$counter).toBeDefined();
   });

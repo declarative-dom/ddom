@@ -24,7 +24,7 @@ export class ComponentSignalWatcher {
 		});
 	}
 	
-	private processPending() {
+	private processPending() {createReactiveProperty
 		if (this.disposed) return;
 		
 		this.needsEnqueue = true;

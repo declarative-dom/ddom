@@ -50,7 +50,7 @@ describe('Computed Properties Example', () => {
     expect(() => DDOM(computedPropertiesSpec)).not.toThrow();
   });
 
-  test('should support reactive properties with dollar prefix', () => {
+  test('should support reactive properties with scope prefix', () => {
     const spec = {
       $firstName: 'Alice',
       $lastName: 'Johnson',

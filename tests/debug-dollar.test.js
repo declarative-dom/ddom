@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import DDOM from '../lib/dist/index.js';
 
-describe('Dollar Property Debug', () => {
+describe('Reactive Property Debug', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     Object.keys(window).forEach(key => {
@@ -11,7 +11,7 @@ describe('Dollar Property Debug', () => {
     });
   });
 
-  test('should create dollar properties as signals', () => {
+  test('should create scope properties as signals', () => {
     const spec = {
       $testValue: 'hello world'
     };
