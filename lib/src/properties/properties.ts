@@ -16,11 +16,7 @@ import { define } from '../customElements';
 
 import { adoptNode } from '../elements';
 
-import {
-  Signal,
-  createEffect,
-  ComponentSignalWatcher,
-} from '../events';
+import { Signal, createEffect, ComponentSignalWatcher } from '../events';
 
 import { insertRules } from '../styleSheets';
 
@@ -108,7 +104,7 @@ export function isSetterDescriptor(descriptor: PropertyDescriptor): boolean {
  */
 export function shouldBeSignal(key: string, value: any): boolean {
   return (
-    key.startsWith('$') && 
+    key.startsWith('$') &&
     !(typeof value === 'string' && value.includes('${')) && // Not a template literal
     typeof value !== 'function'
   );
@@ -119,13 +115,17 @@ export function shouldBeSignal(key: string, value: any): boolean {
 /**
  * Creates a reactive property using a direct Signal.State object.
  * This ensures proper dependency tracking with the TC39 Signals polyfill.
- * 
+ *
  * @param el - The element to attach the property to
  * @param property - The property name
  * @param initialValue - The initial value for the property
  * @returns The Signal.State instance
  */
-export function createReactiveProperty(el: any, property: string, initialValue: any): Signal.State<any> {
+export function createReactiveProperty(
+  el: any,
+  property: string,
+  initialValue: any
+): Signal.State<any> {
   const signal = new Signal.State(initialValue);
   el[property] = signal;
   return signal;
@@ -194,11 +194,7 @@ function setAttributeValue(el: Element, name: string, value: any): void {
 /**
  * Processes a single attribute with automatic reactive/static detection.
  */
-function processAttribute(
-  el: Element,
-  attrName: string,
-  attrValue: any
-): void {
+function processAttribute(el: Element, attrName: string, attrValue: any): void {
   if (typeof attrValue === 'string' && isTemplateLiteral(attrValue)) {
     // Reactive template expression
     bindAttributeTemplate(el, attrName, attrValue);
@@ -276,41 +272,27 @@ export function handleAttributesProperty(
 /**
  * Simplified async handlers using createHandler wrapper
  */
-export const handleCustomElementsProperty = createHandler(
-  (value, el) => define(value)
+export const handleCustomElementsProperty = createHandler((value, el) =>
+  define(value)
 );
 
 export const handleDocumentProperty = createHandler(
-  (value, el) =>
-    adoptNode(value as DocumentSpec, document, true, []),
+  (value, el) => adoptNode(value as DocumentSpec, document, true, []),
   (el) => el === window
 );
 
 export const handleBodyProperty = createHandler(
-  (value, el) =>
-    adoptNode(
-      value as HTMLElementSpec,
-      document.body,
-      true,
-      []
-    ),
+  (value, el) => adoptNode(value as HTMLElementSpec, document.body, true, []),
   (el) => el === document || 'documentElement' in el
 );
 
 export const handleHeadProperty = createHandler(
-  (value, el) =>
-    adoptNode(
-      value as HTMLElementSpec,
-      document.head,
-      true,
-      []
-    ),
+  (value, el) => adoptNode(value as HTMLElementSpec, document.head, true, []),
   (el) => el === document || 'documentElement' in el
 );
 
-export const handleWindowProperty = createHandler(
-  (value, el) =>
-    adoptNode(value as WindowSpec, window, true, [])
+export const handleWindowProperty = createHandler((value, el) =>
+  adoptNode(value as WindowSpec, window, true, [])
 );
 
 export const handleStyleProperty = createHandler(
@@ -389,24 +371,61 @@ export function handleDefaultProperty(
   descriptor: PropertyDescriptor,
   css?: boolean
 ): void {
-  if (!Object.prototype.hasOwnProperty.call(el, key)) {
+  const value = descriptor.value;
+
+  if (!Object.hasOwn(el, key)) {
+    // Property doesn't exist - create it normally
+    // debug
+    console.debug(`Assigning property "${key}" with value:`, value);
     assignPropertyValue(el, key, descriptor);
   } else {
-    // Property exists - update if it's a signal
-    const existingValue = (el as any)[key];
-
-    if (
-      typeof existingValue === 'object' &&
-      existingValue !== null &&
-      Signal.isState(existingValue)
-    ) {
-      existingValue.set(descriptor.value);
-    } else if (
-      typeof existingValue !== 'object' ||
-      !Signal.isComputed(existingValue)
-    ) {
-      (el as any)[key] = descriptor.value;
-    }
+    //   // Property exists - handle special cases
+    //   // debug
+    //   console.debug(`Updating existing property "${key}" with value:`, value);
+    //   const existingValue = (el as any)[key];
+    //   // If the existing value is already a resolved signal and the new value is a default (empty/falsy),
+    //   // don't overwrite it - instance properties take precedence
+    //   if (
+    //     typeof existingValue === 'object' &&
+    //     existingValue !== null &&
+    //     (Signal.isState(existingValue) || Signal.isComputed(existingValue)) &&
+    //     (!value || value === '' || value === 0 || value === false)
+    //   ) {
+    //     // Don't overwrite resolved signals with default values
+    //     console.debug(`Preserving existing signal for "${key}", ignoring spec default:`, value);
+    //     return;
+    //   }
+    //   // Handle property accessor strings (like 'this.$name') even when property exists
+    //   if (typeof value === 'string') {
+    //     if (isPropertyAccessor(value)) {
+    //       const resolved = resolvePropertyAccessor(value, el as Node);
+    //       if (resolved !== null) {
+    //         (el as any)[key] = resolved;
+    //       } else {
+    //         console.warn(
+    //           `Failed to resolve property accessor "${value}" for property "${key}"`
+    //         );
+    //       }
+    //       return;
+    //     } else if (isTemplateLiteral(value)) {
+    //       // If it's a template literal, bind it reactively
+    //       bindPropertyTemplate(el, key, value);
+    //       return;
+    //     }
+    //   }
+    //   // Update existing signals with non-default values
+    //   if (
+    //     typeof existingValue === 'object' &&
+    //     existingValue !== null &&
+    //     Signal.isState(existingValue)
+    //   ) {
+    //     existingValue.set(value);
+    //   } else if (
+    //     typeof existingValue !== 'object' ||
+    //     !Signal.isComputed(existingValue)
+    //   ) {
+    //     (el as any)[key] = value;
+    //   }
   }
 }
 
@@ -480,9 +499,8 @@ export function parseTemplateLiteral(
  * @param template - The template string to bind
  * @returns A function that evaluates the template with the given context
  */
-export const bindTemplate =
-  (template: string) => (context: any) =>
-    new Function('return `' + template + '`').call(context);
+export const bindTemplate = (template: string) => (context: any) =>
+  new Function('return `' + template + '`').call(context);
 
 /**
  * Creates a Computed Signal that automatically re-evaluates a template
@@ -690,15 +708,15 @@ export function bindAccessorProperty(
       configurable: true,
       enumerable: true,
     };
-    
+
     if (descriptor.set) {
       propDescriptor.set = descriptor.set;
     }
-    
+
     if (descriptor.get) {
       propDescriptor.get = descriptor.get;
     }
-    
+
     Object.defineProperty(el, property, propDescriptor);
     return undefined;
   }

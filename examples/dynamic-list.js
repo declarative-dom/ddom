@@ -4,35 +4,35 @@
 export default {
 
   // No more $ prefix! This is a transparent signal proxy
-  items: ['Apple', 'Banana', 'Cherry'],
+  $items: ['Apple', 'Banana', 'Cherry'],
 
   addItem: function () {
     console.log('addItem called - this:', this);
     
-    const newItem = prompt('Enter a new item:');
+    const newItem = prompt('Enter a new item');
     if (newItem) {
-      this.items.set([...this.items.get(), newItem]);
+      this.$items.set([...this.$items.get(), newItem]);
     }
   },
 
   removeItem: function (index) {
     // Transparent signal proxy allows normal array operations
-    const items = this.items.get();
+    const items = [...this.$items.get()];
     if (index < 0 || index >= items.length) {
       console.error('Index out of bounds:', index);
       return;
     }
-    console.log('removeItem called - index:', index, 'items:', items);
-    const updatedItems = [...items].filter((_, i) => i !== index);
-    console.log('Updated items after removal:', updatedItems);
-    this.items.set(updatedItems);
+    console.log('removeItem called - $index:', index, 'items:', items);
+    const updatedItems = items.filter((_, i) => i !== index);
+    console.log('Updated $items after removal:', updatedItems);
+    this.$items.set(updatedItems);
   },
 
   updateItem: function (index, newText) {
     if (newText && newText.trim()) {
-      const updatedItems = [...this.items.get()];
+      const updatedItems = [...this.$items.get()];
       updatedItems[index] = newText.trim();
-      this.items.set(updatedItems);
+      this.$items.set(updatedItems);
     }
   },
 
@@ -56,7 +56,7 @@ export default {
         },
         {
           tagName: 'p',
-          textContent: 'No more $-prefixed properties! Template literals with \\${...} get automatic reactivity.',
+          textContent: '$-prefixed reactive properties! Template literals with \\${.} get automatic reactivity.',
           style: {
             textAlign: 'center',
             color: '#666',
@@ -106,13 +106,13 @@ export default {
       tagName: 'dynamic-list-items',
 
       children: {
-        // Use string address for signal resolution - much cleaner!
-        items: 'items', // String address instead of function
+        // Use string address for signal resolution
+        items: 'window.$items',
         map: {
           tagName: 'dynamic-list-item',
           // These are also transparent signal proxies now
-          item: (item, _index) => item,
-          index: (item, index) => index,
+          $item: (item, _) => item,
+          $index: (_, index) => index,
         }
       },
       style: {
@@ -124,8 +124,8 @@ export default {
 
     {
       tagName: 'dynamic-list-item',
-      // item: '',
-      // index: 0,
+      $item: '',
+      $index: 0,
 
       children: [
         {
@@ -145,7 +145,7 @@ export default {
             {
               tagName: 'span',
               // Template literal automatically gets computed signal + effect!
-              textContent: '${this.parentNode.parentNode.item.get()}',
+              textContent: '${this.$item.get()}',
               contentEditable: true,
               style: {
                 flex: '1',
@@ -159,9 +159,8 @@ export default {
               },
               onblur: function (_event) {
                 const newText = this.textContent.trim();
-                const listItem = this.parentNode.parentNode;
-                const index = listItem.index.get();
-                const originalItem = listItem.item.get();
+                const index = this.$index.get();
+                const originalItem = this.$item.get();
 
                 if (newText && newText !== originalItem) {
                   window.updateItem(index, newText);
@@ -174,8 +173,7 @@ export default {
                 }
                 if (event.key === 'Escape') {
                   // Reset to original value
-                  const listItem = this.parentNode.parentNode;
-                  this.textContent = listItem.item.get();
+                  this.textContent = this.$item.get();
                   this.blur();
                 }
               }
@@ -193,9 +191,8 @@ export default {
                 fontSize: '0.875em'
               },
               onclick: function (_event) {
-                const listItem = this.parentNode.parentNode;
-                const index = listItem.index.get();
-                if (confirm(`Are you sure you want to remove "${listItem.item.get()}"?`)) {
+                const index = this.$index.get();
+                if (confirm(`Are you sure you want to remove "${this.$item.get()}"?`)) {
                   window.removeItem(index);
                 }
               }

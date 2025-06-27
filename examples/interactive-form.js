@@ -40,12 +40,11 @@ export default {
       $value: '',
 
       // Validator function property
-      validator: () => true,
+      $validator: () => true,
 
       // Computed validation using dollar-prefixed properties
       $isValid: function () {
-        const validator = this.validator;
-        return validator ? validator(this.$value.get()) : true;
+        return this.$validator ? this.$validator(this.$value.get()) : true;
       },
 
       $shouldShowError: function () {
@@ -70,11 +69,11 @@ export default {
       },
 
       attributes: {
-        'data-valid': function() { return this.$isValid(); },
-        'data-show-error': function() { return this.$shouldShowError(); },
-        'data-field-type': function() { return this.$type.get(); },
-        'data-is-input': function() { return this.$isInputField(); },
-        'data-is-textarea': function() { return this.$isTextareaField(); },
+        'data-valid': '${this.$isValid()}',
+        'data-show-error': '${this.$shouldShowError()}',
+        'data-field-type': '${this.$type.get()}',
+        'data-is-input': '${this.$isInputField()}',
+        'data-is-textarea': '${this.$isTextareaField()}',
       },
 
       style: {
@@ -134,6 +133,8 @@ export default {
           get placeholder() {
             // debug
             console.log('Placeholder:', this.$placeholder.get());
+            console.log('Validator:', this.$validator);
+            console.log('Value:', this.$value.get());
             return this.$placeholder.get();
           },
           // placeholder: '${this.$placeholder.get()}', // Use template literal for placeholder
@@ -251,27 +252,25 @@ export default {
         boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
 
         // Form validation styling using computed properties
-        '&[data-form-valid="true"] .submit-button': {
+        '[data-form-valid="true"] .submit-button': {
           backgroundColor: '#28a745',
           cursor: 'pointer',
         },
-        '&[data-form-valid="false"] .submit-button': {
+        '[data-form-valid="false"] .submit-button': {
           backgroundColor: '#6c757d',
           cursor: 'not-allowed',
         },
-        '&[data-form-valid="true"] .form-status': {
+        '[data-form-valid="true"] .form-status': {
           color: '#28a745',
         },
-        '&[data-form-valid="false"] .form-status': {
+        '[data-form-valid="false"] .form-status': {
           color: '#dc3545',
         },
       },
 
       // Set reactive data attributes
       attributes: {
-        'data-form-valid': function () {
-          return this.$isFormValid();
-        },
+        'data-form-valid':  '${this.$isFormValid()}',
       },
 
       children: [
@@ -281,7 +280,7 @@ export default {
           $type: 'text',
           $placeholder: 'Enter your name (minimum 2 characters)',
           $errorMessage: 'Name must be at least 2 characters',
-          validator: (value) => value.trim().length >= 2,
+          $validator: (value) => value.trim().length >= 2,
           // Inherit the value signal from parent
           $value: 'this.$name',
         },
@@ -291,7 +290,7 @@ export default {
           $type: 'email',
           $placeholder: 'Enter your email address',
           $errorMessage: 'Please enter a valid email address',
-          validator: (value) =>
+          $validator: (value) =>
             value.includes('@') && value.includes('.') && value.length > 5,
           // Inherit the value signal from parent
           $value: 'this.$email',
@@ -303,7 +302,7 @@ export default {
           $rows: 4,
           $placeholder: 'Enter your message (minimum 10 characters)',
           $errorMessage: 'Message must be at least 10 characters',
-          validator: (value) => value.trim().length >= 10,
+          $validator: (value) => value.trim().length >= 10,
           // Inherit the value signal from parent
           $value: 'this.$message',
         },
@@ -320,7 +319,7 @@ export default {
               type: 'button',
               textContent: 'Submit Form',
               className: 'submit-button',
-              disabled: function() { return !this.$isFormValid(); },
+              get disabled() { return !this.$isFormValid(); },
               style: {
                 flex: '1',
                 padding: '0.75em',
@@ -389,7 +388,7 @@ export default {
                 },
                 {
                   tagName: 'div',
-                  textContent: function() {
+                  get textContent() {
                     return `Valid: ${this.$isFormValid() ? "Yes" : "No"}`;
                   },
                   className: 'form-status',

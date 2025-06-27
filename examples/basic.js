@@ -31,7 +31,7 @@ export default {
             ':hover': { backgroundColor: '#007acc', color: 'white' },
           },
           onclick: (event) => {
-            alert($alertMessage);
+            alert($alertMessage.get());
 			$buttonText.set('Click me again!'); // Update the button text property
           },
         },

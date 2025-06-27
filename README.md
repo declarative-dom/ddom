@@ -1,4 +1,5 @@
 <!-- Logo -->
+
 <p align="left">
   <img src="logo/ddom.min.svg" alt="Declarative DOM Logo" width="100" height="100" />
 </p>
@@ -11,44 +12,51 @@
 
 Just as JSON provides a syntax and grammar for defining arbitrary data, DDOM defines a type-enforced structure for defining web applications (documents, nodes, and custom elements) in a declarative manner which attempts to mirror and extend the [official DOM API Standard](https://dom.spec.whatwg.org/).
 
-DDOM is developed as a [specification](spec/spec.md), a [collection of types](types/) and a [reference library](lib/) for deploying reactive web applications using the DDOM syntax. The DDOM library is developed in Typescript and integrates the [TC39 JavaScript Signals proposal polyfill](https://github.com/tc39/proposal-signals) to provide a standardized signal-based reactivity model.
-
+DDOM is developed as a [specification](spec/spec.md), a [collection of types](types/) and a [reference library](lib/) for deploying reactive web applications using the DDOM syntax. The DDOM library is developed in Typescript and integrates the [TC39 JavaScript Signals proposal](https://github.com/tc39/proposal-signals) to provide a standardized signal-based reactivity model.
 
 ## Quick Example
 
 Create reactive applications and web components with simple JavaScript objects:
 
-```javascript
+```JavaScript
 import DDOM from '@declarative-dom/lib';
 
-DDOM.customElements.define({
+DDOM.customElements.define({ // 
   tagName: 'my-app',
-  count: 0,        // ← Automatically becomes a reactive signal
-  name: 'World',   // ← Accessed via .get() and .set() methods
+  $count: 0,        // ← Dollar-prefixed properties become reactive signals
+  $name: 'World',   // ← Accessed via .get() and .set() methods
   
   children: [{
     tagName: 'h1',
-    textContent: 'Hello ${this.parentNode.name.get()}!' // ← Rendered as a template literal
+    textContent: 'Hello ${this.$name.get()}!' // ← Signals available in scope
   }, {
     tagName: 'p', 
-    textContent: 'Count: ${this.parentNode.count.get()}'
+    textContent: 'Count: ${this.$count.get()}'
   }, {
     tagName: 'button',
     textContent: 'Increment',
-    onclick: () => this.parentNode.count.set(this.parentNode.count.get() + 1) // ← Explicit signal updates
+    onclick: function() { 
+      this.$count.set(this.$count.get() + 1); // ← Direct signal access via 'this'
+    }
   }]
 });
 ```
 
-That's it! Non-standard properties automatically become reactive signals, template literals update the DOM using `.get()` calls, and signal updates via `.set()` provide predictable reactivity.
+That's it for a simple but powerful custom [Web Component](https://developer.mozilla.org/en-US/docs/Web/API/Web_components)! The syntax follows the DOM, \$-prefixed properties automatically become reactive signals that are shared across the component scope. Template literals update the DOM using `.get()` calls, and signal updates via `.set()` provide predictable reactivity.
 
 ## Key Features
 
 ### 🏗️ DOM Conformance
 
-DDOM aligns closely with the native DOM API, ensuring that object properties mirror standard DOM element properties. This makes it easy to transition from imperative DOM manipulation to declarative syntax without losing familiarity.
+DDOM aligns closely with the native DOM API: object properties mirror standard DOM element properties. This makes for an efficient, comprehensive, standards-driven syntax.
 
-```javascript
+```JavaScript
+/**
+ * DOM/DDOM Equivalent to:
+ * <div id="my-element" class="container" hidden="false" tabindex="0">
+ *   Hello World
+ * </div>
+ */
 {
   tagName: 'div',
   id: 'my-element',
@@ -63,7 +71,14 @@ DDOM aligns closely with the native DOM API, ensuring that object properties mir
 
 DDOM supports declarative child elements using arrays, enabling nested structures that mirror the DOM tree:
 
-```javascript
+```JavaScript
+/**
+ * DDOM equivalent to:
+ * <div>
+ *   <h1>Title</h1>
+ *   <p>Pargraph content <strong>Bold text</strong></p>
+ * </div>
+ */
 {
   tagName: 'div',
   children: [
@@ -73,7 +88,7 @@ DDOM supports declarative child elements using arrays, enabling nested structure
     },
     {
       tagName: 'p',
-      textContent: 'Paragraph content',
+      textContent: 'Paragraph content ',
       children: [
         {
           tagName: 'strong',
@@ -89,7 +104,26 @@ DDOM supports declarative child elements using arrays, enabling nested structure
 
 Styles are represented as objects with CSSOM camelCase property names and support full CSS nesting syntax:
 
-```javascript
+```JavaScript
+/**
+ * DDOM Equivalent to:
+ * div {
+ *   background-color: blue;
+ *   margin-top: 10px;
+ *   font-size: 16px;
+ *   display: flex;
+ * }
+ *
+ * div:hover {
+ *   background-color: red;
+ *   cursor: pointer;
+ * }
+ *
+ * div .child {
+ *   color: white;
+ *   font-weight: bold;
+ * }
+ */
 {
   tagName: 'div',
   style: {
@@ -109,33 +143,62 @@ Styles are represented as objects with CSSOM camelCase property names and suppor
 }
 ```
 
-### 🎯 Signal-based Reactive Properties
+### 🎯 Inherited / Reactive Properties
 
-Non-DOM-standard data properties are automatically provisioned as reactive signals. Property value access and updates use explicit `.get()` and `.set()` methods:
+Properties prefixed with `$` are shared / inherited across the current scope, and non-function properties automatically become Signals to facilitate reactivity. The type of signal depends on the value:
 
-```javascript
+```JavaScript
 const app = DDOM({
-  counter: 0,
-  message: 'Hello'
+  // Data values become State signals
+  $count: 0,
+  $message: 'Hello',
+  $isVisible: true,
+  
+  // Template literals become Computed signals
+  $displayText: 'Count is ${this.$count.get()}',
+  $status: '${this.$isVisible.get() ? "Visible" : "Hidden"}',
+  
+  // Functions are shared in scope (not signals)
+  $increment: function() {
+    this.$count.set(this.$count.get() + 1);
+  },
+  
+  children: [{
+    tagName: 'p',
+    textContent: '${this.$displayText.get()}' // ← Signals available here
+  }, {
+    tagName: 'button',
+    textContent: 'Click me',
+    onclick: function() {
+      this.$increment(); // ← Shared function available here
+    }
+  }]
 });
 
-// Explicit signal access for predictable reactivity
-app.counter.set(42);                    // Sets the signal value
-console.log(app.counter.get());         // Gets the signal value (42)
+// Signal access uses explicit .get() and .set() methods
+app.$count.set(42);                    // Sets the signal value
+console.log(app.$count.get());         // Gets the signal value (42)
+console.log(app.$displayText.get());     // Gets computed value: "Count is 42"
 
 // Direct property access returns the signal object
-console.log(app.counter);               // Signal { ... }
+console.log(app.$counter);               // Signal.State { ... }
+console.log(app.$displayText);           // Signal.Computed { ... }
 ```
 
 ### ⚡ Template Literal Reactivity
 
-Strings with `${...}` patterns are provisioned as template literal expressions with automatically computed signals + effects:
+Strings with `${...}` patterns on dollar-prefixed properties become computed signals, while regular properties get reactive DOM bindings:
 
-```javascript
+```JavaScript
 {
   tagName: 'div',
-  textContent: 'Count is ${this.parentNode.counter.get()}', // ← Automatically reactive
-  className: 'status ${this.parentNode.counter.get() > 10 ? "high" : "low"}' // ← Reactive class names
+  // Regular property with template - creates reactive DOM binding
+  textContent: 'Count is ${this.$counter.get()}',
+  className: 'status ${this.$counter.get() > 10 ? "high" : "low"}',
+  
+  // Dollar property with template - creates computed signal
+  $message: 'You have ${this.$counter.get()} items',
+  $displayClass: '${this.$isActive.get() ? "active" : "inactive"}'
 }
 ```
 
@@ -143,11 +206,11 @@ Strings with `${...}` patterns are provisioned as template literal expressions w
 
 DOM immutable properties `id` and `tagName` are automatically protected from reactivity:
 
-```javascript
+```JavaScript
 {
   tagName: 'my-element',  // ← Set once, never reactive
   id: 'unique-id',        // ← Protected property
-  count: 0                // ← This becomes reactive
+  $count: 0               // ← This becomes reactive
 }
 ```
 
@@ -155,7 +218,7 @@ DOM immutable properties `id` and `tagName` are automatically protected from rea
 
 Strings beginning with `document.`, `this.` or `window.` are provisioned as property accessors. Reference data from anywhere in your application using standard JavaScript dot notation:
 
-```javascript
+```JavaScript
 {
   // Reference global data
   userData: 'window.currentUser',
@@ -165,8 +228,8 @@ Strings beginning with `document.`, `this.` or `window.` are provisioned as prop
   parentData: 'this.parentNode.sharedState',
   
   // Use in any property
-  items: 'window.todoList',           // ← For dynamic arrays
-  signal: 'this.parentNode.$count'    // ← For signal references
+  items: 'window.$todoList',    // ← For dynamic arrays
+  signal: 'this.$count'    // ← For signal references
 }
 ```
 
@@ -174,43 +237,88 @@ Strings beginning with `document.`, `this.` or `window.` are provisioned as prop
 
 Create dynamic lists that automatically update when data changes:
 
-```javascript
+```JavaScript
 {
-  items: 'window.todoList',           // ← Reference data from anywhere
+  items: 'window.$todoList',           // ← Reference data from anywhere
   // items: 'this.parentNode.data',   // ← Or from relative locations
   // items: [{ id: 1, text: 'Task 1' }, { id: 2, text: 'Task 2' }], // ← Or a static array
   map: {
     tagName: 'todo-item',
-    item: (item) => item,             // ← Access each array item
-    index: (item, index) => index,    // ← Access the item's index
-    textContent: '${this.item.get()}: ${this.index.get()}'
+    $todoItem: (item, _index) => item,      // ← Access each array item
+    $todoIndex: (_item, index) => index,    // ← Access the item's index
+    textContent: '${this.todoItem.get().text}'
   }
 }
 ```
 
-### 🎛️ Fine-grained Reactivity
+### ⚙️ Custom Getters/Setters
+
+For advanced property handling, use ES6 getters and setters as an alternative to template literals:
+
+```JavaScript
+{
+  tagName: 'my-component',
+  $count: 0,
+  $multiplier: 2,
+  
+  // Getter creates reactive property that updates when dependencies change
+  get displayValue() {
+    return `Count: ${this.$count.get()} × ${this.$multiplier.get()} = ${this.$count.get() * this.$multiplier.get()}`;
+  },
+  
+  // Setter enables custom validation and side effects
+  set userInput(value) {
+    const parsed = parseInt(value);
+    if (!isNaN(parsed) && parsed >= 0) {
+      this.$count.set(parsed);
+    }
+  },
+  
+  // Getter for complex computed values
+  get statusClass() {
+    const count = this.$count.get();
+    if (count === 0) return 'empty';
+    if (count < 10) return 'low';
+    if (count < 100) return 'medium';
+    return 'high';
+  }
+}
+```
+
+### 🔄 Fine-grained Reactivity
 
 Each property manages its own reactivity - no component-level re-rendering:
 
-```javascript
+```JavaScript
 const app = DDOM({
-  name: 'John',
-  age: 30,
-  email: 'john@example.com'
+  // Only dollar-prefixed properties become signals
+  $name: 'John',
+  $age: 30,
+  
+  // Regular properties are static
+  id: 'user-profile',
+  className: 'container',
+  
+  // But can be signal-driven with templates or getters
+  textContent: 'Name: ${this.$name.get()}',
+  get title() {
+    return `User: ${this.$name.get()} (${this.$age.get()})`;
+  }
 });
 
-// Only elements using 'name' will update when this changes
-app.name.set('Jane');
+// Only signal updates trigger reactivity
+app.$name.set('Jane');  // ← Updates textContent and title
+app.$age.set(31);       // ← Updates title
 
-// Only elements using 'age' will update when this changes  
-app.age.set(31);
+// Regular property changes don't trigger reactivity
+app.className = 'updated'; // ← Just sets the property directly
 ```
 
 ## Getting Started
 
 ### Installation
 
-```bash
+```Shell
 # Clone the repository
 git clone https://github.com/declarative-dom/ddom.git
 cd ddom
@@ -233,7 +341,7 @@ npm run lint:fix
 
 ### Basic Usage
 
-```html
+```HTML
 <!DOCTYPE html>
 <html>
 <head>
@@ -245,8 +353,8 @@ npm run lint:fix
         
         // Create a reactive app
         const app = DDOM({
-            count: 0,
-            name: 'World',
+            $count: 0,
+            $name: 'World',
             
             // Define the DOM structure
             document: {
@@ -254,16 +362,18 @@ npm run lint:fix
                     children: [
                         {
                             tagName: 'h1',
-                            textContent: 'Hello ${this.parentNode.name.get()}!'
+                            textContent: 'Hello ${this.$name.get()}!'
                         },
                         {
                             tagName: 'p',
-                            textContent: 'Count: ${this.parentNode.count.get()}'
+                            textContent: 'Count: ${this.$count.get()}'
                         },
                         {
                             tagName: 'button',
                             textContent: 'Increment',
-                            onclick: () => app.count.set(app.count.get() + 1)
+                            onclick: function() { 
+                                this.$count.set(this.$count.get() + 1);
+                            }
                         }
                     ]
                 }
@@ -280,18 +390,18 @@ npm run lint:fix
 
 The `examples/` directory contains comprehensive demonstrations:
 
-- **`basic-reactivity.html`** - Basic reactivity features
-- **`complete-demo.html`** - Comprehensive feature showcase
-- **`validation-test.html`** - Full test suite validating all features
-- **`dynamic-list.html`** - Dynamic list with reactive signals
-- **`reactive-custom-elements.html`** - Custom elements with reactivity
-- **`performance-test.html`** - Performance benchmarking
+* **`basic-reactivity.html`** - Basic reactivity features
+* **`complete-demo.html`** - Comprehensive feature showcase
+* **`validation-test.html`** - Full test suite validating all features
+* **`dynamic-list.html`** - Dynamic list with reactive signals
+* **`reactive-custom-elements.html`** - Custom elements with reactivity
+* **`performance-test.html`** - Performance benchmarking
 
 ## Testing
 
 DDOM includes a comprehensive testing framework using Vitest:
 
-```bash
+```Shell
 # Run all tests
 npm test
 
@@ -302,48 +412,48 @@ npm run test:watch
 npm run test:coverage
 ```
 
-**Current Status: ✅ 25/25 tests passing**
-
-The test suite validates:
-- ✅ Library loading and exports
-- ✅ Transparent signal proxies  
-- ✅ Template literal reactivity
-- ✅ String address resolution
-- ✅ Protected properties
-- ✅ Performance benchmarks
-
-See [`tests/README.md`](tests/README.md) for detailed testing documentation.
-
 ## Core Concepts
 
-### Standardized Reactive Signals
+### Dollar-Prefixed Signal Properties
 
-DDOM automatically wraps custom data (non-style, non-immutable, non-function, non-templated) properties in reactive signals. These signals:
+DDOM automatically wraps dollar-prefixed properties in reactive signals based on their value type:
 
-- Provide explicit `.get()` and `.set()` methods for predictable access
-- Maintain fine-grained reactivity for property-level updates
-- Support computed signals for template literal expressions
-- Include internal signal state management for optimal performance
+* **Data values** (strings, numbers, booleans, objects) become **State signals**
+* **Template literals** (strings with `${...}`) become **Computed signals**
+* **Functions** are shared in scope but are not wrapped in signals
+
+These signals provide explicit `.get()` and `.set()` methods for predictable access and maintain fine-grained reactivity for property-level updates.
+
+### Component-Level Scoping
+
+Dollar-prefixed properties are automatically shared across the current component scope:
+
+* **Component definition** creates a new scope boundary
+* **All dollar properties** (signals and functions) are available as `this.$property`
+* **Child elements** inherit parent scope properties automatically
+* **Local properties** always take precedence over inherited ones
 
 ### Template Literal Processing
 
-DDOM converts strings containing `${...}` patterns to template literal expressions. These expressions:
+DDOM converts strings containing `${...}` patterns to reactive expressions:
 
-- Create computed signals for the entire template
-- Set up effects that update DOM properties when signals change
-- Support complex expressions using `.get()` calls for signal access
-- Work with any non-style, non-immutable DOM property (textContent, attributes, etc.)
+* **Dollar-prefixed properties** with templates become computed signals
+* **Regular properties** with templates get reactive DOM bindings
+* **Template expressions** use `.get()` calls for signal access
+* **Automatic updates** when referenced signals change
 
-### String Address Resolution
+### Non-Reactive Property Handling
 
-DDOM supports clean string-based property accessors, especially useful for data binding for arrays and signals:
+Properties without the `$` prefix remain static but can still be signal-driven:
 
-```javascript
-// These all work:
-'window.globalData'           // Global window property
-'this.parentNode.items'       // Relative to current element
-'document.body.userData'      // Document reference
-```
+* **Static values** are set once and don't create signals
+* **Getters/setters** can reference signals for reactive behavior
+* **Template literals** on regular properties create reactive DOM bindings
+* **Property accessors** (`this.$signal`, `window.data`) are resolved once
+
+### Protected Properties
+
+DOM immutable properties `id` and `tagName` are automatically protected from reactivity to maintain element identity and prevent conflicts with the browser's internal handling.
 
 ## Philosophy
 
@@ -354,22 +464,23 @@ DDOM maintains strict alignment with DOM APIs and web standards. In general, DDO
 ### Developer Experience
 
 DDOM prioritizes:
-- **Familiar syntax** - Works like normal JavaScript
-- **Minimal learning curve** - Standards-alignment instead of DSLs
-- **Predictable behavior** - Standard property access patterns
-- **Debugging friendly** - Properties work in dev tools
+
+* **Familiar syntax** - Works like normal JavaScript
+* **Minimal novelty** - Standards-alignment over DSLs
+* **Predictable behavior** - Standard property access patterns
+* **Debugging friendly** - Properties work in dev tools
 
 ### Standards Alignment
 
-- Uses standard JavaScript object patterns
-- Template literals follow ES6 specifications
-- DOM property names and behavior match web standards
-- Custom elements align with Web Components specs
+* Uses standard JavaScript object patterns
+* Template literals follow ES6 specifications
+* DOM property names and behavior match web standards
+* Custom elements align with Web Components specs
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Notices
+## Artificial Intelligence Notice
 
 The contents of this repository have been developed with support from one or more generative artificial intelligence solutions.
