@@ -41,7 +41,7 @@ describe('Reactive Property Debug', () => {
           children: [{
             tagName: 'button',
             id: 'debug-function',
-            onclick: function(event) {
+            onclick: function() {
               console.log('Function called with $userName:', $userName);
               console.log('$userName type:', typeof $userName);
               if ($userName && 'get' in $userName) {

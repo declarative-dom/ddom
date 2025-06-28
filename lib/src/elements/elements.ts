@@ -388,7 +388,6 @@ export function adoptArray<T>(
         parentElement.appendChild(fragment);
       } else {
         // Precise DOM updates - only move/add/remove what's needed
-        const currentElementSet = new Set(currentChildren);
         const newElementSet = new Set(orderedElements);
 
         // Remove elements that shouldn't be there anymore

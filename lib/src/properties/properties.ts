@@ -259,7 +259,7 @@ export function handleAttributesProperty(
   el: DOMNode,
   key: string,
   descriptor: PropertyDescriptor,
-  css?: boolean
+  _css?: boolean
 ): void {
   const value = descriptor.value;
   if (!value || typeof value !== 'object' || !(el instanceof Element)) return;
@@ -272,26 +272,26 @@ export function handleAttributesProperty(
 /**
  * Simplified async handlers using createHandler wrapper
  */
-export const handleCustomElementsProperty = createHandler((value, el) =>
+export const handleCustomElementsProperty = createHandler((value, _el) =>
   define(value)
 );
 
 export const handleDocumentProperty = createHandler(
-  (value, el) => adoptNode(value as DocumentSpec, document, true, []),
+  (value, _el) => adoptNode(value as DocumentSpec, document, true, []),
   (el) => el === window
 );
 
 export const handleBodyProperty = createHandler(
-  (value, el) => adoptNode(value as HTMLElementSpec, document.body, true, []),
+  (value, _el) => adoptNode(value as HTMLElementSpec, document.body, true, []),
   (el) => el === document || 'documentElement' in el
 );
 
 export const handleHeadProperty = createHandler(
-  (value, el) => adoptNode(value as HTMLElementSpec, document.head, true, []),
+  (value, _el) => adoptNode(value as HTMLElementSpec, document.head, true, []),
   (el) => el === document || 'documentElement' in el
 );
 
-export const handleWindowProperty = createHandler((value, el) =>
+export const handleWindowProperty = createHandler((value, _el) =>
   adoptNode(value as WindowSpec, window, true, [])
 );
 
@@ -369,61 +369,11 @@ export function handleDefaultProperty(
   el: DOMNode,
   key: string,
   descriptor: PropertyDescriptor,
-  css?: boolean
+  _css?: boolean
 ): void {
-  const value = descriptor.value;
-
   if (!Object.hasOwn(el, key)) {
     // Property doesn't exist - create it normally
     assignPropertyValue(el, key, descriptor);
-  } else {
-    //   // Property exists - handle special cases
-    //   // debug
-    //   console.debug(`Updating existing property "${key}" with value:`, value);
-    //   const existingValue = (el as any)[key];
-    //   // If the existing value is already a resolved signal and the new value is a default (empty/falsy),
-    //   // don't overwrite it - instance properties take precedence
-    //   if (
-    //     typeof existingValue === 'object' &&
-    //     existingValue !== null &&
-    //     (Signal.isState(existingValue) || Signal.isComputed(existingValue)) &&
-    //     (!value || value === '' || value === 0 || value === false)
-    //   ) {
-    //     // Don't overwrite resolved signals with default values
-    //     console.debug(`Preserving existing signal for "${key}", ignoring spec default:`, value);
-    //     return;
-    //   }
-    //   // Handle property accessor strings (like 'this.$name') even when property exists
-    //   if (typeof value === 'string') {
-    //     if (isPropertyAccessor(value)) {
-    //       const resolved = resolvePropertyAccessor(value, el as Node);
-    //       if (resolved !== null) {
-    //         (el as any)[key] = resolved;
-    //       } else {
-    //         console.warn(
-    //           `Failed to resolve property accessor "${value}" for property "${key}"`
-    //         );
-    //       }
-    //       return;
-    //     } else if (isTemplateLiteral(value)) {
-    //       // If it's a template literal, bind it reactively
-    //       bindPropertyTemplate(el, key, value);
-    //       return;
-    //     }
-    //   }
-    //   // Update existing signals with non-default values
-    //   if (
-    //     typeof existingValue === 'object' &&
-    //     existingValue !== null &&
-    //     Signal.isState(existingValue)
-    //   ) {
-    //     existingValue.set(value);
-    //   } else if (
-    //     typeof existingValue !== 'object' ||
-    //     !Signal.isComputed(existingValue)
-    //   ) {
-    //     (el as any)[key] = value;
-    //   }
   }
 }
 

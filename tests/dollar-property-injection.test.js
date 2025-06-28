@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import DDOM, { createElement } from '../lib/dist/index.js';
+import DDOM from '../lib/dist/index.js';
 
 describe('Reactive Property Injection', () => {
   beforeEach(() => {
@@ -59,7 +59,7 @@ describe('Reactive Property Injection', () => {
             {
               tagName: 'button',
               id: 'function-test',
-              onclick: function (event) {
+              onclick: function () {
                 clickedName = $userName.get() + ' (' + $userAge.get() + ')';
               },
             },
