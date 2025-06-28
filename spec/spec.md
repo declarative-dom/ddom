@@ -25,7 +25,7 @@ This specification defines Declarative DOM, a syntax for representing DOM struct
 5. **Reactive**: Support for reactive properties and template literals
 6. **Implementation-Agnostic**: Syntax is tightly defined, allowing multiple implementations
 
-#### 1.3 Scope
+#### 1.3 Reactive
 
 This specification covers:
 - Element property mappings

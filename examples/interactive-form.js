@@ -1,14 +1,14 @@
 export default {
   document: {
     head: {
-      title: 'Interactive Form Example'
+      title: 'Interactive Form Example',
     },
     body: {
       style: {
         fontFamily: 'Arial, sans-serif',
         padding: '2em',
         backgroundColor: '#f0f2f5',
-        margin: '0'
+        margin: '0',
       },
       children: [
         {
@@ -17,75 +17,63 @@ export default {
           style: {
             color: '#333',
             textAlign: 'center',
-            marginBottom: '2em'
-          }
+            marginBottom: '2em',
+          },
         },
         {
-          tagName: 'contact-form'
-        }
-      ]
-    }
+          tagName: 'contact-form',
+        },
+      ],
+    },
   },
 
   customElements: [
     {
       tagName: 'form-field',
 
-      // Props passed from parent
-      label: '',
-      type: 'text',
-      placeholder: '',
-      validator: () => true, // Default validator always returns true
-      errorMessage: '',
-      rows: 1,
-      valueSignal: null, // Signal to bind the input value
+      // Reactive properties - these become reactive signals
+      $label: '',
+      $type: 'text',
+      $placeholder: '',
+      $errorMessage: '',
+      $rows: 1,
+      $value: '',
 
-      // Computed validation using the passed signal
-      isValid: function() {
-        if (!this.valueSignal || !DDOM.Signal.isState(this.valueSignal)) return true;
-        const value = this.valueSignal.get();
-        if (typeof value !== 'string') return true; // No validation if not a string
-        const validator = this.validator;
-        return validator ? validator(value) : true;
+      // Validator function property
+      $validator: () => true,
+
+      // Computed validation using dollar-prefixed properties
+      $isValid: function () {
+        return this.$validator ? this.$validator(this.$value.get()) : true;
       },
 
-      shouldShowError: function() {
-        if (!this.valueSignal || !DDOM.Signal.isState(this.valueSignal)) return false;
-        const value = this.valueSignal.get();
-        if (typeof value !== 'string') return false;
-        return value.length > 0 && !this.isValid();
+      $shouldShowError: function () {
+        return this.$value.get().length > 0 && !this.$isValid();
       },
 
-      currentErrorMessage: function() {
-        return this.shouldShowError() ? this.errorMessage.get() : '';
+      $currentErrorMessage: function () {
+        return this.$shouldShowError() ? this.$errorMessage.get() : '';
       },
 
-      // Computed functions for conditional rendering
-      isInputField: function() {
-        return this.type.get() !== 'textarea';
+      $isInputField: function () {
+        return this.$type.get() !== 'textarea';
       },
 
-      isTextareaField: function() {
-        return this.type.get() === 'textarea';
+      $isTextareaField: function () {
+        return this.$type.get() === 'textarea';
       },
 
       // Methods
       updateValue: function (newValue) {
-        // Direct signal binding - update the signal directly
-        if (this.valueSignal && DDOM.Signal.isState(this.valueSignal)) {
-          this.valueSignal.set(newValue);
-        }
+        this.$value.set(newValue);
       },
 
-      connectedCallback: function () {
-        // Set up reactive attributes for CSS styling  
-        DDOM.createEffect(() => {
-          this.setAttribute('data-valid', this.isValid());
-          this.setAttribute('data-show-error', this.shouldShowError());
-          this.setAttribute('data-field-type', this.type.get());
-          this.setAttribute('data-is-input', this.isInputField());
-          this.setAttribute('data-is-textarea', this.isTextareaField());
-        });
+      attributes: {
+        'data-valid': '${this.$isValid()}',
+        'data-show-error': '${this.$shouldShowError()}',
+        'data-field-type': '${this.$type.get()}',
+        'data-is-input': '${this.$isInputField()}',
+        'data-is-textarea': '${this.$isTextareaField()}',
       },
 
       style: {
@@ -94,141 +82,139 @@ export default {
 
         // Validation styling
         '[data-valid="true"] .field-input': {
-          borderColor: '#28a745'
+          borderColor: '#28a745',
         },
         '[data-valid="false"] .field-input': {
-          borderColor: '#dc3545'
+          borderColor: '#dc3545',
         },
         '[data-show-error="true"] .error-message': {
-          opacity: '1'
+          opacity: '1',
         },
         '[data-show-error="false"] .error-message': {
-          opacity: '0'
+          opacity: '0',
         },
         // Field type styling
         '[data-field-type="textarea"] .field-input': {
-          resize: 'vertical'
+          resize: 'vertical',
         },
-        '[data-field-type="text"] .field-input, [data-field-type="email"] .field-input': {
-          resize: 'none'
-        },
+        '[data-field-type="text"] .field-input, [data-field-type="email"] .field-input':
+          {
+            resize: 'none',
+          },
         // Conditional display using attributes
         '[data-is-input="false"] .input-field': {
-          display: 'none'
+          display: 'none',
         },
         '[data-is-textarea="false"] .textarea-field': {
-          display: 'none'
-        }
+          display: 'none',
+        },
       },
 
       children: [
         {
           tagName: 'label',
-          textContent: '${this.parentNode.label.get()}',
+          textContent: 'this.$label.get()',
           style: {
             display: 'block',
             marginBottom: '0.5em',
-            fontWeight: 'bold'
-          }
+            fontWeight: 'bold',
+          },
         },
         {
           tagName: 'input',
-          name: '${this.parentNode.label.get()}',
-          type: '${this.parentNode.type.get()}',
-          placeholder: '${this.parentNode.placeholder.get()}',
-          value: '${(this.parentNode.valueSignal && this.parentNode.valueSignal.get()) ? this.parentNode.valueSignal.get() : ""}',
+          name: 'this.$label.get()',
+          type: 'this.$type.get()',
+          placeholder: 'this.$placeholder.get()',
+          value: '${this.$value.get()}',
           className: 'field-input input-field',
           style: {
-            width: '100%',
+            width: '-webkit-fill-available',
             padding: '0.75em',
             border: '1px solid #ddd',
             borderRadius: '4px',
-            fontSize: '1em'
+            fontSize: '1em',
           },
           oninput: function (e) {
-            this.parentNode.updateValue(e.target.value);
-          }
+            this.$value.set(e.target.value);
+          },
         },
         {
           tagName: 'textarea',
-          name: '${this.parentNode.label.get()}',
-          placeholder: '${this.parentNode.placeholder.get()}',
-          value: '${(this.parentNode.valueSignal && this.parentNode.valueSignal.get()) ? this.parentNode.valueSignal.get() : ""}',
-          rows: '${this.parentNode.rows.get()}',
+          name: 'this.$label.get()',
+          placeholder: 'this.$placeholder.get()',
+          value: '${this.$value.get()}',
+          rows: 'this.$rows.get()',
           className: 'field-input textarea-field',
           style: {
-            width: '100%',
+            width: '-webkit-fill-available',
             padding: '0.75em',
             border: '1px solid #ddd',
             borderRadius: '4px',
-            fontSize: '1em'
+            fontSize: '1em',
           },
           oninput: function (e) {
-            this.parentNode.updateValue(e.target.value);
-          }
+            this.parentNode.$value.set(e.target.value);
+          },
         },
         {
           tagName: 'div',
-          textContent: '${this.parentNode.currentErrorMessage()}',
+          textContent: '${this.$currentErrorMessage()}',
           className: 'error-message',
           style: {
             color: '#dc3545',
             fontSize: '0.875em',
             marginTop: '0.25em',
             minHeight: '1.2em',
-            transition: 'opacity 0.2s ease'
-          }
-        }
-      ]
+            transition: 'opacity 0.2s ease',
+          },
+        },
+      ],
     },
 
     {
       tagName: 'contact-form',
 
-      // Reactive form data properties
+      // Reactive form data properties (scoped signals)
       $name: '',
       $email: '',
       $message: '',
 
-      // Form validation computed functions
-      isNameValid: function() {
+      // Computed validation using dollar-prefixed properties
+      $isNameValid: function () {
         return this.$name.get().trim().length >= 2;
       },
 
-      isEmailValid: function() {
+      $isEmailValid: function () {
         const email = this.$email.get();
         return email.includes('@') && email.includes('.') && email.length > 5;
       },
 
-      isMessageValid: function() {
+      $isMessageValid: function () {
         return this.$message.get().trim().length >= 10;
       },
 
-      isFormValid: function() {
-        return this.isNameValid() && this.isEmailValid() && this.isMessageValid();
+      $isFormValid: function () {
+        return (
+          this.$isNameValid() && this.$isEmailValid() && this.$isMessageValid()
+        );
       },
 
       // Form methods
-      submitForm: function () {
-        if (this.isFormValid()) {
-          alert(`Form submitted!\nName: ${this.$name.get()}\nEmail: ${this.$email.get()}\nMessage: ${this.$message.get()}`);
+      $submitForm: function () {
+        if (this.$isFormValid()) {
+          alert(
+            `Form submitted!\nName: ${this.$name.get()}\nEmail: ${this.$email.get()}\nMessage: ${this.$message.get()}`
+          );
           this.resetForm();
         } else {
           alert('Please fill out all fields correctly before submitting.');
         }
       },
 
-      resetForm: function () {
+      $resetForm: function () {
         this.$name.set('');
         this.$email.set('');
         this.$message.set('');
-      },
-
-      // Set up reactive attributes for CSS styling
-      connectedCallback: function () {
-        DDOM.createEffect(() => {
-          this.setAttribute('data-form-valid', this.isFormValid());
-        });
       },
 
       style: {
@@ -240,58 +226,67 @@ export default {
         borderRadius: '8px',
         boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
 
-        // Form validation styling using attributes
+        // Form validation styling using computed properties
         '[data-form-valid="true"] .submit-button': {
           backgroundColor: '#28a745',
-          cursor: 'pointer'
+          cursor: 'pointer',
         },
         '[data-form-valid="false"] .submit-button': {
           backgroundColor: '#6c757d',
-          cursor: 'not-allowed'
+          cursor: 'not-allowed',
         },
         '[data-form-valid="true"] .form-status': {
-          color: '#28a745'
+          color: '#28a745',
         },
         '[data-form-valid="false"] .form-status': {
-          color: '#dc3545'
-        }
+          color: '#dc3545',
+        },
+      },
+
+      // Set reactive data attributes
+      attributes: {
+        'data-form-valid':  '${this.$isFormValid()}',
       },
 
       children: [
         {
           tagName: 'form-field',
-          label: 'Name:',
-          type: 'text',
-          placeholder: 'Enter your name (minimum 2 characters)',
-          validator: (value) => value.trim().length >= 2,
-          errorMessage: 'Name must be at least 2 characters',
-          valueSignal: 'this.parentNode.$name'
+          $label: 'Name',
+          $type: 'text',
+          $placeholder: 'Enter your name (minimum 2 characters)',
+          $errorMessage: 'Name must be at least 2 characters',
+          $validator: (value) => value.trim().length >= 2,
+          // Inherit the value signal from parent
+          $value: 'this.$name',
         },
         {
           tagName: 'form-field',
-          label: 'Email:',
-          type: 'email',
-          placeholder: 'Enter your email address',
-          validator: (value) => value.includes('@') && value.includes('.') && value.length > 5,
-          errorMessage: 'Please enter a valid email address',
-          valueSignal: 'this.parentNode.$email'
+          $label: 'Email',
+          $type: 'email',
+          $placeholder: 'Enter your email address',
+          $errorMessage: 'Please enter a valid email address',
+          $validator: (value) =>
+            value.includes('@') && value.includes('.') && value.length > 5,
+          // Inherit the value signal from parent
+          $value: 'this.$email',
         },
         {
           tagName: 'form-field',
-          label: 'Message:',
-          type: 'textarea',
-          rows: 4,
-          placeholder: 'Enter your message (minimum 10 characters)',
-          validator: (value) => value.trim().length >= 10,
-          errorMessage: 'Message must be at least 10 characters',
-          valueSignal: 'this.parentNode.$message'
+          $label: 'Message',
+          $type: 'textarea',
+          $rows: 4,
+          $placeholder: 'Enter your message (minimum 10 characters)',
+          $errorMessage: 'Message must be at least 10 characters',
+          $validator: (value) => value.trim().length >= 10,
+          // Inherit the value signal from parent
+          $value: 'this.$message',
         },
         {
           tagName: 'div',
           style: {
             display: 'flex',
             gap: '1em',
-            justifyContent: 'space-between'
+            justifyContent: 'space-between',
           },
           children: [
             {
@@ -299,17 +294,20 @@ export default {
               type: 'button',
               textContent: 'Submit Form',
               className: 'submit-button',
+              attributes: {
+                disabled: function () { return !this.$isFormValid(); },
+              },
               style: {
                 flex: '1',
                 padding: '0.75em',
                 color: 'white',
                 border: 'none',
                 borderRadius: '4px',
-                fontSize: '1em'
+                fontSize: '1em',
               },
               onclick: function () {
-                this.parentNode.parentNode.submitForm();
-              }
+                this.$submitForm();
+              },
             },
             {
               tagName: 'button',
@@ -323,13 +321,13 @@ export default {
                 border: 'none',
                 borderRadius: '4px',
                 fontSize: '1em',
-                cursor: 'pointer'
+                cursor: 'pointer',
               },
               onclick: function () {
-                this.parentNode.parentNode.resetForm();
-              }
-            }
-          ]
+                this.$resetForm();
+              },
+            },
+          ],
         },
         {
           tagName: 'div',
@@ -338,7 +336,7 @@ export default {
             padding: '1em',
             backgroundColor: '#f8f9fa',
             borderRadius: '4px',
-            border: '1px solid #dee2e6'
+            border: '1px solid #dee2e6',
           },
           children: [
             {
@@ -346,8 +344,8 @@ export default {
               textContent: 'Form Data (Live Preview):',
               style: {
                 margin: '0 0 0.5em 0',
-                color: '#495057'
-              }
+                color: '#495057',
+              },
             },
             {
               tagName: 'div',
@@ -355,31 +353,30 @@ export default {
               children: [
                 {
                   tagName: 'div',
-                  tag: function () { return this.parent.parent.parent.$name },
-                  textContent: 'Name: ${this.parentNode.parentNode.parentNode.$name.get()}'
+                  textContent: 'Name: ${this.$name.get()}',
                 },
                 {
                   tagName: 'div',
-                  textContent: 'Email: ${this.parentNode.parentNode.parentNode.$email.get()}'
+                  textContent: 'Email: ${this.$email.get()}',
                 },
                 {
                   tagName: 'div',
-                  textContent: 'Message: ${this.parentNode.parentNode.parentNode.$message.get()}'
+                  textContent: 'Message: ${this.$message.get()}',
                 },
                 {
                   tagName: 'div',
-                  textContent: 'Valid: ${this.parentNode.parentNode.parentNode.isFormValid() ? "Yes" : "No"}',
+                  textContent: 'Valid: ${this.$isFormValid() ? "Yes" : "No"}',
                   className: 'form-status',
                   style: {
                     marginTop: '0.5em',
-                    fontWeight: 'bold'
-                  }
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    }
-  ]
-}
+                    fontWeight: 'bold',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};

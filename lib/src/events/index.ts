@@ -1,2 +1,2 @@
 export { Signal } from 'signal-polyfill';
-export { globalSignalWatcher, ComponentSignalWatcher, SignalNode, createEffect, createReactiveProperty } from './Signal';
+export { globalSignalWatcher, ComponentSignalWatcher, SignalNode, createEffect } from './Signal';

@@ -15,11 +15,11 @@ export default {
       // Computed properties using native ES6+ getter syntax
 
       // Native getter function syntax (more familiar to developers)
-      get fullName() {
+      $fullName: function () {
         return `${this.$firstName.get()} ${this.$lastName.get()}`;
       },
 
-      get displayTitle() {
+      $displayTitle: function () {
         const score = this.$score.get();
         const level = this.$level.get();
         if (score >= 90) return `Expert (Level ${level})`;
@@ -28,7 +28,7 @@ export default {
         return `Beginner (Level ${level})`;
       },
 
-      get badgeColor() {
+      $badgeColor: function () {
         const score = this.$score.get();
         if (score >= 90) return '#28a745'; // green
         if (score >= 70) return '#007bff'; // blue
@@ -36,12 +36,12 @@ export default {
         return '#6c757d'; // gray
       },
 
-      get progressPercentage() {
+      $progressPercentage: function () {
         return Math.min(100, Math.max(0, this.$score.get()));
       },
 
       // Computed property for level attribute
-      get levelClass() {
+      $levelClass: function () {
         const score = this.$score.get();
         if (score >= 90) return 'expert';
         if (score >= 70) return 'advanced';
@@ -49,20 +49,11 @@ export default {
         return 'beginner';
       },
 
-      // Update attributes reactively when score changes
-      connectedCallback: function () {
-        // Set up reactive attribute updates using createEffect
-        DDOM.createEffect(() => {
-          // These .get() calls register dependencies automatically
-          const level = this.levelClass; // computed property access
-          const score = this.$score.get(); // reactive signal access
-          const progress = this.progressPercentage; // computed property access
-
-          // Set attributes on the custom element (el) so CSS selectors work
-          this.setAttribute('data-level', level);
-          this.setAttribute('data-score', score);
-          this.setAttribute('data-progress', progress);
-        });
+      attributes: {
+        // Use data attributes for CSS styling
+        'data-level': '${this.$levelClass()}',
+        'data-score': '${this.$score.get()}',
+        'data-progress': '${this.$progressPercentage()}',
       },
 
       style: {
@@ -148,7 +139,7 @@ export default {
                 fontWeight: 'bold',
                 fontSize: '1.2em',
               },
-              textContent: '${this.parentNode.parentNode.$level.get()}',
+              textContent: '${this.$level.get()}',
             },
             {
               tagName: 'div',
@@ -163,10 +154,7 @@ export default {
               children: [
                 {
                   tagName: 'h3',
-                  // textContent: '${this.parentNode.parentNode.parentNode.fullName}',
-                  get textContent() {
-                    return `${this.parentNode.parentNode.parentNode.fullName} it works!`;
-                  },
+                  textContent: '${this.$fullName()}',
                   style: {
                     margin: '0 0 0.25em 0',
                     fontSize: '1.25em',
@@ -177,7 +165,7 @@ export default {
                   tagName: 'div',
                   className: 'level-text',
                   textContent:
-                    '${this.parentNode.parentNode.parentNode.displayTitle}',
+                    '${this.$displayTitle()}',
                   style: {
                     fontWeight: '500',
                     fontSize: '0.9em',
@@ -210,7 +198,7 @@ export default {
                 {
                   tagName: 'span',
                   textContent:
-                    '${this.parentNode.parentNode.parentNode.$score.get()}%',
+                    '${this.$score.get()}%',
                   style: {
                     fontSize: '0.9em',
                     fontWeight: '500',
@@ -263,13 +251,12 @@ export default {
                 },
               },
               onclick: function () {
-                const userCard = this.parentNode.parentNode;
-                const currentScore = userCard.$score.get();
-                userCard.$score.set(Math.min(100, currentScore + 10));
+                const currentScore = this.$score.get();
+                this.$score.set(Math.min(100, currentScore + 10));
 
                 // Level up logic
-                if (userCard.$score.get() >= userCard.$level.get() * 20) {
-                  userCard.$level.set(userCard.$level.get() + 1);
+                if (this.$score.get() >= this.$level.get() * 20) {
+                  this.$level.set(this.$level.get() + 1);
                 }
               },
             },
@@ -289,9 +276,8 @@ export default {
                 },
               },
               onclick: function () {
-                const userCard = this.parentNode.parentNode;
-                const currentScore = userCard.$score.get();
-                userCard.$score.set(Math.max(0, currentScore - 10));
+                const currentScore = this.$score.get();
+                this.$score.set(Math.max(0, currentScore - 10));
               },
             },
             {
@@ -310,7 +296,6 @@ export default {
                 },
               },
               onclick: function () {
-                const userCard = this.closest('user-card');
                 const names = [
                   { first: 'Jane', last: 'Smith' },
                   { first: 'Bob', last: 'Johnson' },
@@ -319,8 +304,8 @@ export default {
                 ];
                 const randomName =
                   names[Math.floor(Math.random() * names.length)];
-                userCard.$firstName.set(randomName.first);
-                userCard.$lastName.set(randomName.last);
+                this.$firstName.set(randomName.first);
+                this.$lastName.set(randomName.last);
               },
             },
           ],
@@ -398,7 +383,7 @@ export default {
                 {
                   tagName: 'li',
                   textContent:
-                    'Complex computed logic (fullName, displayTitle, badgeColor)',
+                    'Complex computed logic ($fullName, $displayTitle, $badgeColor)',
                 },
                 {
                   tagName: 'li',

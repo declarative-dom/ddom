@@ -1,8 +1,8 @@
 // filepath: examples/reactive-custom-elements-new.js
 // Updated to use new reactivity model without DSL syntax
 export default {
-  // Regular properties that become automatically reactive via transparent proxy
-  todos: [
+  // Scoped & Reactive Properties - $ prefix makes properties reactive signals
+  $todos: [
     { text: 'Learn Declarative DOM', completed: false },
     { text: 'Build awesome apps', completed: false },
     { text: 'Share with the world', completed: false }
@@ -11,9 +11,9 @@ export default {
   customElements: [
     {
       tagName: 'counter-widget',
-      // Regular properties that automatically become reactive
-      count: 0,
-      theme: 'light',
+      // Scoped & Reactive Properties
+      $count: 0,
+      $theme: 'light',
       style: {
         display: 'block',
         padding: '1em',
@@ -35,7 +35,7 @@ export default {
         {
           tagName: 'h3',
           // Template literals automatically get computed signals + effects
-          textContent: 'Count: ${this.parentNode.count.get()}',
+          textContent: 'Count: ${this.parentNode.$count.get()}',
           style: {
             margin: '0 0 1em 0',
             fontSize: '1.5em'
@@ -64,9 +64,9 @@ export default {
               onclick: function (event) {
                 const counterElement = event.target.parentNode.parentNode; // button -> div -> counter-widget
                 if (counterElement && counterElement.tagName === 'COUNTER-WIDGET') {
-                  console.log('[Counter] Decrementing count from:', counterElement.count);
-                  counterElement.count = counterElement.count - 1;
-                  console.log('[Counter] Count is now:', counterElement.count);
+                  console.log('[Counter] Decrementing count from:', counterElement.$count.get());
+                  counterElement.$count.set(counterElement.$count.get() - 1);
+                  console.log('[Counter] Count is now:', counterElement.$count.get());
                 }
               }
             },
@@ -89,9 +89,9 @@ export default {
               onclick: function (event) {
                 const counterElement = event.target.parentNode.parentNode; // button -> div -> counter-widget
                 if (counterElement && counterElement.tagName === 'COUNTER-WIDGET') {
-                  console.log('[Counter] Incrementing count from:', counterElement.count);
-                  counterElement.count = counterElement.count + 1;
-                  console.log('[Counter] Count is now:', counterElement.count);
+                  console.log('[Counter] Incrementing count from:', counterElement.$count.get());
+                  counterElement.$count.set(counterElement.$count.get() + 1);
+                  console.log('[Counter] Count is now:', counterElement.$count.get());
                 }
               }
             }

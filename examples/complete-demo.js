@@ -2,48 +2,52 @@
 // Demonstrates all features of the new reactivity model in a single declarative object
 
 export default {
-	// Global reactive state - these automatically get transparent signal proxies
-	counter: 0,
-	userName: 'World',
-	greeting: 'Hello',
-	todoList: ['Learn DDOM', 'Build awesome apps'],
+	// Scoped & Reactive Properties - $ prefix makes properties reactive signals
+	$counter: 0,
+	$userName: 'World',
+	$greeting: 'Hello',
+	$todoList: ['Learn DDOM', 'Build awesome apps'],
+
+	// Computed properties using template literals
+	$fullGreeting: '${this.$greeting.get()} ${this.$userName.get()}!',
+	$counterDisplay: 'Count: ${this.$counter.get()}',
+	$todoCount: '${this.$todoList.get().length}',
 
 	// Demo methods that operate on the reactive state
-	incrementCounter() {
-		this.counter.set(this.counter.get() + 1);
+	incrementCounter: function() {
+		this.$counter.set(this.$counter.get() + 1);
 	},
 
-	resetCounter() {
-		this.counter.set(0);
+	resetCounter: function() {
+		this.$counter.set(0);
 	},
 
-	changeName() {
+	changeName: function() {
 		const names = ['World', 'Universe', 'Developer', 'Friend', 'Explorer'];
-		const newName = names.find(n => n !== this.userName.get()) || names[0];
-		this.userName.set(newName);
+		const newName = names.find(n => n !== this.$userName.get()) || names[0];
+		this.$userName.set(newName);
 	},
 
-	changeGreeting() {
+	changeGreeting: function() {
 		const greetings = ['Hello', 'Hi', 'Hey', 'Greetings', 'Welcome'];
-		const newGreeting = greetings.find(g => g !== this.greeting.get()) || greetings[0];
-		this.greeting.set(newGreeting);
+		const newGreeting = greetings.find(g => g !== this.$greeting.get()) || greetings[0];
+		this.$greeting.set(newGreeting);
 	},
 
-	addTodo() {
+	addTodo: function() {
 		const todo = prompt('Enter a new todo:');
 		if (todo) {
-			// Note: In DDOM, array manipulation should create new arrays for reactivity
-			this.todoList.set([...this.todoList.get(), todo]);
+			this.$todoList.set([...this.$todoList.get(), todo]);
 		}
 	},
 
-	clearTodos() {
-		this.todoList.set([]);
+	clearTodos: function() {
+		this.$todoList.set([]);
 	},
 
-	updateMultipleProps() {
+	updateMultipleProps: function() {
 		// This demonstrates property-level reactivity - only changed properties update
-		this.counter.set(this.counter.get() + 10);
+		this.$counter.set(this.$counter.get() + 10);
 		this.changeName();
 		this.changeGreeting();
 	},
@@ -182,7 +186,9 @@ export default {
 													tagName: 'button',
 													className: 'btn btn-primary',
 													textContent: 'Increment Counter',
-													onclick: () => window.incrementCounter(),
+													onclick: function() { 
+														window.incrementCounter(); 
+													},
 													style: {
 														padding: '10px 20px',
 														border: 'none',
@@ -198,7 +204,9 @@ export default {
 													tagName: 'button',
 													className: 'btn btn-secondary',
 													textContent: 'Reset Counter',
-													onclick: () => window.resetCounter(),
+													onclick: function() { 
+														window.resetCounter(); 
+													},
 													style: {
 														padding: '10px 20px',
 														border: 'none',
@@ -214,7 +222,7 @@ export default {
 										}, {
 											tagName: 'div',
 											className: 'reactive-display',
-											textContent: 'Counter: ${window.counter.get()}',
+											textContent: '${this.$counterDisplay.get()}',
 											style: {
 												fontSize: '1.2em',
 												fontWeight: 'bold',
@@ -286,7 +294,9 @@ export default {
 													tagName: 'button',
 													className: 'btn btn-primary',
 													textContent: 'Change Name',
-													onclick: () => window.changeName(),
+													onclick: function() { 
+														window.changeName(); 
+													},
 													style: {
 														padding: '10px 20px',
 														border: 'none',
@@ -302,7 +312,9 @@ export default {
 													tagName: 'button',
 													className: 'btn btn-secondary',
 													textContent: 'Change Greeting',
-													onclick: () => window.changeGreeting(),
+													onclick: function() { 
+														window.changeGreeting(); 
+													},
 													style: {
 														padding: '10px 20px',
 														border: 'none',
@@ -318,7 +330,7 @@ export default {
 										},
 										{
 											tagName: 'div',
-											className: 'reactive-display', textContent: '${window.greeting.get()} ${window.userName.get()}!',
+											className: 'reactive-display', textContent: '${this.$fullGreeting.get()}',
 											style: {
 												fontSize: '1.2em',
 												fontWeight: 'bold',
@@ -390,7 +402,9 @@ export default {
 													tagName: 'button',
 													className: 'btn btn-success',
 													textContent: 'Add Todo',
-													onclick: () => window.addTodo(),
+													onclick: function() { 
+														window.addTodo(); 
+													},
 													style: {
 														padding: '10px 20px',
 														border: 'none',
@@ -406,7 +420,9 @@ export default {
 													tagName: 'button',
 													className: 'btn btn-danger',
 													textContent: 'Clear All',
-													onclick: () => window.clearTodos(),
+													onclick: function() { 
+														window.clearTodos(); 
+													},
 													style: {
 														padding: '10px 20px',
 														border: 'none',
@@ -551,7 +567,9 @@ export default {
 													tagName: 'button',
 													className: 'btn btn-primary',
 													textContent: 'Update Multiple Properties',
-													onclick: () => window.updateMultipleProps(),
+													onclick: function() { 
+														window.updateMultipleProps(); 
+													},
 													style: {
 														padding: '10px 20px',
 														border: 'none',
@@ -579,17 +597,17 @@ export default {
 											children: [
 												{
 													tagName: 'div',
-													textContent: 'Counter: ${window.counter.get()}',
+													textContent: '${this.$counterDisplay.get()}',
 													style: { color: '#2196F3', marginBottom: '5px' }
 												},
 												{
 													tagName: 'div',
-													textContent: 'Name: ${window.userName.get()}',
+													textContent: 'Name: ${this.$userName.get()}',
 													style: { color: '#28a745', marginBottom: '5px' }
 												},
 												{
 													tagName: 'div',
-													textContent: 'Greeting: ${window.greeting.get()}',
+													textContent: 'Greeting: ${this.$greeting.get()}',
 													style: { color: '#ff9800' }
 												}
 											]
@@ -602,5 +620,16 @@ export default {
 				}
 			]
 		}
+	},
+
+	oncreateElement: function() {
+		// Expose methods globally for button onclick handlers
+		window.incrementCounter = this.incrementCounter.bind(this);
+		window.resetCounter = this.resetCounter.bind(this);
+		window.changeName = this.changeName.bind(this);
+		window.changeGreeting = this.changeGreeting.bind(this);
+		window.addTodo = this.addTodo.bind(this);
+		window.clearTodos = this.clearTodos.bind(this);
+		window.updateMultipleProps = this.updateMultipleProps.bind(this);
 	}
 };

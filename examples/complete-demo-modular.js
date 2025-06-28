@@ -2,46 +2,51 @@
 // Demonstrates componentization with reusable custom elements
 
 export default {
-	// Global reactive state
-	counter: 0,
-	userName: 'World',
-	greeting: 'Hello',
-	todoList: ['Learn DDOM', 'Build awesome apps'],
+	// Scoped & Reactive Properties - $ prefix makes properties reactive signals
+	$counter: 0,
+	$userName: 'World',
+	$greeting: 'Hello',
+	$todoList: ['Learn DDOM', 'Build awesome apps'],
+
+	// Computed properties using template literals
+	$fullGreeting: '${this.$greeting.get()} ${this.$userName.get()}!',
+	$counterDisplay: 'Count: ${this.$counter.get()}',
+	$todoCount: '${this.$todoList.get().length}',
 
 	// Demo methods
-	incrementCounter() {
-		this.counter.set(this.counter.get() + 1);
+	incrementCounter: function() {
+		this.$counter.set(this.$counter.get() + 1);
 	},
 
-	resetCounter() {
-		this.counter.set(0);
+	resetCounter: function() {
+		this.$counter.set(0);
 	},
 
-	changeName() {
+	changeName: function() {
 		const names = ['World', 'Universe', 'Developer', 'Friend', 'Explorer'];
-		const newName = names.find(n => n !== this.userName.get()) || names[0];
-		this.userName.set(newName);
+		const newName = names.find(n => n !== this.$userName.get()) || names[0];
+		this.$userName.set(newName);
 	},
 
-	changeGreeting() {
+	changeGreeting: function() {
 		const greetings = ['Hello', 'Hi', 'Hey', 'Greetings', 'Welcome'];
-		const newGreeting = greetings.find(g => g !== this.greeting.get()) || greetings[0];
-		this.greeting.set(newGreeting);
+		const newGreeting = greetings.find(g => g !== this.$greeting.get()) || greetings[0];
+		this.$greeting.set(newGreeting);
 	},
 
-	addTodo() {
+	addTodo: function() {
 		const todo = prompt('Enter a new todo:');
 		if (todo) {
-			this.todoList.set([...this.todoList.get(), todo]);
+			this.$todoList.set([...this.$todoList.get(), todo]);
 		}
 	},
 
-	clearTodos() {
-		this.todoList.set([]);
+	clearTodos: function() {
+		this.$todoList.set([]);
 	},
 
-	updateMultipleProps() {
-		this.counter.set(this.counter.get() + 10);
+	updateMultipleProps: function() {
+		this.$counter.set(this.$counter.get() + 10);
 		this.changeName();
 		this.changeGreeting();
 	},
@@ -51,9 +56,9 @@ export default {
 		// Demo Button Component
 		{
 			tagName: 'demo-button',
-			variant: 'primary',
-			text: 'Button',
-			disabled: false,
+			$variant: 'primary',
+			$text: 'Button',
+			$disabled: false,
 			style: {
 				display: 'inline-block',
 				padding: '10px 20px',
@@ -93,9 +98,9 @@ export default {
 					transform: 'none'
 				}
 			},
-			textContent: '${this.text}',
+			textContent: '${this.$text.get()}',
 			onclick: function(event) {
-				if (!this.disabled && this.action) {
+				if (!this.$disabled.get() && this.action) {
 					this.action.call(this, event);
 				}
 			}
@@ -104,7 +109,7 @@ export default {
 		// Code Block Component
 		{
 			tagName: 'code-block',
-			code: '',
+			$code: '',
 			style: {
 				display: 'block',
 				background: '#263238',
@@ -118,14 +123,14 @@ export default {
 				border: '1px solid #37474f',
 				boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
 			},
-			textContent: '${this.code}'
+			textContent: '${this.$code.get()}'
 		},
 
 		// Reactive Display Component
 		{
 			tagName: 'reactive-display',
-			content: '',
-			variant: 'default',
+			$content: '',
+			$variant: 'default',
 			style: {
 				display: 'block',
 				padding: '15px',
@@ -159,14 +164,14 @@ export default {
 					boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
 				}
 			},
-			textContent: '${this.content}'
+			textContent: '${this.$content.get()}'
 		},
 
 		// Feature Section Component
 		{
 			tagName: 'feature-section',
-			title: '',
-			icon: '✨',
+			$title: '',
+			$icon: '✨',
 			style: {
 				display: 'block',
 				marginBottom: '40px',
@@ -185,7 +190,7 @@ export default {
 				{
 					tagName: 'div',
 					className: 'feature-title',
-					textContent: '${this.parentNode.icon} ${this.parentNode.title}',
+					textContent: '${this.parentNode.$icon.get()} ${this.parentNode.$title.get()}',
 					style: {
 						color: '#2196F3',
 						fontSize: '1.5em',
@@ -384,7 +389,7 @@ export default {
 										{
 											tagName: 'reactive-display',
 											variant: 'counter',
-											content: 'Counter: ${window.counter.get()}'
+											content: '${this.$counterDisplay.get()}'
 										}
 									]
 								},
@@ -423,7 +428,7 @@ export default {
 										{
 											tagName: 'reactive-display',
 											variant: 'greeting',
-											content: '${window.greeting.get()} ${window.userName.get()}!'
+											content: '${this.$fullGreeting.get()}'
 										}
 									]
 								},
@@ -526,7 +531,7 @@ export default {
 											children: [
 												{
 													tagName: 'div',
-													textContent: 'Counter: ${window.counter.get()}',
+													textContent: '${this.$counterDisplay.get()}',
 													style: { 
 														color: '#2196F3', 
 														marginBottom: '8px',
@@ -535,7 +540,7 @@ export default {
 												},
 												{
 													tagName: 'div',
-													textContent: 'Name: ${window.userName.get()}',
+													textContent: 'Name: ${this.$userName.get()}',
 													style: { 
 														color: '#28a745', 
 														marginBottom: '8px',
@@ -544,7 +549,7 @@ export default {
 												},
 												{
 													tagName: 'div',
-													textContent: 'Greeting: ${window.greeting.get()}',
+													textContent: 'Greeting: ${this.$greeting.get()}',
 													style: { 
 														color: '#ff9800',
 														fontSize: '1.1em'
@@ -560,5 +565,16 @@ export default {
 				}
 			]
 		}
+	},
+
+	oncreateElement: function() {
+		// Expose methods globally for component interactions
+		window.incrementCounter = this.incrementCounter.bind(this);
+		window.resetCounter = this.resetCounter.bind(this);
+		window.changeName = this.changeName.bind(this);
+		window.changeGreeting = this.changeGreeting.bind(this);
+		window.addTodo = this.addTodo.bind(this);
+		window.clearTodos = this.clearTodos.bind(this);
+		window.updateMultipleProps = this.updateMultipleProps.bind(this);
 	}
 };
