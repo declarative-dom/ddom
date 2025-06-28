@@ -199,8 +199,8 @@ function processAttribute(el: Element, attrName: string, attrValue: any): void {
     // Reactive template expression
     bindAttributeTemplate(el, attrName, attrValue);
   } else if (typeof attrValue === 'function') {
-    // Function attribute - evaluate once, signals available as this.$property
-    setAttributeValue(el, attrName, attrValue.call(el));
+    // Reactive function attribute
+    bindAttributeFunction(el, attrName, attrValue);
   } else if (typeof attrValue === 'string') {
     // Static string - evaluate with context
     const evaluatedValue = parseTemplateLiteral(attrValue, el);
@@ -311,10 +311,10 @@ function assignPropertyValue(
   const value = descriptor.value;
 
   // Handle ES6 getter/setter
-  if (isGetterDescriptor(descriptor) || isSetterDescriptor(descriptor)) {
-    bindAccessorProperty(el, key, descriptor);
-    return;
-  }
+  // if (isGetterDescriptor(descriptor) || isSetterDescriptor(descriptor)) {
+  //   bindAccessorProperty(el, key, descriptor);
+  //   return;
+  // }
 
   // Handle property accessor strings
   if (typeof value === 'string' && isPropertyAccessor(value)) {
@@ -375,8 +375,6 @@ export function handleDefaultProperty(
 
   if (!Object.hasOwn(el, key)) {
     // Property doesn't exist - create it normally
-    // debug
-    console.debug(`Assigning property "${key}" with value:`, value);
     assignPropertyValue(el, key, descriptor);
   } else {
     //   // Property exists - handle special cases
@@ -544,13 +542,6 @@ export function bindPropertyTemplate(
   );
 }
 
-// === DOLLAR PROPERTY INJECTION UTILITIES ===
-
-/**
- * Wraps a function with scope property injection.
- * Creates a new function that has access to reactive-prefixed properties as direct variables.
-// Reactive properties are now inherited directly on elements, eliminating the need for function wrapping
-
 /**
  * Sets up reactive template binding for an attribute.
  */
@@ -570,6 +561,33 @@ export function bindAttributeTemplate(
       }
     },
     (newValue) => el.getAttribute(attribute) !== newValue
+  );
+}
+
+/**
+ * Sets up reactive function binding for an attribute.
+ */
+export function bindAttributeFunction(
+  el: Element,
+  attribute: string,
+  attrFunction: () => any
+): () => void {
+  const computedValue = new Signal.Computed(() => {
+    try {
+      return attrFunction.call(el);
+    } catch (error) {
+      console.warn(`Attribute function evaluation failed for "${attribute}":`, error);
+      return null;
+    }
+  });
+  
+  return createReactiveBinding(
+    computedValue,
+    (newValue) => setAttributeValue(el, attribute, newValue),
+    (newValue) => {
+      const currentValue = el.getAttribute(attribute);
+      return newValue !== currentValue;
+    }
   );
 }
 

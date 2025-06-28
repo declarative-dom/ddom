@@ -5,7 +5,7 @@ describe('Basic Example', () => {
   beforeEach(() => {
     // Clean up any global variables
     if (typeof window !== 'undefined') {
-      delete window.text;
+      delete window.$text;
     }
   });
 
@@ -30,8 +30,8 @@ describe('Basic Example', () => {
             },
             {
               tagName: 'button',
-              text: 'Click Me!',
-              textContent: '${this.text.get()}',
+              $text: 'Click Me!',
+              textContent: '${this.$text.get()}',
               style: {
                 padding: '0.5em 1em',
                 backgroundColor: '#007bff',
@@ -42,7 +42,7 @@ describe('Basic Example', () => {
               },
               onclick: (event) => { 
                 // Test that the event handler works
-                expect(event.target.text.get()).toBe('Click Me!');
+                expect(event.target.$text.get()).toBe('Click Me!');
               }
             }
           ]
@@ -57,22 +57,22 @@ describe('Basic Example', () => {
   test('should handle button element with reactive text property', () => {
     const button = createElement({
       tagName: 'button',
-      text: 'Click Me!',
-      textContent: '${this.text.get()}',
+      $text: 'Click Me!',
+      textContent: '${this.$text.get()}',
       onclick: function(event) {
         // This tests that the button has access to its text property
-        return event.target.text.get();
+        return event.target.$text.get();
       }
     });
 
     expect(button).toBeDefined();
     expect(button.tagName.toLowerCase()).toBe('button');
-    expect(button.text).toBeDefined();
+    expect(button.$text).toBeDefined();
     
     // Test that the text property is reactive
-    if (typeof button.text === 'object' && button.text.set) {
-      button.text.set('New Text');
-      expect(button.text.get()).toBe('New Text');
+    if (typeof button.$text === 'object' && button.$text.set) {
+      button.$text.set('New Text');
+      expect(button.$text.get()).toBe('New Text');
     }
   });
 

@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createElement } from '../lib/dist/index.js';
 
-describe('Getter/Setter Support', () => {
+describe('Function Property Support', () => {
   let container;
   
   beforeEach(() => {
@@ -14,7 +14,7 @@ describe('Getter/Setter Support', () => {
     // Clean up any global variables
     if (typeof window !== 'undefined') {
       delete window.testValue;
-      delete window.testSignal;
+      delete window.$testSignal;
     }
   });
 
@@ -23,58 +23,65 @@ describe('Getter/Setter Support', () => {
     vi.useRealTimers();
   });
 
-  test('should support native ES6 getter syntax', () => {
+  test('should support function properties that return computed values', () => {
     // Set up some test data
     window.testValue = 'Hello World';
     
     const element = createElement({
       tagName: 'div',
       
-      // Native ES6 getter syntax
-      get computedContent() {
+      // Function property that computes a value
+      computedContent: function () {
         return `Value: ${window.testValue}`;
       }
     });
     
     container.appendChild(element);
     
-    // The getter should be properly bound and the property should be computed
-    expect(element.computedContent).toBe('Value: Hello World');
+    // The function should return the computed value
+    expect(element.computedContent()).toBe('Value: Hello World');
   });
 
-  test('should support native ES6 setter syntax', () => {
+  test('should support function properties with reactive signals', () => {
     const element = createElement({
       tagName: 'div',
-      testProperty: 'initial',
+      $testProperty: 'initial',
       
-      // Native ES6 setter syntax
-      set updateValue(newValue) {
-        this.testProperty = newValue;
+      // Function that uses reactive signal
+      getValue: function () {
+        return this.$testProperty.get();
+      },
+      
+      // Function that updates reactive signal
+      updateValue: function (newValue) {
+        this.$testProperty.set(newValue);
         this.setAttribute('data-value', newValue);
       }
     });
     
     container.appendChild(element);
     
-    // The setter should be properly bound
-    element.updateValue = 'updated';
+    // Test function that gets reactive value
+    expect(element.getValue()).toBe('initial');
     
-    expect(element.testProperty).toBe('updated');
+    // Test function that updates reactive value
+    element.updateValue('updated');
+    expect(element.getValue()).toBe('updated');
     expect(element.getAttribute('data-value')).toBe('updated');
   });
 
-  test('should support simple getter/setter combination', () => {
+  test('should support functions for computed properties', () => {
     const element = createElement({
       tagName: 'div',
-      _internalValue: 'initial',
+      _internalValue: 'initial', // Non-reactive internal value
       
-      // Simple getter
-      get value() {
+      // Function that returns computed value
+      getValue: function () {
         return this._internalValue;
       },
       
-      // Simple setter
-      set value(newValue) {
+      // Function that updates internal value
+      setValue: function (newValue) {
         this._internalValue = newValue;
         this.setAttribute('data-internal', newValue);
       }
@@ -82,33 +89,38 @@ describe('Getter/Setter Support', () => {
     
     container.appendChild(element);
     
-    // Test getter
-    expect(element.value).toBe('initial');
+    // Test getter function
+    expect(element.getValue()).toBe('initial');
     
-    // Test setter
-    element.value = 'updated';
-    expect(element.value).toBe('updated');
+    // Test setter function
+    element.setValue('updated');
+    expect(element.getValue()).toBe('updated');
     expect(element.getAttribute('data-internal')).toBe('updated');
   });
 
-  test('should handle basic computed properties', () => {
+  test('should handle computed properties with signals', () => {
     const element = createElement({
       tagName: 'div',
-      _firstName: 'John',  // Use underscore to prevent signal conversion
-      _lastName: 'Doe',
+      $firstName: 'John',
+      $lastName: 'Doe',
       
-      get fullName() {
-        return `${this._firstName} ${this._lastName}`;
+      // Function that computes full name from signals
+      fullName: function () {
+        return `${this.$firstName.get()} ${this.$lastName.get()}`;
       }
     });
     
     container.appendChild(element);
     
-    expect(element.fullName).toBe('John Doe');
+    expect(element.fullName()).toBe('John Doe');
+    
+    // Update signals and verify computed value changes
+    element.$firstName.set('Jane');
+    expect(element.fullName()).toBe('Jane Doe');
   });
 
-  test('should work with existing functionality', () => {
-    // Test that getters work alongside other DDOM features
+  test('should work with existing DDOM functionality', () => {
+    // Test that functions work alongside other DDOM features
     const element = createElement({
       tagName: 'div',
       id: 'test-element',
@@ -117,9 +129,14 @@ describe('Getter/Setter Support', () => {
       // Regular reactive property
       $counter: 0,
       
-      // Simple getter that accesses reactive property
-      get counterDisplay() {
+      // Function that accesses reactive property
+      counterDisplay: function () {
         return `Count: ${this.$counter.get()}`;
+      },
+      
+      // Function that increments counter
+      increment: function () {
+        this.$counter.set(this.$counter.get() + 1);
       }
     });
     
@@ -127,11 +144,37 @@ describe('Getter/Setter Support', () => {
     
     expect(element.id).toBe('test-element');
     expect(element.textContent).toBe('Static text');
-    expect(element.counterDisplay).toBe('Count: 0');
+    expect(element.counterDisplay()).toBe('Count: 0');
     
-    // Update reactive property
-    element.$counter.set(5);
-    expect(element.counterDisplay).toBe('Count: 5');
+    // Update reactive property via function
+    element.increment();
+    expect(element.counterDisplay()).toBe('Count: 1');
+  });
+
+  test('should support functions with template literals', () => {
+    // Test that functions work with template literal reactivity
+    const element = createElement({
+      tagName: 'div',
+      $message: 'Hello',
+      
+      // Function property
+      getMessage: function () {
+        return this.$message.get().toUpperCase();
+      },
+      
+      // Template literal that uses the signal
+      textContent: 'Message: ${this.$message.get()}'
+    });
+    
+    container.appendChild(element);
+    
+    expect(element.getMessage()).toBe('HELLO');
+    expect(element.textContent).toBe('Message: Hello');
+    
+    // Update signal and verify both function and template update
+    element.$message.set('World');
+    expect(element.getMessage()).toBe('WORLD');
+    // Note: Template literal reactivity would need to be verified in an integration test
   });
 
   afterEach(() => {

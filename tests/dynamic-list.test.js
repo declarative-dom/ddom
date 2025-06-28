@@ -4,7 +4,7 @@ import DDOM, { createElement } from '../lib/dist/index.js';
 describe('Dynamic List Example', () => {
   beforeEach(() => {
     // Clean up any global variables
-    const testProps = ['items', 'addItem', 'removeItem', 'updateItem'];
+    const testProps = ['$items', 'addItem', 'removeItem', 'updateItem'];
     testProps.forEach(prop => {
       delete window[prop];
     });
@@ -12,26 +12,26 @@ describe('Dynamic List Example', () => {
 
   test('should create dynamic list with reactive items array', () => {
     const dynamicListSpec = {
-      items: ['Apple', 'Banana', 'Cherry'],
+      $items: ['Apple', 'Banana', 'Cherry'],
       
       addItem: function () {
         const newItem = 'New Item';
-        this.items.set([...this.items.get(), newItem]);
+        this.$items.set([...this.$items.get(), newItem]);
       },
 
       removeItem: function (index) {
-        const items = this.items.get();
+        const items = this.$items.get();
         if (index >= 0 && index < items.length) {
           const updatedItems = items.filter((_, i) => i !== index);
-          this.items.set(updatedItems);
+          this.$items.set(updatedItems);
         }
       },
 
       updateItem: function (index, newText) {
         if (newText && newText.trim()) {
-          const updatedItems = [...this.items.get()];
+          const updatedItems = [...this.$items.get()];
           updatedItems[index] = newText.trim();
-          this.items.set(updatedItems);
+          this.$items.set(updatedItems);
         }
       }
     };
@@ -40,7 +40,7 @@ describe('Dynamic List Example', () => {
     expect(() => DDOM(dynamicListSpec)).not.toThrow();
     
     // Test that the properties are available on window
-    expect(window.items).toBeDefined();
+    expect(window.$items).toBeDefined();
     expect(window.addItem).toBeDefined();
     expect(window.removeItem).toBeDefined();
     expect(window.updateItem).toBeDefined();
@@ -48,7 +48,7 @@ describe('Dynamic List Example', () => {
 
   test('should handle array operations on reactive items', () => {
     DDOM({
-      items: ['Apple', 'Banana', 'Cherry']
+      $items: ['Apple', 'Banana', 'Cherry']
     });
 
     const getItemsValue = (items) => {
@@ -59,23 +59,23 @@ describe('Dynamic List Example', () => {
     };
 
     // Test initial state
-    const initialItems = getItemsValue(window.items);
+    const initialItems = getItemsValue(window.$items);
     expect(Array.isArray(initialItems)).toBe(true);
     expect(initialItems).toEqual(['Apple', 'Banana', 'Cherry']);
 
     // Test adding an item
-    if (typeof window.items === 'object' && window.items.set) {
-      window.items.set([...window.items.get(), 'Orange']);
-      const updatedItems = window.items.get();
+    if (typeof window.$items === 'object' && window.$items.set) {
+      window.$items.set([...window.$items.get(), 'Orange']);
+      const updatedItems = window.$items.get();
       expect(updatedItems).toEqual(['Apple', 'Banana', 'Cherry', 'Orange']);
     }
 
     // Test removing an item
-    if (typeof window.items === 'object' && window.items.set) {
-      const currentItems = window.items.get();
+    if (typeof window.$items === 'object' && window.$items.set) {
+      const currentItems = window.$items.get();
       const filteredItems = currentItems.filter((_, i) => i !== 1); // Remove 'Banana'
-      window.items.set(filteredItems);
-      const finalItems = window.items.get();
+      window.$items.set(filteredItems);
+      const finalItems = window.$items.get();
       expect(finalItems).toEqual(['Apple', 'Cherry', 'Orange']);
     }
   });
@@ -85,25 +85,25 @@ describe('Dynamic List Example', () => {
       customElements: [
         {
           tagName: 'dynamic-list-item',
-          item: '',
-          index: 0,
+          $item: '',
+          $index: 0,
           children: [
             {
               tagName: 'li',
               children: [
                 {
                   tagName: 'span',
-                  textContent: '${this.parentNode.parentNode.item.get()}',
+                  textContent: '${this.parentNode.parentNode.$item.get()}',
                 },
                 {
                   tagName: 'button',
                   textContent: 'Remove',
                   onclick: function (_event) {
                     const listItem = this.parentNode.parentNode;
-                    const index = listItem.index.get();
+                    const index = listItem.$index.get();
                     // Test that the custom element has access to its properties
                     expect(typeof index).toBe('number');
-                    expect(listItem.item).toBeDefined();
+                    expect(listItem.$item).toBeDefined();
                   }
                 }
               ]
@@ -120,24 +120,24 @@ describe('Dynamic List Example', () => {
   test('should handle template literal reactivity in list items', () => {
     const listItem = createElement({
       tagName: 'dynamic-list-item',
-      item: 'Test Item',
-      index: 0,
+      $item: 'Test Item',
+      $index: 0,
       children: [
         {
           tagName: 'span',
-          textContent: '${this.parentNode.item.get()}'
+          textContent: '${this.parentNode.$item.get()}'
         }
       ]
     });
 
     expect(listItem).toBeDefined();
     expect(listItem.tagName.toLowerCase()).toBe('dynamic-list-item');
-    expect(listItem.item).toBeDefined();
+    expect(listItem.$item).toBeDefined();
     
     // Test that the item property is reactive
-    if (typeof listItem.item === 'object' && listItem.item.set) {
-      listItem.item.set('Updated Item');
-      expect(listItem.item.get()).toBe('Updated Item');
+    if (typeof listItem.$item === 'object' && listItem.$item.set) {
+      listItem.$item.set('Updated Item');
+      expect(listItem.$item.get()).toBe('Updated Item');
     }
   });
 
@@ -148,8 +148,8 @@ describe('Dynamic List Example', () => {
         items: ['Apple', 'Banana', 'Cherry'],
         map: {
           tagName: 'dynamic-list-item',
-          item: (item, _) => item,
-          index: (_, index) => index,
+          $item: (item, _) => item,
+          $index: (_, index) => index,
         }
       }
     };

@@ -113,9 +113,7 @@ export default {
       children: [
         {
           tagName: 'label',
-          get textContent() {
-            return this.$label.get();
-          },
+          textContent: 'this.$label.get()',
           style: {
             display: 'block',
             marginBottom: '0.5em',
@@ -124,52 +122,31 @@ export default {
         },
         {
           tagName: 'input',
-          get name() {
-            return this.$label.get();
-          },
-          get type() {
-            return this.$type.get();
-          },
-          get placeholder() {
-            // debug
-            console.log('Placeholder:', this.$placeholder.get());
-            console.log('Validator:', this.$validator);
-            console.log('Value:', this.$value.get());
-            return this.$placeholder.get();
-          },
-          // placeholder: '${this.$placeholder.get()}', // Use template literal for placeholder
-          get value() {
-            return this.$value.get();
-          },
+          name: 'this.$label.get()',
+          type: 'this.$type.get()',
+          placeholder: 'this.$placeholder.get()',
+          value: '${this.$value.get()}',
           className: 'field-input input-field',
           style: {
-            width: '100%',
+            width: '-webkit-fill-available',
             padding: '0.75em',
             border: '1px solid #ddd',
             borderRadius: '4px',
             fontSize: '1em',
           },
           oninput: function (e) {
-            this.parentNode.$value.set(e.target.value);
+            this.$value.set(e.target.value);
           },
         },
         {
           tagName: 'textarea',
-          get name() {
-            return this.$label.get();
-          },
-          get placeholder() {
-            return this.$placeholder.get();
-          },
-          get value() {
-            return this.$value.get();
-          },
-          get rows() {
-            return this.$rows.get();
-          },
+          name: 'this.$label.get()',
+          placeholder: 'this.$placeholder.get()',
+          value: '${this.$value.get()}',
+          rows: 'this.$rows.get()',
           className: 'field-input textarea-field',
           style: {
-            width: '100%',
+            width: '-webkit-fill-available',
             padding: '0.75em',
             border: '1px solid #ddd',
             borderRadius: '4px',
@@ -181,9 +158,7 @@ export default {
         },
         {
           tagName: 'div',
-          get textContent() {
-            return this.$currentErrorMessage();
-          },
+          textContent: '${this.$currentErrorMessage()}',
           className: 'error-message',
           style: {
             color: '#dc3545',
@@ -225,7 +200,7 @@ export default {
       },
 
       // Form methods
-      submitForm: function () {
+      $submitForm: function () {
         if (this.$isFormValid()) {
           alert(
             `Form submitted!\nName: ${this.$name.get()}\nEmail: ${this.$email.get()}\nMessage: ${this.$message.get()}`
@@ -236,7 +211,7 @@ export default {
         }
       },
 
-      resetForm: function () {
+      $resetForm: function () {
         this.$name.set('');
         this.$email.set('');
         this.$message.set('');
@@ -319,7 +294,9 @@ export default {
               type: 'button',
               textContent: 'Submit Form',
               className: 'submit-button',
-              get disabled() { return !this.$isFormValid(); },
+              attributes: {
+                disabled: function () { return !this.$isFormValid(); },
+              },
               style: {
                 flex: '1',
                 padding: '0.75em',
@@ -329,7 +306,7 @@ export default {
                 fontSize: '1em',
               },
               onclick: function () {
-                this.parentNode.parentNode.submitForm();
+                this.$submitForm();
               },
             },
             {
@@ -347,7 +324,7 @@ export default {
                 cursor: 'pointer',
               },
               onclick: function () {
-                this.parentNode.parentNode.resetForm();
+                this.$resetForm();
               },
             },
           ],
@@ -376,21 +353,19 @@ export default {
               children: [
                 {
                   tagName: 'div',
-                  get textContent() {return `Name: ${this.$name.get()}`},
+                  textContent: 'Name: ${this.$name.get()}',
                 },
                 {
                   tagName: 'div',
-                  get textContent() {return `Email: ${this.$email.get()}`},
+                  textContent: 'Email: ${this.$email.get()}',
                 },
                 {
                   tagName: 'div',
-                  get textContent() {return `Message: ${this.$message.get()}`},
+                  textContent: 'Message: ${this.$message.get()}',
                 },
                 {
                   tagName: 'div',
-                  get textContent() {
-                    return `Valid: ${this.$isFormValid() ? "Yes" : "No"}`;
-                  },
+                  textContent: 'Valid: ${this.$isFormValid() ? "Yes" : "No"}',
                   className: 'form-status',
                   style: {
                     marginTop: '0.5em',

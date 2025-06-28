@@ -73,8 +73,6 @@ export function adoptNode(
 
   // Inherit parent reactive properties directly (simple assignment)
   if (scopeReactiveProperties) {
-	// debug
-	console.debug('Inheriting scope reactive properties:', scopeReactiveProperties);
     Object.assign(el, scopeReactiveProperties);
   }
 

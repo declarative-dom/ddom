@@ -88,7 +88,7 @@ describe('Reactive Property Injection', () => {
             {
               tagName: 'div',
               id: 'getter-test',
-              get fullName() {
+              fullName: function () {
                 return `${$firstName.get()} ${$lastName.get()}`;
               },
             },
@@ -101,36 +101,7 @@ describe('Reactive Property Injection', () => {
 
     const element = document.getElementById('getter-test');
     expect(element).toBeDefined();
-    expect(element.fullName).toBe('John Doe');
-  });
-
-  test('should inject scope properties into setters', () => {
-    let setterValue = null;
-
-    const spec = {
-      $prefix: 'Mr.',
-      document: {
-        body: {
-          children: [
-            {
-              tagName: 'div',
-              id: 'setter-test',
-              set testValue(value) {
-                setterValue = `${$prefix.get()} ${value}`;
-              },
-            },
-          ],
-        },
-      },
-    };
-
-    DDOM(spec);
-
-    const element = document.getElementById('setter-test');
-    expect(element).toBeDefined();
-
-    element.testValue = 'Smith';
-    expect(setterValue).toBe('Mr. Smith');
+    expect(element.fullName()).toBe('John Doe');
   });
 
   test('should inject scope properties into attributes', () => {
@@ -144,9 +115,10 @@ describe('Reactive Property Injection', () => {
               tagName: 'div',
               id: 'attribute-test',
               attributes: {
-                'data-theme': '${$theme.get()}',
-                'data-size': '${$size.get()}',
-                class: 'component theme-${$theme.get()} size-${$size.get()}',
+                'data-theme': '${window.$theme.get()}',
+                'data-size': '${window.$size.get()}',
+                class:
+                  'component theme-${window.$theme.get()} size-${window.$size.get()}',
               },
             },
           ],
@@ -172,7 +144,7 @@ describe('Reactive Property Injection', () => {
           tagName: 'debug-card',
           $userName: 'Carol',
           $userRole: 'Admin',
-          get displayText() {
+          displayText: function () {
             console.log('Custom element getter - this:', this);
             console.log('Custom element $userName:', this.$userName.get());
             console.log(
@@ -220,7 +192,7 @@ describe('Reactive Property Injection', () => {
           tagName: 'user-card',
           $userName: 'Carol',
           $userRole: 'Admin',
-          textContent: '${$userName.get()} (${$userRole.get()})',
+          textContent: '${this.$userName.get()} (${this.$userRole.get()})',
         },
       ],
       document: {
@@ -259,7 +231,7 @@ describe('Reactive Property Injection', () => {
                 {
                   tagName: 'small',
                   textContent: 'by ${$author.get()}',
-                  get fullCredits() {
+                  fullCredits: function () {
                     return `${$appName.get()} v${$version.get()} by ${$author.get()}`;
                   },
                 },
@@ -279,7 +251,7 @@ describe('Reactive Property Injection', () => {
     const small = header.querySelector('small');
     expect(small).toBeDefined();
     expect(small.textContent).toBe('by Developer');
-    expect(small.fullCredits).toBe('My App v1.0.0 by Developer');
+    expect(small.fullCredits()).toBe('My App v1.0.0 by Developer');
   });
 
   test('should work without scope properties (backward compatibility)', () => {

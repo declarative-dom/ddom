@@ -76,7 +76,7 @@ describe('Reactive Property Debug', () => {
           children: [{
             tagName: 'div',
             id: 'debug-test',
-            get textContent() {
+            textContent: function () {
               console.log('Getter called with this:', this);
               console.log('Getter $name:', this.$name);
               return 'Hello from getter!';

@@ -21,7 +21,7 @@ describe('Computed Properties Example', () => {
           $score: 85,
           $level: 1,
 
-          // Computed functions instead of getters
+          // Computed functions - regular functions that use reactive data
           fullName: function() {
             return `${this.$firstName.get()} ${this.$lastName.get()}`;
           },

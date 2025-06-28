@@ -251,40 +251,6 @@ Create dynamic lists that automatically update when data changes:
 }
 ```
 
-### ⚙️ Custom Getters/Setters
-
-For advanced property handling, use ES6 getters and setters as an alternative to template literals:
-
-```JavaScript
-{
-  tagName: 'my-component',
-  $count: 0,
-  $multiplier: 2,
-  
-  // Getter creates reactive property that updates when dependencies change
-  get displayValue() {
-    return `Count: ${this.$count.get()} × ${this.$multiplier.get()} = ${this.$count.get() * this.$multiplier.get()}`;
-  },
-  
-  // Setter enables custom validation and side effects
-  set userInput(value) {
-    const parsed = parseInt(value);
-    if (!isNaN(parsed) && parsed >= 0) {
-      this.$count.set(parsed);
-    }
-  },
-  
-  // Getter for complex computed values
-  get statusClass() {
-    const count = this.$count.get();
-    if (count === 0) return 'empty';
-    if (count < 10) return 'low';
-    if (count < 100) return 'medium';
-    return 'high';
-  }
-}
-```
-
 ### 🔄 Fine-grained Reactivity
 
 Each property manages its own reactivity - no component-level re-rendering:
@@ -301,7 +267,7 @@ const app = DDOM({
   
   // But can be signal-driven with templates or getters
   textContent: 'Name: ${this.$name.get()}',
-  get title() {
+  title: function () {
     return `User: ${this.$name.get()} (${this.$age.get()})`;
   }
 });

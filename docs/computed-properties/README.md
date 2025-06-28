@@ -7,7 +7,7 @@ This example demonstrates DDOM's support for **computed properties** using nativ
 DDOM supports **native ES6+ getter syntax** for computed properties:
 
 ```javascript
-get propertyName() {
+propertyName: function () {
   return /* computed value */;
 }
 ```
@@ -69,11 +69,11 @@ style: {
   $score: 85,
   
   // Computed properties using native getter syntax
-  get fullName() {
+  fullName: function () {
     return `${this.$firstName.get()} ${this.$lastName.get()}`;
   },
   
-  get userLevel() {
+  userLevel: function () {
     const score = this.$score.get();
     if (score >= 90) return 'Expert';
     if (score >= 70) return 'Advanced';  
