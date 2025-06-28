@@ -136,6 +136,11 @@ export function createReactiveProperty(
 /**
  * Creates a reactive binding with automatic cleanup support.
  * Consolidates the common pattern of computed signals + effects + cleanup.
+ *
+ * @param computedSignal - The computed signal to bind
+ * @param updateFn - Function to call when the signal value changes
+ * @param shouldUpdate - Optional function to determine if update should occur
+ * @returns A cleanup function to dispose of the reactive binding
  */
 function createReactiveBinding<T>(
   computedSignal: Signal.Computed<T>,
@@ -167,6 +172,12 @@ function createReactiveBinding<T>(
 /**
  * Creates a reactive template binding for any update function.
  * Handles template compilation and reactive updates in one place.
+ *
+ * @param template - The template string to make reactive
+ * @param contextNode - The DOM node to use as context
+ * @param updateFn - Function to call when the template value changes
+ * @param shouldUpdate - Optional function to determine if update should occur
+ * @returns A cleanup function to dispose of the reactive binding
  */
 function bindReactiveTemplate(
   template: string,
@@ -180,6 +191,11 @@ function bindReactiveTemplate(
 
 /**
  * Unified attribute setter with proper type handling.
+ * Handles boolean attributes, null/undefined values, and string conversion.
+ *
+ * @param el - The element to set the attribute on
+ * @param name - The attribute name
+ * @param value - The attribute value to set
  */
 function setAttributeValue(el: Element, name: string, value: any): void {
   if (typeof value === 'boolean') {
@@ -193,6 +209,10 @@ function setAttributeValue(el: Element, name: string, value: any): void {
 
 /**
  * Processes a single attribute with automatic reactive/static detection.
+ *
+ * @param el - The element to set the attribute on
+ * @param attrName - The attribute name
+ * @param attrValue - The attribute value (can be string, function, or other types)
  */
 function processAttribute(el: Element, attrName: string, attrValue: any): void {
   if (typeof attrValue === 'string' && isTemplateLiteral(attrValue)) {
@@ -212,7 +232,12 @@ function processAttribute(el: Element, attrName: string, attrValue: any): void {
 }
 
 /**
- * Creates an async property handler wrapper to reduce boilerplate.
+ * Creates a property handler wrapper to reduce boilerplate.
+ * Provides consistent error handling and conditional execution for handlers.
+ *
+ * @param handlerFn - The handler function to wrap
+ * @param condition - Optional condition function to determine if handler should execute
+ * @returns A standardized DDOM property handler function
  */
 function createHandler(
   handlerFn: (value: any, el: DOMNode) => void,
@@ -270,27 +295,44 @@ export function handleAttributesProperty(
 }
 
 /**
- * Simplified async handlers using createHandler wrapper
+ * Simplified async handlers using createHandler wrapper.
+ * Handles custom element definitions by delegating to the define function.
  */
 export const handleCustomElementsProperty = createHandler((value, _el) =>
   define(value)
 );
 
+/**
+ * Handles the document property by adopting document specifications.
+ * Only executes when the element is the window object.
+ */
 export const handleDocumentProperty = createHandler(
   (value, _el) => adoptNode(value as DocumentSpec, document, true, []),
   (el) => el === window
 );
 
+/**
+ * Handles the body property by adopting body specifications.
+ * Only executes when the element is the document or has a documentElement property.
+ */
 export const handleBodyProperty = createHandler(
   (value, _el) => adoptNode(value as HTMLElementSpec, document.body, true, []),
   (el) => el === document || 'documentElement' in el
 );
 
+/**
+ * Handles the head property by adopting head specifications.
+ * Only executes when the element is the document or has a documentElement property.
+ */
 export const handleHeadProperty = createHandler(
   (value, _el) => adoptNode(value as HTMLElementSpec, document.head, true, []),
   (el) => el === document || 'documentElement' in el
 );
 
+/**
+ * Handles the window property by adopting window specifications.
+ * Adopts window-level DOM specifications into the global window object.
+ */
 export const handleWindowProperty = createHandler((value, _el) =>
   adoptNode(value as WindowSpec, window, true, [])
 );
@@ -302,6 +344,12 @@ export const handleStyleProperty = createHandler(
 
 /**
  * Unified property value assignment with all the DDOM logic.
+ * Handles ES6 getters/setters, property accessors, template literals,
+ * functions, reactive properties, and direct value assignment.
+ * 
+ * @param el - The element to assign the property to
+ * @param key - The property name
+ * @param descriptor - The property descriptor containing the value
  */
 function assignPropertyValue(
   el: any,
@@ -362,7 +410,14 @@ function assignPropertyValue(
 }
 
 /**
- * Much simpler default handler!
+ * Default property handler for properties that don't have specialized handlers.
+ * Creates properties that don't already exist on the element using assignPropertyValue.
+ * 
+ * @param spec - The declarative DOM specification
+ * @param el - The target DOM node
+ * @param key - The property key
+ * @param descriptor - The property descriptor
+ * @param _css - Whether to process CSS styles (unused in this handler)
  */
 export function handleDefaultProperty(
   spec: DOMSpec,
@@ -478,6 +533,12 @@ export function computedTemplate(
 
 /**
  * Sets up reactive template binding for a property.
+ * Creates a reactive binding that updates the property when the template expression changes.
+ *
+ * @param el - The element containing the property
+ * @param property - The property name to bind to
+ * @param template - The template string containing reactive expressions
+ * @returns A cleanup function to dispose of the reactive binding
  */
 export function bindPropertyTemplate(
   el: any,
@@ -494,6 +555,12 @@ export function bindPropertyTemplate(
 
 /**
  * Sets up reactive template binding for an attribute.
+ * Creates a reactive binding that updates the attribute when the template expression changes.
+ *
+ * @param el - The element to set the attribute on
+ * @param attribute - The attribute name to bind to
+ * @param template - The template string containing reactive expressions
+ * @returns A cleanup function to dispose of the reactive binding
  */
 export function bindAttributeTemplate(
   el: Element,
@@ -516,6 +583,12 @@ export function bindAttributeTemplate(
 
 /**
  * Sets up reactive function binding for an attribute.
+ * Creates a computed signal from the function and binds it to the attribute.
+ *
+ * @param el - The element to set the attribute on
+ * @param attribute - The attribute name to bind to
+ * @param attrFunction - The function that computes the attribute value
+ * @returns A cleanup function to dispose of the reactive binding
  */
 export function bindAttributeFunction(
   el: Element,
@@ -578,7 +651,7 @@ export function resolvePropertyAccessor(
   }
 }
 
-// === ES6 GETTER/SETTER SUPPORT ===
+// === ES6 GETTER/SETTER SUPPORT (DEPRECATED) ===
 
 /**
  * Converts a getter function into a computed signal and sets up reactive property binding.
@@ -727,6 +800,13 @@ async function adoptStyles(el: Element, styles: StyleExpr): Promise<void> {
   insertRules(styles, selector);
 }
 
+/**
+ * Generates a path-based CSS selector for an element.
+ * Creates a unique selector using element hierarchy and nth-of-type selectors.
+ *
+ * @param el - The element to generate a selector for
+ * @returns A unique CSS selector string
+ */
 /**
  * Generates a path-based CSS selector for an element.
  * Creates a unique selector using element hierarchy and nth-of-type selectors.

@@ -185,6 +185,8 @@ console.log(app.$counter);               // Signal.State { ... }
 console.log(app.$displayText);           // Signal.Computed { ... }
 ```
 
+NOTE: Scopes are partitioned at the window, document, and custom element levels. Each custom element creates a new scope boundary, allowing properties to be shared within that component but isolated from others.
+
 ### ⚡ Template Literal Reactivity
 
 Strings with `${...}` patterns on dollar-prefixed properties become computed signals, while regular properties get reactive DOM bindings:
