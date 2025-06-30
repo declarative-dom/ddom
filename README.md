@@ -8,9 +8,9 @@
 
 ## ⚠️ This is a preview of an in-progress schema definition and could change at any time. Do not use this in production. ⚠️
 
-**The Declarative Document Object Model** *(or DDOM)* is a schema and runtime for building and deploying web applications via [JavaScript object literals](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Scripting/Object_basics). DDOM intends is to expose all [Open Web Platform](https://www.w3.org/wiki/Open_Web_Platform) functionality within an object syntax that closely follows the [Document Object Model](https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model).
+**The Declarative Document Object Model** *(or DDOM)* is a schema and runtime for building and deploying web applications  (documents, variables, functions, and elements) via [JavaScript objects](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Scripting/Object_basics) which closely mirror the [Document Object Model](https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model).
 
-Just as JSON provides a syntax and grammar for defining arbitrary data, DDOM defines a type-enforced object structure for defining web applications (documents, nodes, and custom elements) in a declarative manner which attempts to mirror and extend the [official DOM API](https://dom.spec.whatwg.org/), borrowing from the [CSSOM](https://www.w3.org/TR/cssom-1/), [ECMAScript](https://tc39.es/), and related web standards.
+Just as JSON provides a syntax and grammar for defining arbitrary data, DDOM defines a type-enforced object structure for exposing [Open Web Platform](https://www.w3.org/wiki/Open_Web_Platform) functionality within an object syntax inspired by the [official DOM API](https://dom.spec.whatwg.org/), the [CSSOM](https://www.w3.org/TR/cssom-1/), [ECMAScript static methods](https://tc39.es/), and related web standards.
 
 DDOM is developed as a [specification](spec/spec.md), a [collection of types](types/), and a [reference runtime library](lib/) for deploying reactive web applications using the DDOM syntax. The DDOM runtime library is developed in Typescript and integrates the [TC39 JavaScript Signals proposal](https://github.com/tc39/proposal-signals) to provide a standardized signal-based reactivity model.
 
@@ -42,7 +42,7 @@ DDOM.customElements.define({
 });
 ```
 
-That's it for a simple but powerful custom [Web Component](https://developer.mozilla.org/en-US/docs/Web/API/Web_components)! The syntax follows the DOM, \$-prefixed properties automatically become reactive signals that are shared across the component scope. Template literals update the DOM using `.get()` calls, and signal updates via `.set()` provide predictable reactivity.
+That's it for a simple but powerful custom [Web Component](https://developer.mozilla.org/en-US/docs/Web/API/Web_components)! The syntax follows the DOM, \$-prefixed properties automatically become reactive signals that are shared across the component scope. Template literals update the DOM reactively.
 
 ## Key Features
 
