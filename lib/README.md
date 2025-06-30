@@ -123,12 +123,12 @@ const page = {
 
 DDOM consists of several key modules:
 
-- **`templates/`** - Template literal processing and signal property creation
-- **`elements/`** - DOM element creation and property handling
-- **`events/`** - Signal system and effect management
-- **`arrays/`** - Dynamic array handling with property accessor support
+- **`arrays/`** - Dynamic array implementation
 - **`customElements/`** - Custom element registration and management
-- **`accessors/`** - Property accessor resolution for cross-component data binding
+- **`elements/`** - DOM element creation/adoption
+- **`events/`** - Signal system and effect management
+- **`properties/`** - Property definition and management
+- **`styleSheets/`** - Style object processing and application
 
 ## Performance
 
