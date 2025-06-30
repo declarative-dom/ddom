@@ -4,6 +4,7 @@ import interactiveFormExample from './interactive-form.js';
 import dynamicListExample from './dynamic-list.js';
 import computedPropertiesExample from './computed-properties.js';
 import jsesc from 'https://cdn.jsdelivr.net/npm/jsesc/+esm';
+import { adoptWindow } from '../lib/dist/index.js';
 
 
 export default {
@@ -34,14 +35,10 @@ export default {
   // Reactive current example
   $currentExample: 'basic',
 
-  // Computed properties for iframe content generation
+  // Computed properties for shadow DOM preview generation
   currentExampleConfig: function () {
     // Return the config for the current example
     return window.examples[window.$currentExample.get()]?.config;
-  },
-
-  currentExampleURL: function () {
-    return window.examples[window.$currentExample.get()]?.path;
   },
 
   currentExampleJSON: function () {
@@ -99,6 +96,210 @@ export default {
         },
       ],
     },
+    {
+      tagName: 'ddom-preview',
+      
+      // Shadow DOM enabled custom element for live preview     
+      $exampleConfig: null,
+      $previewDisposables: new Set(),
+      
+      style: {
+        display: 'block',
+        height: '100%',
+        backgroundColor: 'white',
+        border: 'none',
+        overflow: 'auto',
+      },
+      
+      // Shadow DOM content using template syntax
+      children: [
+        {
+          tagName: 'template',
+          shadowRootMode: 'open',
+          style: {
+            ':host': {
+              display: 'block',
+              height: '100%',
+              background: 'white',
+              overflow: 'auto',
+            },
+            
+            '*': {
+              boxSizing: 'border-box',
+            },
+            
+            'main': {
+              margin: '0',
+              padding: '0',
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            }
+          },
+          children: [
+            {
+              tagName: 'main',
+              part: 'body',
+              id: 'preview-container',
+              style: {
+                height: '100%',
+                overflow: 'auto',
+              }
+            },
+          ],
+        },
+      ],
+      
+      // Methods for managing preview lifecycle
+      connectedCallback: function() {
+        this.updatePreview();
+        
+        // Set up reactive effect to update preview when config changes
+        if (window.effect) {
+          this.effectCleanup = window.effect(() => {
+            // Watch for changes to the example config
+            this.$exampleConfig.get();
+            // Update preview when config changes
+            this.updatePreview();
+          });
+        }
+      },
+      
+      disconnectedCallback: function() {
+        this.cleanupPreview();
+        // Clean up the reactive effect
+        if (this.effectCleanup) {
+          this.effectCleanup();
+        }
+      },
+      
+      updatePreview: function() {
+        if (!this.$exampleConfig.get()) return;
+        
+        this.cleanupPreview();
+        
+        const container = this.shadowRoot.getElementById('preview-container');
+        if (!container) return;
+        
+        try {
+          // Create isolated context for the example
+          const previewWindow = {
+            document: container,
+            addEventListener: container.addEventListener.bind(container),
+            removeEventListener: container.removeEventListener.bind(container),
+            setTimeout: window.setTimeout,
+            clearTimeout: window.clearTimeout,
+            setInterval: window.setInterval,
+            clearInterval: window.clearInterval,
+            requestAnimationFrame: window.requestAnimationFrame,
+            cancelAnimationFrame: window.cancelAnimationFrame,
+          };
+          
+          // Apply the example configuration to the isolated context
+          const exampleConfig = this.$exampleConfig.get();
+          
+          // Adopt the example into the shadow DOM context
+          this.adoptExample(previewWindow, exampleConfig);
+          
+        } catch (error) {
+          console.error('Preview update failed:', error);
+          container.innerHTML = `
+            <div style="padding: 2rem; color: red; font-family: monospace;">
+              <h3>Preview Error</h3>
+              <pre>${error.message}</pre>
+            </div>
+          `;
+        }
+      },
+      
+      adoptExample: function(previewWindow, config) {
+        // Clone the config to avoid mutations
+        const clonedConfig = structuredClone(config);
+        
+        try {
+          // Store reference for cleanup
+          this.$previewDisposables.get().add(() => {
+            const container = this.shadowRoot.getElementById('preview-container');
+            if (container) container.innerHTML = '';
+          });
+          
+          // Create a proxy window object that maps to our shadow DOM container
+          const shadowWindow = this.createShadowWindowProxy(previewWindow, clonedConfig);
+          
+          // Use the actual DDOM adoptWindow function with our shadow window
+          adoptWindow(clonedConfig, shadowWindow);
+          
+        } catch (error) {
+          console.error('Failed to adopt example:', error);
+          throw error;
+        }
+      },
+      
+      createShadowWindowProxy: function(previewWindow, config) {
+        const container = this.shadowRoot.getElementById('preview-container');
+        
+        // Create a proxy that intercepts property access and maps to shadow DOM
+        const shadowWindow = new Proxy(previewWindow, {
+          get: (target, prop) => {
+            // Map document to our shadow container context
+            if (prop === 'document') {
+              return {
+                body: container,
+                createElement: document.createElement.bind(document),
+                createTextNode: document.createTextNode.bind(document),
+                createDocumentFragment: document.createDocumentFragment.bind(document),
+                querySelector: container.querySelector.bind(container),
+                querySelectorAll: container.querySelectorAll.bind(container),
+                getElementById: container.querySelector.bind(container, `#${arguments[0]}`),
+                addEventListener: container.addEventListener.bind(container),
+                removeEventListener: container.removeEventListener.bind(container),
+              };
+            }
+            
+            // Map global properties from config
+            if (prop.startsWith('$') && config[prop] !== undefined) {
+              return config[prop];
+            }
+            
+            // Map functions from config
+            if (typeof config[prop] === 'function') {
+              return config[prop];
+            }
+            
+            // Fall back to original window properties
+            if (prop in target) {
+              return target[prop];
+            }
+            
+            // Fall back to main window for other properties
+            return window[prop];
+          },
+          
+          set: (target, prop, value) => {
+            // Allow setting properties on the shadow window
+            if (prop.startsWith('$')) {
+              config[prop] = value;
+              return true;
+            }
+            
+            target[prop] = value;
+            return true;
+          }
+        });
+        
+        return shadowWindow;
+      },
+      
+      cleanupPreview: function() {
+        // Clean up any disposables
+        this.$previewDisposables.get().forEach(cleanup => {
+          try {
+            cleanup();
+          } catch (e) {
+            console.warn('Cleanup error:', e);
+          }
+        });
+        this.$previewDisposables.get().clear();
+      }
+    }
   ],
 
   switchExample: function (exampleKey) {
@@ -203,10 +404,10 @@ export default {
                 backgroundColor: '#dee2e6',
               },
               children: [
-                // Left side - iframe with example
+                // Left side - shadow DOM preview with example
                 {
-                  tagName: 'iframe',
-                  src: '${window.currentExampleURL()}',
+                  tagName: 'ddom-preview',
+                  $exampleConfig: '${window.currentExampleConfig()}',
                   style: {
                     flex: '1',
                     border: 'none',

@@ -7,11 +7,15 @@ import {
   DOMNode,
 } from '../../../types/src';
 
+import './types'; // Import type augmentation for shadowRootMode
+
 import { MappedArray, isMappedArrayExpr } from '../arrays';
 
 import { createEffect, ComponentSignalWatcher, Signal } from '../events';
 
 import { processProperty } from '../properties';
+
+import { insertRules, insertShadowRules } from '../styleSheets';
 
 
 /**
@@ -123,7 +127,12 @@ export function adoptNode(
       }
     } else if (Array.isArray(children)) {
       children.forEach((child: HTMLElementSpec) => {
-        appendChild(child, el as DOMNode, css, allReactiveProperties);
+        // Check if this is a declarative shadow root template
+        if (child.tagName === 'template' && 'shadowRootMode' in child && child.shadowRootMode) {
+          handleDeclarativeShadowRoot(child as HTMLElementSpec & { shadowRootMode: 'open' | 'closed' }, el as HTMLElement, css, allReactiveProperties);
+        } else {
+          appendChild(child, el as DOMNode, css, allReactiveProperties);
+        }
       });
     } else {
       console.warn(`Invalid children value for key "children":`, children);
@@ -145,6 +154,16 @@ export function adoptNode(
  * ```
  */
 export function adoptWindow(spec: WindowSpec) {
+  // Handle customElements first to avoid circular dependency
+  if ('customElements' in spec && spec.customElements) {
+    // Use dynamic import to avoid circular dependency
+    import('../customElements').then(({ define }) => {
+      define(spec.customElements as any);
+    }).catch(error => {
+      console.warn('Failed to load custom elements module:', error);
+    });
+  }
+  
   adoptNode(spec, window);
 }
 
@@ -173,6 +192,11 @@ export function appendChild(
   css: boolean = true,
   scopeReactiveProperties?: ReactiveProperties
 ): HTMLElement {
+  // Handle declarative shadow root template
+  if (spec.tagName === 'template' && 'shadowRootMode' in spec && spec.shadowRootMode) {
+    return handleDeclarativeShadowRoot(spec as HTMLElementSpec & { shadowRootMode: 'open' | 'closed' }, parentNode, css, scopeReactiveProperties);
+  }
+
   const el = document.createElement(spec.tagName) as HTMLElement;
 
   // Append the element to the provided parent node
@@ -214,6 +238,13 @@ export function createElement(
   css: boolean = true,
   scopeReactiveProperties?: ReactiveProperties
 ): HTMLElement {
+  // Handle declarative shadow root template
+  if (spec.tagName === 'template' && 'shadowRootMode' in spec && spec.shadowRootMode) {
+    // For createElement, we need a parent - use a temporary element
+    const tempParent = document.createElement('div');
+    return handleDeclarativeShadowRoot(spec as HTMLElementSpec & { shadowRootMode: 'open' | 'closed' }, tempParent, css, scopeReactiveProperties);
+  }
+
   const el = document.createElement(spec.tagName) as HTMLElement;
 
   // Apply all properties using the unified dispatch table
@@ -466,4 +497,81 @@ export function adoptArray<T>(
 
   // Note: effectCleanup could be returned if the caller needs to clean up manually,
   // but typically the effect will be cleaned up when the parent element is removed
+}
+
+/**
+ * Handles declarative shadow root template elements.
+ * This function creates a shadow root on the parent element and adopts the template content into it.
+ * Follows the declarative shadow DOM syntax: <template shadowrootmode="open">
+ *
+ * @param spec The template element specification with shadowRootMode
+ * @param parentNode The parent node to attach the shadow root to
+ * @param css Whether to process CSS styles (default: true)
+ * @param scopeReactiveProperties Reactive properties to inherit
+ * @returns The host element with attached shadow root
+ */
+function handleDeclarativeShadowRoot(
+  spec: HTMLElementSpec & { shadowRootMode: 'open' | 'closed' },
+  parentNode: DOMNode,
+  css: boolean = true,
+  scopeReactiveProperties?: ReactiveProperties
+): HTMLElement {
+  // The parent node should be an HTMLElement to support shadow DOM
+  if (!(parentNode instanceof HTMLElement)) {
+    throw new Error('Shadow DOM can only be attached to HTMLElement instances');
+  }
+
+  let hostElement = parentNode;
+
+  // If the parent is a temporary element (from createElement), we need to create the actual host
+  if (parentNode.tagName === 'DIV' && parentNode.children.length === 0) {
+    // This is likely a temporary parent from createElement - we'll return the host directly
+    // In this case, the shadow root will be attached when the element is actually used
+  }
+
+  // Attach shadow root to the host element
+  let shadowRoot: ShadowRoot;
+  try {
+    shadowRoot = hostElement.attachShadow({ mode: spec.shadowRootMode });
+  } catch (error) {
+    // Shadow root already exists, use the existing one
+    shadowRoot = hostElement.shadowRoot!;
+  }
+
+  // Process the template's styles first, applying them to the shadow root context
+  if (spec.style && css) {
+    // For shadow DOM styles, we need to create shadow-specific stylesheet handling
+    adoptShadowStyles(shadowRoot, spec.style);
+  }
+
+  // Process children of the template, rendering them into the shadow root
+  if (spec.children && Array.isArray(spec.children)) {
+    spec.children.forEach((child: HTMLElementSpec) => {
+      appendChild(child, shadowRoot, css, scopeReactiveProperties);
+    });
+  }
+
+  // Process other properties of the template (excluding special shadow DOM properties)
+  const ignoreKeys = ['tagName', 'shadowRootMode', 'style', 'children'];
+  const templateDescriptors = Object.getOwnPropertyDescriptors(spec);
+
+  Object.entries(templateDescriptors).forEach(([key, descriptor]) => {
+    if (!ignoreKeys.includes(key)) {
+      processProperty(spec, shadowRoot, key, descriptor, css);
+    }
+  });
+
+  return hostElement;
+}
+
+/**
+ * Adopts CSS styles for shadow DOM using the existing stylesheet module.
+ * Uses the integrated shadow DOM support from the stylesheet module.
+ *
+ * @param shadowRoot The shadow root to apply styles to
+ * @param styles The declarative CSS properties object
+ */
+async function adoptShadowStyles(shadowRoot: ShadowRoot, styles: any): Promise<void> {
+  // Use the existing insertShadowRules function from the stylesheet module
+  insertShadowRules(shadowRoot, styles, ':host');
 }

@@ -43,7 +43,7 @@ export function define(elements: CustomElementSpec[]) {
 
 			customElements.define(spec.tagName, class extends HTMLElement {
 				#controller = new AbortController();
-				#container: HTMLElement | ShadowRoot;
+				#container: HTMLElement;
 				#internals?: ElementInternals;
 				#initialized = false;
 				#signalWatcher: ComponentSignalWatcher;
@@ -61,8 +61,8 @@ export function define(elements: CustomElementSpec[]) {
 						// Browser doesn't support attachInternals or already called
 					}
 
-					// Set container preference: shadow root > internals shadow > element
-					this.#container = this.shadowRoot || this.#internals?.shadowRoot || this;
+					// Use the element itself as container - shadow DOM will be created by template children if needed
+					this.#container = this;
 
 					// Call custom constructor
 					(spec.constructor as any)?.(this);
@@ -176,6 +176,11 @@ function adoptStyles(spec: any, selector: string): void {
 
 			const tagName = child.tagName?.toLowerCase() || '*';
 			const count = tagNameCounts.get(tagName) || 0;
+
+			// Skip template elements - they handle their own shadow DOM styles
+			if (tagName === 'template') {
+				return;
+			}
 
 			if (count > 1) {
 				// Multiple elements of same type - use nth-of-type selector (consistent with elements.ts)

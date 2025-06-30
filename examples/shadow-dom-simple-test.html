@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Shadow DOM Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        
+        .test-element {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>Simple Shadow DOM Test</h1>
+    
+    <div id="test-container"></div>
+
+    <script type="module">
+        import { adoptWindow, appendChild } from '../lib/dist/index.js';
+        
+        // Test 1: Custom element with mixed light DOM and shadow DOM content
+        const customElementWithShadow = {
+            tagName: 'test-element',
+            
+            // Light DOM styles
+            style: {
+                display: 'block',
+                padding: '10px',
+                border: '2px solid #333',
+                borderRadius: '8px',
+                marginBottom: '20px'
+            },
+            
+            children: [
+                // Light DOM content
+                {
+                    tagName: 'h3',
+                    textContent: 'Light DOM Header',
+                    style: {
+                        color: 'darkgreen',
+                        margin: '0 0 10px 0'
+                    }
+                },
+                // Shadow DOM template
+                {
+                    tagName: 'template',
+                    shadowRootMode: 'open',
+                    style: {
+                        ':host': {
+                            display: 'block',
+                            padding: '15px',
+                            backgroundColor: 'lightblue',
+                            borderRadius: '4px',
+                            margin: '10px 0'
+                        },
+                        'h4': {
+                            color: 'darkblue',
+                            margin: '0 0 10px 0'
+                        },
+                        'p': {
+                            color: 'navy',
+                            margin: '0',
+                            fontStyle: 'italic'
+                        }
+                    },
+                    children: [
+                        {
+                            tagName: 'h4',
+                            textContent: 'Shadow DOM Content'
+                        },
+                        {
+                            tagName: 'p',
+                            textContent: 'This content is encapsulated in shadow DOM!'
+                        }
+                    ]
+                },
+                // More light DOM content
+                {
+                    tagName: 'p',
+                    textContent: 'This is more light DOM content after the shadow DOM',
+                    style: {
+                        color: 'purple',
+                        fontWeight: 'bold'
+                    }
+                }
+            ]
+        };
+        
+        // Test using adoptWindow to register the custom element
+        adoptWindow({
+            customElements: [customElementWithShadow]
+        });
+        
+        // Test 2: Direct shadow DOM element (without custom element)
+        const directShadowElement = {
+            tagName: 'div',
+            className: 'test-element',
+            children: [
+                {
+                    tagName: 'p',
+                    textContent: 'Direct Shadow DOM Test (Light DOM)',
+                    style: { marginBottom: '10px' }
+                },
+                {
+                    tagName: 'template',
+                    shadowRootMode: 'open',
+                    style: {
+                        ':host': {
+                            display: 'block',
+                            padding: '20px',
+                            background: 'lightyellow',
+                            borderRadius: '8px'
+                        },
+                        'h2': {
+                            color: 'orange',
+                            margin: '0 0 10px 0'
+                        },
+                        'p': {
+                            color: 'darkorange',
+                            margin: '0'
+                        }
+                    },
+                    children: [
+                        {
+                            tagName: 'h2',
+                            textContent: 'Direct Shadow DOM'
+                        },
+                        {
+                            tagName: 'p',
+                            textContent: 'This shadow DOM was created directly without a custom element!'
+                        }
+                    ]
+                }
+            ]
+        };
+        
+        const container = document.getElementById('test-container');
+        
+        // Create instances of the custom element
+        const customEl1 = document.createElement('test-element');
+        const customEl2 = document.createElement('test-element');
+        container.appendChild(customEl1);
+        container.appendChild(customEl2);
+        
+        // Create the direct shadow DOM element
+        appendChild(directShadowElement, container);
+        
+        console.log('Shadow DOM tests created!');
+        
+        // Verify results
+        setTimeout(() => {
+            const testElements = container.querySelectorAll('test-element');
+            testElements.forEach((el, index) => {
+                if (el.shadowRoot) {
+                    console.log(`✅ Custom element ${index + 1} shadow root created`);
+                    console.log(`Shadow content: ${el.shadowRoot.textContent}`);
+                } else {
+                    console.log(`❌ Custom element ${index + 1} shadow root not found`);
+                }
+            });
+            
+            const directEl = container.querySelector('.test-element');
+            if (directEl.shadowRoot) {
+                console.log('✅ Direct shadow DOM element created');
+                console.log(`Shadow content: ${directEl.shadowRoot.textContent}`);
+            } else {
+                console.log('❌ Direct shadow DOM element not found');
+            }
+        }, 100);
+    </script>
+</body>
+</html>

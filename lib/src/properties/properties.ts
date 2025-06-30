@@ -12,8 +12,6 @@
  * automatic cleanup, and optimized performance.
  */
 
-import { define } from '../customElements';
-
 import { adoptNode } from '../elements';
 
 import { Signal, createEffect, ComponentSignalWatcher } from '../events';
@@ -295,12 +293,13 @@ export function handleAttributesProperty(
 }
 
 /**
- * Simplified async handlers using createHandler wrapper.
- * Handles custom element definitions by delegating to the define function.
+ * Handles the customElements property.
+ * Note: Implementation moved to avoid circular dependency
  */
-export const handleCustomElementsProperty = createHandler((value, _el) =>
-  define(value)
-);
+export const handleCustomElementsProperty = createHandler((value, _el) => {
+  // Custom elements will be handled at the adoptWindow level to avoid circular dependency
+  console.warn('CustomElements should be processed at the adoptWindow level, not as a property');
+});
 
 /**
  * Handles the document property by adopting document specifications.
@@ -335,6 +334,16 @@ export const handleHeadProperty = createHandler(
  */
 export const handleWindowProperty = createHandler((value, _el) =>
   adoptNode(value as WindowSpec, window, true, [])
+);
+
+/**
+ * Handles the shadowRootMode property for declarative shadow DOM.
+ * This is handled during element creation, so this handler is a no-op.
+ */
+export const handleShadowRootModeProperty = createHandler(
+  (_value, _el) => {
+    // No-op: shadowRootMode is handled during element creation in elements.ts
+  }
 );
 
 export const handleStyleProperty = createHandler(
@@ -468,6 +477,9 @@ export function getHandler(key: string): DDOMPropertyHandler {
 
     case 'window':
       return handleWindowProperty;
+
+    case 'shadowRootMode':
+      return handleShadowRootModeProperty;
 
     default:
       return handleDefaultProperty;

@@ -1,17 +1,2 @@
-export {
-	MappedArrayExpr,
-	CustomElementSpec,
-	DocumentSpec,
-	DOMNode,
-	DOMSpec,
-	ElementSpec,
-	FilterExpr,
-	FilterOper,
-	HTMLBodyElementSpec,
-	HTMLElementSpec,
-	HTMLHeadElementSpec,
-	Operator,
-	SortExpr,
-	StyleExpr,
-	WindowSpec,
-} from './types'
+export * from './dom.js';
+export * from './expressions.js';

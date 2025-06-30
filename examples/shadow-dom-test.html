@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shadow DOM Preview Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .test-container {
+            display: flex;
+            gap: 20px;
+            height: 80vh;
+        }
+        
+        .preview-container {
+            flex: 1;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            background: white;
+        }
+        
+        .controls {
+            width: 300px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            border: 2px solid #ccc;
+        }
+        
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Shadow DOM Preview Test</h1>
+    
+    <div class="test-container">
+        <ddom-preview id="testPreview" class="preview-container"></ddom-preview>
+        
+        <div class="controls">
+            <h3>Test Controls</h3>
+            <button onclick="loadBasicExample()">Load Basic Example</button>
+            <button onclick="loadCustomExample()">Load Custom Example</button>
+            <button onclick="clearPreview()">Clear Preview</button>
+            
+            <h4>Preview Status</h4>
+            <div id="status">Ready</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { adoptWindow } from '../lib/dist/index.js';
+        import basicExample from './basic.js';
+        
+        // Import and initialize the DDOM system with our custom element
+        const indexConfig = await import('./index.js');
+        adoptWindow(indexConfig.default);
+        
+        // Test functions
+        window.loadBasicExample = function() {
+            const preview = document.getElementById('testPreview');
+            preview.$exampleConfig.set(basicExample);
+            document.getElementById('status').textContent = 'Basic example loaded';
+        };
+        
+        window.loadCustomExample = function() {
+            const customExample = {
+                $message: 'Hello from Shadow DOM!',
+                $count: 0,
+                document: {
+                    body: {
+                        style: {
+                            padding: '2rem',
+                            fontFamily: 'Arial, sans-serif',
+                            backgroundColor: '#f0f8ff'
+                        },
+                        children: [
+                            {
+                                tagName: 'h2',
+                                textContent: '${this.$message.get()}',
+                                style: { color: '#333', marginBottom: '1rem' }
+                            },
+                            {
+                                tagName: 'p',
+                                textContent: 'Count: ${this.$count.get()}',
+                                style: { fontSize: '18px', marginBottom: '1rem' }
+                            },
+                            {
+                                tagName: 'button',
+                                textContent: 'Increment Counter',
+                                style: {
+                                    padding: '10px 20px',
+                                    backgroundColor: '#28a745',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer'
+                                },
+                                onclick: function() {
+                                    this.$count.set(this.$count.get() + 1);
+                                }
+                            }
+                        ]
+                    }
+                }
+            };
+            
+            const preview = document.getElementById('testPreview');
+            preview.$exampleConfig.set(customExample);
+            document.getElementById('status').textContent = 'Custom example loaded';
+        };
+        
+        window.clearPreview = function() {
+            const preview = document.getElementById('testPreview');
+            preview.$exampleConfig.set(null);
+            document.getElementById('status').textContent = 'Preview cleared';
+        };
+        
+        console.log('Shadow DOM Preview Test ready!');
+    </script>
+</body>
+</html>

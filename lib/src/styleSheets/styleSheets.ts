@@ -129,6 +129,7 @@ function flattenRules(styles: StyleExpr, baseSelector: string): Array<{ selector
  * 
  * @param styles The declarative CSS properties object
  * @param selector The CSS selector to apply the styles to
+ * @param targetStyleSheet Optional specific stylesheet to use (for shadow DOM)
  * @example
  * ```typescript
  * insertRules({
@@ -137,8 +138,8 @@ function flattenRules(styles: StyleExpr, baseSelector: string): Array<{ selector
  * }, '.my-component');
  * ```
  */
-export function insertRules(styles: StyleExpr, selector: string): void {
-	const sheet = adoptStyleSheet();
+export function insertRules(styles: StyleExpr, selector: string, targetStyleSheet?: CSSStyleSheet): void {
+	const sheet = targetStyleSheet || adoptStyleSheet();
 	const rules = flattenRules(styles, selector);
 
 	for (const rule of rules) {
@@ -160,4 +161,44 @@ export function insertRules(styles: StyleExpr, selector: string): void {
 			console.warn('Failed to add CSS rule:', rule.selector, e);
 		}
 	}
+}
+
+/**
+ * Creates and manages a shadow DOM stylesheet.
+ * This function creates a new CSSStyleSheet specifically for shadow DOM contexts
+ * and adds it to the shadow root's adopted stylesheets.
+ * 
+ * @param shadowRoot The shadow root to create a stylesheet for
+ * @returns The shadow-specific stylesheet
+ * @example
+ * ```typescript
+ * const shadowSheet = adoptShadowStyleSheet(shadowRoot);
+ * insertRules({ color: 'red' }, ':host', shadowSheet);
+ * ```
+ */
+export function adoptShadowStyleSheet(shadowRoot: ShadowRoot): CSSStyleSheet {
+	const shadowStyleSheet = new CSSStyleSheet();
+	shadowRoot.adoptedStyleSheets = [...shadowRoot.adoptedStyleSheets, shadowStyleSheet];
+	return shadowStyleSheet;
+}
+
+/**
+ * Inserts CSS rules specifically for shadow DOM contexts.
+ * This function creates a shadow-specific stylesheet and applies styles using
+ * the same flattening logic as the main stylesheet system.
+ * 
+ * @param shadowRoot The shadow root to apply styles to
+ * @param styles The declarative CSS properties object
+ * @param baseSelector Base selector for the styles (defaults to ':host')
+ * @example
+ * ```typescript
+ * insertShadowRules(shadowRoot, {
+ *   color: 'red',
+ *   ':hover': { backgroundColor: 'blue' }
+ * });
+ * ```
+ */
+export function insertShadowRules(shadowRoot: ShadowRoot, styles: StyleExpr, baseSelector: string = ':host'): void {
+	const shadowStyleSheet = adoptShadowStyleSheet(shadowRoot);
+	insertRules(styles, baseSelector, shadowStyleSheet);
 }

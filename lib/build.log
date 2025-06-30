@@ -1,0 +1,59 @@
+
+src/index.ts → dist...
+(!) [plugin typescript] src/elements/elements.ts (129:51): @rollup/plugin-typescript TS2551: Property 'shadowRootMode' does not exist on type 'HTMLElementSpec'. Did you mean 'shadowRoot'?
+/home/batonac/Development/declarative-dom/lib/src/elements/elements.ts:129:51
+
+[7m129[0m         if (child.tagName === 'template' && child.shadowRootMode) {
+[7m   [0m [91m                                                  ~~~~~~~~~~~~~~[0m
+
+(!) [plugin typescript] src/elements/elements.ts (130:39): @rollup/plugin-typescript TS2345: Argument of type 'HTMLElementSpec' is not assignable to parameter of type 'Omit<HTMLElement, keyof WritableOverrides | "parentNode"> & WritableOverrides & { tagName: string; parentNode?: DOMNode | ... 1 more ... | undefined; } & { ...; }'.
+  Property 'shadowRootMode' is missing in type 'HTMLElementSpec' but required in type '{ shadowRootMode: "open" | "closed"; }'.
+/home/batonac/Development/declarative-dom/lib/src/elements/elements.ts:130:39
+
+[7m130[0m           handleDeclarativeShadowRoot(child, el as HTMLElement, css, allReactiveProperties);
+[7m   [0m [91m                                      ~~~~~[0m
+
+  [96msrc/elements/elements.ts[0m:[93m502[0m:[93m29[0m
+    [7m502[0m   spec: HTMLElementSpec & { shadowRootMode: 'open' | 'closed' },
+    [7m   [0m [96m                            ~~~~~~~~~~~~~~[0m
+    'shadowRootMode' is declared here.
+
+(!) [plugin typescript] src/elements/elements.ts (184:43): @rollup/plugin-typescript TS2551: Property 'shadowRootMode' does not exist on type 'HTMLElementSpec'. Did you mean 'shadowRoot'?
+/home/batonac/Development/declarative-dom/lib/src/elements/elements.ts:184:43
+
+[7m184[0m   if (spec.tagName === 'template' && spec.shadowRootMode) {
+[7m   [0m [91m                                          ~~~~~~~~~~~~~~[0m
+
+(!) [plugin typescript] src/elements/elements.ts (185:40): @rollup/plugin-typescript TS2345: Argument of type 'HTMLElementSpec' is not assignable to parameter of type 'Omit<HTMLElement, keyof WritableOverrides | "parentNode"> & WritableOverrides & { tagName: string; parentNode?: DOMNode | ... 1 more ... | undefined; } & { ...; }'.
+  Property 'shadowRootMode' is missing in type 'HTMLElementSpec' but required in type '{ shadowRootMode: "open" | "closed"; }'.
+/home/batonac/Development/declarative-dom/lib/src/elements/elements.ts:185:40
+
+[7m185[0m     return handleDeclarativeShadowRoot(spec, parentNode, css, scopeReactiveProperties);
+[7m   [0m [91m                                       ~~~~[0m
+
+  [96msrc/elements/elements.ts[0m:[93m502[0m:[93m29[0m
+    [7m502[0m   spec: HTMLElementSpec & { shadowRootMode: 'open' | 'closed' },
+    [7m   [0m [96m                            ~~~~~~~~~~~~~~[0m
+    'shadowRootMode' is declared here.
+
+(!) [plugin typescript] src/elements/elements.ts (230:43): @rollup/plugin-typescript TS2551: Property 'shadowRootMode' does not exist on type 'HTMLElementSpec'. Did you mean 'shadowRoot'?
+/home/batonac/Development/declarative-dom/lib/src/elements/elements.ts:230:43
+
+[7m230[0m   if (spec.tagName === 'template' && spec.shadowRootMode) {
+[7m   [0m [91m                                          ~~~~~~~~~~~~~~[0m
+
+(!) [plugin typescript] src/elements/elements.ts (233:40): @rollup/plugin-typescript TS2345: Argument of type 'HTMLElementSpec' is not assignable to parameter of type 'Omit<HTMLElement, keyof WritableOverrides | "parentNode"> & WritableOverrides & { tagName: string; parentNode?: DOMNode | ... 1 more ... | undefined; } & { ...; }'.
+  Property 'shadowRootMode' is missing in type 'HTMLElementSpec' but required in type '{ shadowRootMode: "open" | "closed"; }'.
+/home/batonac/Development/declarative-dom/lib/src/elements/elements.ts:233:40
+
+[7m233[0m     return handleDeclarativeShadowRoot(spec, tempParent, css, scopeReactiveProperties);
+[7m   [0m [91m                                       ~~~~[0m
+
+  [96msrc/elements/elements.ts[0m:[93m502[0m:[93m29[0m
+    [7m502[0m   spec: HTMLElementSpec & { shadowRootMode: 'open' | 'closed' },
+    [7m   [0m [96m                            ~~~~~~~~~~~~~~[0m
+    'shadowRootMode' is declared here.
+
+(!) Circular dependency
+src/elements/elements.ts -> src/arrays/index.ts -> src/arrays/arrays.ts -> src/properties/index.ts -> src/properties/properties.ts -> src/customElements/index.ts -> src/customElements/customElements.ts -> src/elements/index.ts -> src/elements/elements.ts
+created dist in 1s
