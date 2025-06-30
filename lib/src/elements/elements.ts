@@ -433,11 +433,6 @@ export function adoptArray<T>(
     if (a == null || b == null) return false;
     if (typeof a !== typeof b || typeof a !== 'object') return false;
 
-    // ID-based fast comparison for objects with stable IDs
-    if (a.id && b.id) {
-      return a.id === b.id;
-    }
-
     const keysA = Object.keys(a);
     const keysB = Object.keys(b);
 
