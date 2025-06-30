@@ -1,19 +1,22 @@
 # Declarative DOM Technical Specification
-## Version 0.3.0
+## Version 0.4.0
 
 ### Abstract
 
-Declarative DOM (DDOM) is a universal syntax for expressing DOM structures using JavaScript object literals. It provides a standardized representation of HTML elements, custom elements, documents, and windows, enabling declarative construction of web interfaces. The DDOM types serve as the universal source of truth for syntax definitions, while the bundled library provides the reference implementation. Other renderers and compilers may advertise DDOM conformance, provided they adhere to the syntax defined herein.
+Declarative DOM (DDOM) is a universal syntax for expressing DOM structures using JavaScript object literals with fine-grained reactivity. It provides a standardized representation of HTML elements, custom elements, documents, and windows, enabling declarative construction of reactive web interfaces. DDOM integrates the TC39 JavaScript Signals proposal to provide component-scoped reactivity through dollar-prefixed properties, template literal expressions, and property accessor resolution. 
+
+The DDOM types serve as the universal source of truth for syntax definitions, while the bundled library provides the reference implementation. Other renderers and compilers may advertise DDOM conformance, provided they adhere to the syntax defined herein.
 
 ### 1. Introduction
 
 #### 1.1 Purpose
 
-This specification defines Declarative DOM, a syntax for representing DOM structures as JavaScript objects. The syntax is designed to:
+This specification defines Declarative DOM, a syntax for representing DOM structures as JavaScript objects with integrated reactivity. The syntax is designed to:
 
 - Enable programmatic construction of DOM trees without imperative APIs
 - Provide type-safe representations of HTML elements and their properties
-- Support reactive user interface development
+- Support reactive user interface development through TC39 Signals
+- Provide component-scoped reactivity with dollar-prefixed properties
 - Allow flexibility for alternative implementations
 
 #### 1.2 Design Principles
@@ -25,7 +28,7 @@ This specification defines Declarative DOM, a syntax for representing DOM struct
 5. **Reactive**: Support for reactive properties and template literals
 6. **Implementation-Agnostic**: Syntax is tightly defined, allowing multiple implementations
 
-#### 1.3 Reactive
+#### 1.3 Scope
 
 This specification covers:
 - Element property mappings
@@ -35,6 +38,9 @@ This specification covers:
 - Style object definitions
 - Attribute handling
 - Property accessor resolution
+- Dollar-prefixed reactive properties and signal generation
+- Template literal processing and reactive binding
+- MappedArrayExpr for dynamic list rendering
 
 ### 2. Core Syntax
 
@@ -81,7 +87,7 @@ dictionary HTMLElementSpec : WritableOverrides {
   
   // Declarative extensions
   record<DOMString, DOMString> attributes;
-  sequence<ElementSpec> children;
+  (sequence<ElementSpec> or MappedArrayExpr) children;
   StyleExpr style;
   ElementSpec? parentNode;
   
@@ -212,7 +218,51 @@ dictionary StyleExpr {
 // record<DOMString, StyleExpr> for selector nesting is implied
 ```
 
-#### 2.4 Type Unions
+#### 2.4 Reactive and Dynamic Array Types
+
+```webidl
+// MappedArrayExpr for dynamic list rendering
+dictionary MappedArrayExpr {
+  // Source array - can be static array, Signal, property accessor, or function
+  (sequence<any> or DOMString or Function) items;
+  
+  // Optional filtering expressions
+  sequence<FilterExpr> filter;
+  
+  // Optional sorting expressions  
+  sequence<SortExpr> sort;
+  
+  // Mapping transformation - can be function, template string, or object template
+  (Function or DOMString or ElementSpec) map;
+  
+  // Optional items to prepend/append to the mapped array
+  sequence<ElementSpec> prepend;
+  sequence<ElementSpec> append;
+};
+
+// Filter expression for array filtering
+dictionary FilterExpr {
+  // Left operand - property name, function, or static value
+  (DOMString or Function or any) leftOperand;
+  
+  // Comparison operator
+  (">" or "<" or ">=" or "<=" or "==" or "!=" or "===" or "!==" or "&&" or "||" or "!" or "?" or "includes" or "startsWith" or "endsWith") operator;
+  
+  // Right operand - function or static value
+  (Function or any) rightOperand;
+};
+
+// Sort expression for array sorting
+dictionary SortExpr {
+  // Property name or sort function
+  (DOMString or Function) sortBy;
+  
+  // Sort direction
+  ("asc" or "desc") direction;
+};
+```
+
+#### 2.5 Type Unions
 
 ```webidl
 typedef (HTMLElementSpec or HTMLBodyElementSpec or HTMLHeadElementSpec or CustomElementSpec) ElementSpec;
@@ -335,45 +385,222 @@ Property accessors must start with:
 - `document.` - References document properties  
 - `this.` - References properties relative to the current element
 
+#### 3.7 Dollar-Prefixed Reactive Properties
+
+Dollar-prefixed properties are automatically converted to reactive signals and shared across component scope:
+
+```javascript
+{
+  tagName: 'my-app',
+  
+  // Data values become State signals
+  $count: 0,
+  $message: 'Hello World',
+  $isVisible: true,
+  
+  // Template literals become Computed signals
+  $displayText: 'Count is ${this.$count.get()}',
+  $status: '${this.$isVisible.get() ? "Visible" : "Hidden"}',
+  
+  // Functions are shared in scope but not wrapped in signals
+  $increment: function() {
+    this.$count.set(this.$count.get() + 1);
+  },
+  
+  children: [{
+    tagName: 'p',
+    textContent: '${this.$displayText.get()}' // ← Signals available in child scope
+  }, {
+    tagName: 'button',
+    textContent: 'Increment',
+    onclick: function() {
+      this.$increment(); // ← Shared function available here
+    }
+  }]
+}
+```
+
+Signal access uses explicit `.get()` and `.set()` methods:
+- `signal.get()` - Gets the current value
+- `signal.set(value)` - Sets a new value (State signals only)
+- Direct property access returns the signal object itself
+
+#### 3.8 Template Literal Reactivity
+
+Strings containing `${...}` expressions are automatically converted to reactive templates:
+
+```javascript
+{
+  tagName: 'div',
+  
+  // Regular properties with templates create reactive DOM bindings
+  textContent: 'Count is ${this.$count.get()}',
+  className: 'status ${this.$count.get() > 10 ? "high" : "low"}',
+  
+  // Dollar-prefixed properties with templates become Computed signals
+  $computedMessage: 'Hello ${this.$name.get()}!',
+  
+  attributes: {
+    title: 'Current value: ${this.$count.get()}', // Reactive attribute
+    'data-status': '${this.$isActive.get() ? "active" : "inactive"}'
+  }
+}
+```
+
+#### 3.9 Component Scoping
+
+DDOM implements scope partitioning at custom element definition boundaries. Dollar-prefixed properties defined within custom element specifications create isolated component scopes:
+
+```javascript
+DDOM({
+  $windowLevel: 'Global',  // Window-level scope
+
+  // Define the todo-item custom element
+  customElements: [{
+    tagName: 'parent-component',
+    $parentCount: 10,    // Scoped to parent-component
+    $parentName: 'Parent',
+    
+    children: [{
+      tagName: 'div',
+      // Child elements inherit the component's scoped properties
+      textContent: '${this.$parentName.get()}: ${this.$parentCount.get()}'
+    }],
+    
+    // Nested custom element definitions create NEW isolated scopes
+    customElements: [{
+      tagName: 'nested-component', 
+      $nestedCount: 100,   // Scoped ONLY to nested-component
+      $nestedName: 'Nested',
+      
+      children: [{
+        tagName: 'p',
+        // Only has access to nested-component scope + window-level properties
+        textContent: 'Nested: ${this.$nestedName.get()}: ${this.$nestedCount.get()}',
+        // textContent: '${this.$parentCount.get()}' // ← This would FAIL - no access to parent scope
+      }]
+    }]
+  }],
+  
+  document: {
+    body: {
+      children: [{
+        tagName: 'parent-component',
+        // Custom element instances can override default values
+        $parentCount: 25,  // Overrides the default 10 for this instance
+        
+        children: [{
+          tagName: 'nested-component',
+          $nestedCount: 200  // Overrides the default 100 for this instance
+        }]
+      }]
+    }
+  }
+});
+```
+
+**Scope Partitioning Rules:**
+
+1. **Custom Element Definition Scope**: Each object within a `customElements` array creates an isolated scope containing only its own dollar-prefixed properties
+
+2. **No Inheritance from Parent Contexts**: Custom element definitions do NOT inherit dollar-prefixed properties from the context where they are defined
+
+3. **Child Element Inheritance**: Non-custom child elements within a component automatically inherit all dollar-prefixed properties from their parent component scope
+
+4. **Window-Level Access**: All scopes can access window-level properties using explicit `window.$property` syntax
+
+5. **Nested Component Isolation**: Custom elements defined within another custom element's `customElements` array are isolated from their parent's scope
+
+6. **Instance Property Override**: When using custom elements, dollar-prefixed properties can be specified to override the component's default values
+
+#### 3.10 Protected Properties
+
+Certain DOM properties are protected from reactivity to maintain element identity:
+
+```javascript
+{
+  tagName: 'div',     // ← Protected: Set once, never reactive
+  id: 'unique-id',    // ← Protected: Maintains element identity
+  $count: 0           // ← Reactive: Becomes a signal
+}
+```
+
+Protected properties: `id`, `tagName`
+
+#### 3.11 Dynamic Mapped Arrays
+
+Children can be defined using MappedArrayExpr for dynamic list rendering:
+
+```javascript
+{
+  tagName: 'todo-list',
+  $todos: [
+    { id: 1, text: 'Learn DDOM', completed: false },
+    { id: 2, text: 'Build an app', completed: true }
+  ],
+  
+  children: {
+    items: 'this.$todos',
+    filter: [{ leftOperand: 'completed', operator: '===', rightOperand: false }],
+    sort: [{ sortBy: 'text', direction: 'asc' }],
+    map: {
+      tagName: 'todo-item',
+      $todoData: (item, index) => item,
+      textContent: '${this.$todoData.get().text}'
+    }
+  }
+}
+```
+
 ### 4. Custom Elements
 
-#### 4.1 Definition
+#### 4.1 Definition with Reactivity
 
-Custom elements are defined in the `customElements` array:
+Custom elements are defined in the `customElements` array and support full reactivity:
 
 ```javascript
 {
   customElements: [
     {
       tagName: 'user-card',
+      $userData: { name: 'Anonymous', avatar: '/default-avatar.png' },
+      $isActive: false,
+      
       style: {
         display: 'block',
         border: '1px solid #ccc',
-        padding: '1rem'
+        padding: '1rem',
+        ':hover': {
+          backgroundColor: '#f0f0f0'
+        }
       },
       children: [
         {
           tagName: 'img',
-          attributes: { src: '/default-avatar.png', alt: 'User avatar' }
+          attributes: { 
+            src: '${this.$userData.get().avatar}', 
+            alt: 'User avatar' 
+          }
         },
         {
           tagName: 'h3',
-          textContent: 'Default Name'
+          textContent: '${this.$userData.get().name}',
+          className: '${this.$isActive.get() ? "active" : "inactive"}'
         }
       ],
-      connectedCallback: (element) => {
-        const name = element.getAttribute('name') || 'Anonymous';
-        const h3 = element.querySelector('h3');
-        if (h3) h3.textContent = name;
+      connectedCallback: function() {
+        // Access signals within lifecycle callbacks
+        const name = this.getAttribute('name') || 'Anonymous';
+        this.$userData.set({ ...this.$userData.get(), name });
       }
     }
   ]
 }
 ```
 
-#### 4.2 Usage
+#### 4.2 Usage with Signal Interaction
 
-Once defined, custom elements can be used like standard elements:
+Once defined, custom elements can be used and their signals can be accessed:
 
 ```javascript
 {
@@ -381,7 +608,9 @@ Once defined, custom elements can be used like standard elements:
   children: [
     {
       tagName: 'user-card',
-      attributes: { name: 'John Doe' }
+      attributes: { name: 'John Doe' },
+      $userData: { name: 'John Doe', avatar: '/john-avatar.png' },
+      $isActive: true
     }
   ]
 }
@@ -412,3 +641,7 @@ An implementation conforms to this specification if it:
 - Supports all specified property types and mappings
 - Handles custom elements according to Web Components standards
 - Maintains type safety in TypeScript environments
+- Implements dollar-prefixed property reactivity with TC39 Signals
+- Supports template literal processing for reactive binding
+- Provides component-scoped signal isolation
+- Handles MappedArrayExpr for dynamic list rendering
