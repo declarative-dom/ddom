@@ -19,6 +19,19 @@ import { processProperty } from '../properties';
  */
 export type ReactiveProperties = Record<string, Signal.State<any> | Signal.Computed<any> | Function>;
 
+/**
+ * Options object for DOM specification functions.
+ * Provides named arguments for common function parameters.
+ */
+export interface DOMSpecOptions {
+  /** Whether to process CSS styles (default: true) */
+  css?: boolean;
+  /** Array of property keys to ignore during adoption (default: []) */
+  ignoreKeys?: string[];
+  /** Reactive properties to inherit from parent scope */
+  scopeReactiveProperties?: ReactiveProperties;
+}
+
 
 /**
  * Adopts a DocumentSpec into the current document context.
@@ -49,8 +62,7 @@ export function adoptDocument(spec: DocumentSpec) {
  *
  * @param spec The declarative DOM object to adopt
  * @param el The target DOM node to apply properties to
- * @param css Whether to process CSS styles (default: true)
- * @param ignoreKeys Array of property keys to ignore during adoption
+ * @param options Optional configuration object with named parameters
  * @example
  * ```typescript
  * adoptNode({
@@ -58,16 +70,15 @@ export function adoptDocument(spec: DocumentSpec) {
  *   count: 0, // Non-templated - gets transparent signal proxy
  *   id: 'my-element', // Protected - set once, never reactive
  *   style: { color: 'red' }
- * }, myElement);
+ * }, myElement, { css: true, ignoreKeys: ['id'] });
  * ```
  */
 export function adoptNode(
   spec: DOMSpec,
   el: DOMNode,
-  css: boolean = true,
-  ignoreKeys: string[] = [],
-  scopeReactiveProperties?: ReactiveProperties
+  options: DOMSpecOptions = {}
 ): void {
+  const { css = true, ignoreKeys = [], scopeReactiveProperties } = options;
   // Process all properties using descriptors - handles both values and native getters/setters
   const specDescriptors = Object.getOwnPropertyDescriptors(spec);
 
@@ -117,13 +128,13 @@ export function adoptNode(
     const children = spec.children;
     if (isMappedArrayExpr(children)) {
       try {
-        adoptArray(children, el as Element, css, allReactiveProperties);
+        adoptArray(children, el as Element, { css, scopeReactiveProperties: allReactiveProperties });
       } catch (error) {
         console.warn(`Failed to process MappedArrayExpr for children:`, error);
       }
     } else if (Array.isArray(children)) {
       children.forEach((child: HTMLElementSpec) => {
-        appendChild(child, el as DOMNode, css, allReactiveProperties);
+        appendChild(child, el as DOMNode, { css, scopeReactiveProperties: allReactiveProperties });
       });
     } else {
       console.warn(`Invalid children value for key "children":`, children);
@@ -156,7 +167,7 @@ export function adoptWindow(spec: WindowSpec) {
  *
  * @param spec The declarative HTML element definition
  * @param parentNode The parent node to append the created element to
- * @param css Whether to process CSS styles (default: true)
+ * @param options Optional configuration object with named parameters
  * @returns The created HTML element
  * @example
  * ```typescript
@@ -164,14 +175,13 @@ export function adoptWindow(spec: WindowSpec) {
  *   tagName: 'button',
  *   textContent: 'Click me',
  *   onclick: () => alert('Clicked!')
- * }, document.body);
+ * }, document.body, { css: true });
  * ```
  */
 export function appendChild(
   spec: HTMLElementSpec,
   parentNode: DOMNode,
-  css: boolean = true,
-  scopeReactiveProperties?: ReactiveProperties
+  options: DOMSpecOptions = {}
 ): HTMLElement {
   const el = document.createElement(spec.tagName) as HTMLElement;
 
@@ -184,9 +194,10 @@ export function appendChild(
   adoptNode(
     spec,
     el,
-    css,
-    ['id', 'parentNode', 'tagName'],
-    scopeReactiveProperties
+    {
+      ...options,
+      ignoreKeys: [...(options.ignoreKeys || []), 'id', 'parentNode', 'tagName']
+    }
   );
 
   return el;
@@ -198,7 +209,7 @@ export function appendChild(
  * applying all properties, attributes, children, and event handlers.
  *
  * @param spec The declarative HTML element definition
- * @param css Whether to process CSS styles (default: true)
+ * @param options Optional configuration object with named parameters
  * @returns The created HTML element
  * @example
  * ```typescript
@@ -206,13 +217,12 @@ export function appendChild(
  *   tagName: 'button',
  *   textContent: 'Click me',
  *   onclick: () => alert('Clicked!')
- * });
+ * }, { css: true });
  * ```
  */
 export function createElement(
   spec: HTMLElementSpec,
-  css: boolean = true,
-  scopeReactiveProperties?: ReactiveProperties
+  options: DOMSpecOptions = {}
 ): HTMLElement {
   const el = document.createElement(spec.tagName) as HTMLElement;
 
@@ -220,9 +230,10 @@ export function createElement(
   adoptNode(
     spec,
     el,
-    css,
-    ['id', 'parentNode', 'tagName'],
-    scopeReactiveProperties
+    {
+      ...options,
+      ignoreKeys: [...(options.ignoreKeys || []), 'id', 'parentNode', 'tagName']
+    }
   );
 
   return el;
@@ -239,14 +250,14 @@ export function createElement(
  *
  * @param arrayExpr - The MappedArray configuration
  * @param parentElement - The parent DOM element to render items into
- * @param css - Whether to process CSS styles (default: true)
+ * @param options - Optional configuration object with named parameters
  */
 export function adoptArray<T>(
   arrayExpr: MappedArrayExpr<T, any>,
   parentElement: Element,
-  css = true,
-  scopeReactiveProperties?: ReactiveProperties
+  options: DOMSpecOptions = {}
 ): void {
+  const { css = true, scopeReactiveProperties } = options;
   // Create the reactive MappedArrayExpr instance
   const reactiveArray = new MappedArray(arrayExpr, parentElement);
 
@@ -315,7 +326,7 @@ export function adoptArray<T>(
         (item) => (item.id || JSON.stringify(item)) === key
       );
       if (item) {
-        const element = createElement(item, css, scopeReactiveProperties);
+        const element = createElement(item, { css, scopeReactiveProperties });
         newComponentsByKey.set(key, element);
       }
     });
@@ -337,7 +348,7 @@ export function adoptArray<T>(
             if (prop !== 'tagName' && (element as any)[prop] !== value) {
               if (typeof value === 'object' && value !== null) {
                 // For complex objects, use adoptNode for deep updates
-                adoptNode({ [prop]: value } as any, element as any, css);
+                adoptNode({ [prop]: value } as any, element as any, { css });
               } else {
                 (element as any)[prop] = value;
               }

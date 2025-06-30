@@ -8,6 +8,7 @@ import { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral
 
 // Named exports for compatibility
 export { adoptDocument, adoptNode, adoptWindow, createElement } from './elements/elements';
+export type { DOMSpecOptions, ReactiveProperties } from './elements/elements';
 export { adoptStyleSheet, clearStyleSheet } from './styleSheets/styleSheets';
 export { define } from './customElements/customElements';
 export { createEffect, ComponentSignalWatcher } from './events/Signal';

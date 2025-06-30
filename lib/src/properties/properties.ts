@@ -307,7 +307,7 @@ export const handleCustomElementsProperty = createHandler((value, _el) =>
  * Only executes when the element is the window object.
  */
 export const handleDocumentProperty = createHandler(
-  (value, _el) => adoptNode(value as DocumentSpec, document, true, []),
+  (value, _el) => adoptNode(value as DocumentSpec, document, { css: true, ignoreKeys: [] }),
   (el) => el === window
 );
 
@@ -316,7 +316,7 @@ export const handleDocumentProperty = createHandler(
  * Only executes when the element is the document or has a documentElement property.
  */
 export const handleBodyProperty = createHandler(
-  (value, _el) => adoptNode(value as HTMLElementSpec, document.body, true, []),
+  (value, _el) => adoptNode(value as HTMLElementSpec, document.body, { css: true, ignoreKeys: [] }),
   (el) => el === document || 'documentElement' in el
 );
 
@@ -325,7 +325,7 @@ export const handleBodyProperty = createHandler(
  * Only executes when the element is the document or has a documentElement property.
  */
 export const handleHeadProperty = createHandler(
-  (value, _el) => adoptNode(value as HTMLElementSpec, document.head, true, []),
+  (value, _el) => adoptNode(value as HTMLElementSpec, document.head, { css: true, ignoreKeys: [] }),
   (el) => el === document || 'documentElement' in el
 );
 
@@ -334,7 +334,7 @@ export const handleHeadProperty = createHandler(
  * Adopts window-level DOM specifications into the global window object.
  */
 export const handleWindowProperty = createHandler((value, _el) =>
-  adoptNode(value as WindowSpec, window, true, [])
+  adoptNode(value as WindowSpec, window, { css: true, ignoreKeys: [] })
 );
 
 export const handleStyleProperty = createHandler(
