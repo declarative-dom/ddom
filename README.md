@@ -8,30 +8,30 @@
 
 ## ⚠️ This is a preview of an in-progress schema definition and could change at any time. Do not use this in production. ⚠️
 
-**Declarative DOM** *(or DDOM)* is a JavaScript object schema for building web applications. It is designed to encompass all modern web development features within an object syntax that closely follows the [DOM](https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model), [CSSOM](https://developer.mozilla.org/en-US/docs/Web/API/CSS_Object_Model), and related web standards.
+**Declarative DOM** *(or DDOM)* is an object model, defining a schema and runtime, for building and deploying web applications as JavaScript objects. DDOM's objective is to expose all [Open Web Platform](https://www.w3.org/wiki/Open_Web_Platform) functionality within an object syntax that closely follows the [DOM](https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model), borrowing from the [CSSOM](https://developer.mozilla.org/en-US/docs/Web/API/CSS_Object_Model), related web standards, and modern web development conventions.
 
 Just as JSON provides a syntax and grammar for defining arbitrary data, DDOM defines a type-enforced structure for defining web applications (documents, nodes, and custom elements) in a declarative manner which attempts to mirror and extend the [official DOM API Standard](https://dom.spec.whatwg.org/).
 
-DDOM is developed as a [specification](spec/spec.md), a [collection of types](types/) and a [reference library](lib/) for deploying reactive web applications using the DDOM syntax. The DDOM library is developed in Typescript and integrates the [TC39 JavaScript Signals proposal](https://github.com/tc39/proposal-signals) to provide a standardized signal-based reactivity model.
+DDOM is developed as a [specification](spec/spec.md), a [collection of types](types/) and a [reference runtime library](lib/) for deploying reactive web applications using the DDOM syntax. The DDOM runtime library is developed in Typescript and integrates the [TC39 JavaScript Signals proposal](https://github.com/tc39/proposal-signals) to provide a standardized signal-based reactivity model.
 
 ## Quick Example
 
-Create reactive applications and web components with simple JavaScript objects:
+Create a reactive application web component with a simple JavaScript object:
 
 ```JavaScript
 import DDOM from '@declarative-dom/lib';
 
-DDOM.customElements.define({ // 
+DDOM.customElements.define({
   tagName: 'my-app',
   $count: 0,        // ← Dollar-prefixed properties become reactive signals
   $name: 'World',   // ← Accessed via .get() and .set() methods
   
   children: [{
     tagName: 'h1',
-    textContent: 'Hello ${this.$name.get()}!' // ← Signals available in scope
+    textContent: 'Hello ${this.$name.get()}!' // ← Signals available in component scope
   }, {
     tagName: 'p', 
-    textContent: 'Count: ${this.$count.get()}'
+    textContent: 'Count: ${this.$count.get()}' // ← Standard properties are bound to Signal Effects, for reactive updates
   }, {
     tagName: 'button',
     textContent: 'Increment',
@@ -143,9 +143,43 @@ Styles are represented as objects with CSSOM camelCase property names and suppor
 }
 ```
 
+### 🌐 Property Accessor Resolution
+
+Strings beginning with `document.`, `this.` or `window.` are provisioned as property accessors. Reference data from anywhere in your application using standard JavaScript dot notation:
+
+```JavaScript
+{
+  // Reference global data
+  userData: 'window.currentUser',
+  settings: 'document.appConfig',
+  
+  // Reference parent element data  
+  parentData: 'this.parentNode.sharedState',
+  
+  // Use in any property
+  items: 'window.$todoList',
+  signal: 'this.$count'
+}
+```
+
+### ⚡ Template Literal Reactivity
+
+Strings with `${...}` are automatically converted to reactive template expressions, allowing dynamic content updates:
+
+```JavaScript
+{
+  tagName: 'div',
+  // Standard property with template - provisioned as reactive DOM binding
+  textContent: 'Count is ${window.$counter.get()}',
+  className: 'status ${window.$counter.get() > 10 ? "high" : "low"}',
+}
+```
+
 ### 🎯 Scoped & Reactive Properties
 
-Properties prefixed with `$` are shared / inherited across the current scope, and non-function properties automatically become Signals to facilitate reactivity. The type of signal depends on the value:
+`$`-prefixed properties are mapped across the current scope, providing direct addressing throughout the object.
+
+Non-function properties automatically become Signals to facilitate reactivity. The type of signal depends on the value:
 
 ```JavaScript
 const app = DDOM({
@@ -158,7 +192,7 @@ const app = DDOM({
   $displayText: 'Count is ${this.$count.get()}',
   $status: '${this.$isVisible.get() ? "Visible" : "Hidden"}',
   
-  // Functions are shared in scope (not signals)
+  // Functions are shared in scope (as functions, not signals)
   $increment: function() {
     this.$count.set(this.$count.get() + 1);
   },
@@ -185,24 +219,7 @@ console.log(app.$counter);               // Signal.State { ... }
 console.log(app.$displayText);           // Signal.Computed { ... }
 ```
 
-NOTE: Scopes are partitioned at the window, document, and custom element levels. Each custom element creates a new scope boundary, allowing properties to be shared within that component but isolated from others.
-
-### ⚡ Template Literal Reactivity
-
-Strings with `${...}` patterns on dollar-prefixed properties become computed signals, while regular properties get reactive DOM bindings:
-
-```JavaScript
-{
-  tagName: 'div',
-  // Regular property with template - creates reactive DOM binding
-  textContent: 'Count is ${this.$counter.get()}',
-  className: 'status ${this.$counter.get() > 10 ? "high" : "low"}',
-  
-  // Dollar property with template - creates computed signal
-  $message: 'You have ${this.$counter.get()} items',
-  $displayClass: '${this.$isActive.get() ? "active" : "inactive"}'
-}
-```
+NOTE: Scopes are partitioned at the window, document, and custom element levels. Each custom element creates a new scope boundary, enforcing component-level isolation.
 
 ### 🔒 Protected Properties
 
@@ -216,40 +233,40 @@ DOM immutable properties `id` and `tagName` are automatically protected from rea
 }
 ```
 
-### 🌐 Property Accessor Resolution
-
-Strings beginning with `document.`, `this.` or `window.` are provisioned as property accessors. Reference data from anywhere in your application using standard JavaScript dot notation:
-
-```JavaScript
-{
-  // Reference global data
-  userData: 'window.currentUser',
-  settings: 'document.appConfig',
-  
-  // Reference parent element data  
-  parentData: 'this.parentNode.sharedState',
-  
-  // Use in any property
-  items: 'window.$todoList',    // ← For dynamic arrays
-  signal: 'this.$count'    // ← For signal references
-}
-```
-
 ### 🌐 Dynamic Mapped Arrays
 
 Create dynamic lists that automatically update when data changes:
 
 ```JavaScript
-{
-  items: 'window.$todoList',           // ← Reference data from anywhere
-  // items: 'this.parentNode.data',   // ← Or from relative locations
-  // items: [{ id: 1, text: 'Task 1' }, { id: 2, text: 'Task 2' }], // ← Or a static array
-  map: {
-    tagName: 'todo-item',
-    $todoItem: (item, _index) => item,      // ← Access each array item
-    $todoIndex: (_item, index) => index,    // ← Access the item's index
-    textContent: '${this.todoItem.get().text}'
-  }
+{ // Object for defining an entire window
+    $todoList = [
+      { id: 1, text: 'Learn DDOM basics', completed: false },
+      { id: 2, text: 'Build a todo app', completed: false },
+      { id: 3, text: 'Deploy to production', completed: true }
+    ],
+
+    // Define the todo-item custom element
+    customElements: [{
+        tagName: 'todo-item',
+        $todoItem: {},
+        $todoIndex: 0,
+
+        textContent: '${this.todoItem.get().text}'
+    }],
+    // Document body structure
+    document: {
+        body: {
+            children: { // ← Dynamic Mapped Array Expression using items/map instead of direct array
+                items: 'window.$todoList', // ← Reference data from anywhere
+                // items: [{ id: 1, text: 'Task 1' }, { id: 2, text: 'Task 2' }], // ← Or a static array
+                map: {
+                    tagName: 'todo-item', // ← element tag for each item
+                    $todoItem: (item, _index) => item, // ← Access each array item
+                    $todoIndex: (_item, index) => index, // ← Access the item's index
+                }
+            }
+        }
+    }
 }
 ```
 
