@@ -29,6 +29,8 @@ import {
   WindowSpec,
 } from '../../../types/src';
 
+import { DOMSpecOptions } from '../elements';
+
 // === PROPERTY DETECTION AND CLASSIFICATION ===
 
 /**
@@ -220,20 +222,20 @@ function processAttribute(el: Element, attrName: string, attrValue: any): void {
  * @returns A standardized DDOM property handler function
  */
 function createHandler(
-  handlerFn: (value: any, el: DOMNode) => void,
-  condition?: (el: DOMNode, css?: boolean) => boolean
+  handlerFn: (value: any, el: DOMNode, options?: DOMSpecOptions) => void,
+  condition?: (el: DOMNode, options?: DOMSpecOptions) => boolean
 ) {
   return (
     spec: DOMSpec,
     el: DOMNode,
     key: string,
     value: any,
-    css: boolean = true
+    options: DOMSpecOptions = {}
   ): void => {
-    if (!value || (condition && !condition(el, css))) return;
+    if (!value || (condition && !condition(el, options))) return;
 
     try {
-      handlerFn(value, el);
+      handlerFn(value, el, options);
     } catch (error) {
       console.warn(`Handler failed for property "${key}":`, error);
     }
@@ -244,14 +246,14 @@ function createHandler(
 
 /**
  * Type definition for DDOM property handlers.
- * Each handler receives the spec, element, property key, value, and optional CSS flag.
+ * Each handler receives the spec, element, property key, value, and optional options.
  */
 export type DDOMPropertyHandler = (
   spec: DOMSpec,
   el: DOMNode,
   key: string,
   value: any,
-  css?: boolean
+  options?: DOMSpecOptions
 ) => void;
 
 /**
@@ -263,7 +265,7 @@ export function handleAttributesProperty(
   el: DOMNode,
   key: string,
   value: any,
-  _css?: boolean
+  _options: DOMSpecOptions = {}
 ): void {
   if (!value || typeof value !== 'object' || !(el instanceof Element)) return;
 
@@ -276,7 +278,7 @@ export function handleAttributesProperty(
  * Simplified async handlers using createHandler wrapper.
  * Handles custom element definitions by delegating to the define function.
  */
-export const handleCustomElementsProperty = createHandler((value, _el) =>
+export const handleCustomElementsProperty = createHandler((value, _el, _options) =>
   define(value)
 );
 
@@ -285,7 +287,7 @@ export const handleCustomElementsProperty = createHandler((value, _el) =>
  * Only executes when the element is the window object.
  */
 export const handleDocumentProperty = createHandler(
-  (value, _el) => adoptNode(value as DocumentSpec, document, { css: true, ignoreKeys: [] }),
+  (value, _el, options = {}) => adoptNode(value as DocumentSpec, document, options),
   (el) => el === window
 );
 
@@ -294,7 +296,7 @@ export const handleDocumentProperty = createHandler(
  * Only executes when the element is the document or has a documentElement property.
  */
 export const handleBodyProperty = createHandler(
-  (value, _el) => adoptNode(value as HTMLElementSpec, document.body, { css: true, ignoreKeys: [] }),
+  (value, _el, options = {}) => adoptNode(value as HTMLElementSpec, document.body, options),
   (el) => el === document || 'documentElement' in el
 );
 
@@ -303,7 +305,7 @@ export const handleBodyProperty = createHandler(
  * Only executes when the element is the document or has a documentElement property.
  */
 export const handleHeadProperty = createHandler(
-  (value, _el) => adoptNode(value as HTMLElementSpec, document.head, { css: true, ignoreKeys: [] }),
+  (value, _el, options = {}) => adoptNode(value as HTMLElementSpec, document.head, options),
   (el) => el === document || 'documentElement' in el
 );
 
@@ -311,13 +313,13 @@ export const handleHeadProperty = createHandler(
  * Handles the window property by adopting window specifications.
  * Adopts window-level DOM specifications into the global window object.
  */
-export const handleWindowProperty = createHandler((value, _el) =>
-  adoptNode(value as WindowSpec, window, { css: true, ignoreKeys: [] })
+export const handleWindowProperty = createHandler((value, _el, options = {}) =>
+  adoptNode(value as WindowSpec, window, options)
 );
 
 export const handleStyleProperty = createHandler(
-  (value, el) => adoptStyles(el as Element, value),
-  (el, css) => el instanceof Element && css == true
+  (value, el, _options = {}) => adoptStyles(el as Element, value),
+  (el, options = {}) => el instanceof Element && (options.css !== false)
 );
 
 /**
@@ -386,14 +388,14 @@ function assignPropertyValue(
  * @param el - The target DOM node
  * @param key - The property key
  * @param value - The property value
- * @param _css - Whether to process CSS styles (unused in this handler)
+ * @param _options - Optional configuration object (unused in this handler)
  */
 export function handleDefaultProperty(
   spec: DOMSpec,
   el: DOMNode,
   key: string,
   value: any,
-  _css?: boolean
+  _options: DOMSpecOptions = {}
 ): void {
   if (!Object.hasOwn(el, key)) {
     // Property doesn't exist - create it normally
@@ -628,17 +630,17 @@ export function resolvePropertyAccessor(
  * @param el - The target DOM node
  * @param key - The property key
  * @param value - The property value
- * @param css - Whether to process CSS styles (default: true)
+ * @param options - Optional configuration object with css flag and other options
  */
 export function processProperty(
   spec: DOMSpec,
   el: DOMNode,
   key: string,
   value: any,
-  css: boolean = true
+  options: DOMSpecOptions = {}
 ): void {
   const handler = getHandler(key);
-  handler(spec, el, key, value, css);
+  handler(spec, el, key, value, options);
 }
 
 // === UTILITY FUNCTIONS ===
