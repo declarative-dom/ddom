@@ -106,7 +106,7 @@ export function define(elements: CustomElementSpec[]) {
 						];
 
 						// Disable CSS processing since styles are already registered at definition time
-						adoptNode(spec, this.#container, false, instanceIgnoreKeys);
+						adoptNode(spec, this.#container, { css: false, ignoreKeys: instanceIgnoreKeys });
 					} finally {
 						delete (globalThis as any).__ddom_abort_signal;
 						delete (globalThis as any).__ddom_component_watcher;
