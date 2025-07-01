@@ -129,6 +129,59 @@ function applySorting<T>(array: T[], sortExpressions: SortExpr<T>[]): T[] {
 }
 
 /**
+ * Applies grouping to an array based on a groupBy function.
+ * Groups items by the result of the groupBy function and returns an array of group objects.
+ * Uses native Object.groupBy when available, with a fallback for older environments.
+ * 
+ * @template T - The type of items in the array
+ * @param array - The array to group
+ * @param groupByFn - Function that returns the grouping key for each item
+ * @returns Array of group objects with key and items properties
+ * @example
+ * ```typescript
+ * const grouped = applyGrouping(users, (user) => user.department);
+ * // Returns: [
+ * //   { key: 'Engineering', items: [user1, user2] },
+ * //   { key: 'Sales', items: [user3, user4] }
+ * // ]
+ * ```
+ */
+function applyGrouping<T>(
+  array: T[], 
+  groupByFn: (item: T, index: number) => string | number
+): Array<{ key: string | number; items: T[] }> {
+  // Use Object.groupBy with fallback for older environments
+  const groupByFunction = (Object as any).groupBy || ((arr: T[], fn: typeof groupByFn) => {
+    return arr.reduce((groups: Record<string, T[]>, item: T, index: number) => {
+      const key = String(fn(item, index));
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(item);
+      return groups;
+    }, {});
+  });
+  
+  const groups = groupByFunction(array, groupByFn);
+  
+  // Convert groups object to array of group objects
+  return Object.entries(groups).map(([stringKey, items]) => {
+    // Convert string key back to proper type, handling edge cases
+    let parsedKey: string | number;
+    if (stringKey === 'undefined' || stringKey === 'null') {
+      parsedKey = stringKey; // Keep as string to avoid undefined
+    } else if (!isNaN(Number(stringKey)) && stringKey !== '') {
+      parsedKey = Number(stringKey);
+    } else {
+      parsedKey = stringKey;
+    }
+    
+    return {
+      key: parsedKey,
+      items: (items || []) as T[]
+    };
+  });
+}
+
+/**
  * Type guard to check if a value is an MappedArrayExpr.
  * Validates that the object has the required 'items' property to be considered an MappedArrayExpr.
  * 
@@ -144,7 +197,7 @@ function applySorting<T>(array: T[], sortExpressions: SortExpr<T>[]): T[] {
  * ```
  */
 export function isMappedArrayExpr<T>(value: any): value is MappedArrayExpr<T, any> {
-  return value && typeof value === 'object' && 'items' in value;
+  return value !== null && value !== undefined && typeof value === 'object' && 'items' in value;
 }
 
 /**
@@ -247,7 +300,7 @@ export class MappedArray<T, U = any> {
           throw new Error('Source signal must contain an array');
         }
 
-        let processedArray = [...sourceArray];
+        let processedArray: T[] = [...sourceArray as any];
 
         // Apply filtering
         if (expr.filter && expr.filter.length > 0) {
@@ -263,23 +316,7 @@ export class MappedArray<T, U = any> {
 
         // Apply groupBy if specified
         if (expr.groupBy) {
-          // Use Object.groupBy with fallback for older environments
-          const groupByFn = (Object as any).groupBy || ((arr: any[], fn: any) => {
-            return arr.reduce((groups: any, item: any, index: number) => {
-              const key = fn(item, index);
-              if (!groups[key]) groups[key] = [];
-              groups[key].push(item);
-              return groups;
-            }, {});
-          });
-          
-          const groups = groupByFn(processedArray, expr.groupBy);
-          
-          // Convert groups object to array of group objects
-          processedArray = Object.entries(groups).map(([key, items]) => ({
-            key: key === 'undefined' ? undefined : (isNaN(Number(key)) ? key : Number(key)),
-            items: items || []
-          })) as any;
+          processedArray = applyGrouping(processedArray, expr.groupBy) as any;
         }
         
         // Apply mapping
