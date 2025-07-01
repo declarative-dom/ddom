@@ -126,13 +126,8 @@ export function adoptNode(
   // Handle children last to ensure all properties are set before appending
   if ('children' in spec && spec.children) {
     const children = spec.children;
-    console.log('Processing children:', JSON.stringify(children, null, 2));
-    console.log('Array.isArray(children):', Array.isArray(children));
-    console.log('isMappedArrayExpr(children):', isMappedArrayExpr(children));
-    
     if (isMappedArrayExpr(children)) {
       // Legacy support: single MappedArrayExpr as children
-      console.log('Taking LEGACY path');
       try {
         adoptArray(children, el as Element, { css, scopeReactiveProperties: allReactiveProperties });
       } catch (error) {
@@ -140,22 +135,15 @@ export function adoptNode(
       }
     } else if (Array.isArray(children)) {
       // New support: mixed arrays of HTMLElementSpec and MappedArrayExpr
-      console.log('Taking MIXED ARRAY path');
-      children.forEach((child, index) => {
-        console.log(`Processing child ${index}:`, child);
-        console.log(`Is MappedArrayExpr: ${isMappedArrayExpr(child)}`);
+      children.forEach((child) => {
         if (isMappedArrayExpr(child)) {
-          console.log(`Taking MappedArrayExpr path for child ${index}`);
           try {
-            adoptArray(child, el as Element, { css, scopeReactiveProperties: allReactiveProperties });
+            adoptArray(child, el as Element, { css, scopeReactiveProperties: allReactiveProperties, appendMode: true });
           } catch (error) {
             console.warn(`Failed to process MappedArrayExpr child:`, error);
           }
         } else {
-          console.log(`Taking static path for child ${index}`);
-          console.log('About to appendChild static child:', child);
           appendChild(child, el as DOMNode, { css, scopeReactiveProperties: allReactiveProperties });
-          console.log('After appendChild, el children count:', (el as Element).children.length);
         }
       });
     } else {
@@ -277,9 +265,9 @@ export function createElement(
 export function adoptArray<T>(
   arrayExpr: MappedArrayExpr<T, any>,
   parentElement: Element,
-  options: DOMSpecOptions = {}
+  options: DOMSpecOptions & { appendMode?: boolean } = {}
 ): void {
-  const { css = true, scopeReactiveProperties } = options;
+  const { css = true, scopeReactiveProperties, appendMode = false } = options;
   // Create the reactive MappedArrayExpr instance
   const reactiveArray = new MappedArray(arrayExpr, parentElement);
 
@@ -408,44 +396,51 @@ export function adoptArray<T>(
       keysToRemove.size > 0 ||
       keysToUpdate.size > 0
     ) {
-      // Get current children
-      const currentChildren = Array.from(parentElement.children);
-
-      if (orderedElements.length === 0) {
-        // Clear all children if no elements needed
-        parentElement.replaceChildren();
-      } else if (currentChildren.length === 0) {
-        // Initial render - use fragment
+      if (appendMode) {
+        // In append mode, just add our elements without touching existing ones
         const fragment = document.createDocumentFragment();
         orderedElements.forEach((element) => fragment.appendChild(element));
         parentElement.appendChild(fragment);
       } else {
-        // Precise DOM updates - only move/add/remove what's needed
-        const newElementSet = new Set(orderedElements);
+        // Legacy behavior: manage entire children collection
+        const currentChildren = Array.from(parentElement.children);
 
-        // Remove elements that shouldn't be there anymore
-        for (const element of currentChildren) {
-          if (!newElementSet.has(element)) {
-            element.remove();
+        if (orderedElements.length === 0) {
+          // Clear all children if no elements needed
+          parentElement.replaceChildren();
+        } else if (currentChildren.length === 0) {
+          // Initial render - use fragment
+          const fragment = document.createDocumentFragment();
+          orderedElements.forEach((element) => fragment.appendChild(element));
+          parentElement.appendChild(fragment);
+        } else {
+          // Precise DOM updates - only move/add/remove what's needed
+          const newElementSet = new Set(orderedElements);
+
+          // Remove elements that shouldn't be there anymore
+          for (const element of currentChildren) {
+            if (!newElementSet.has(element)) {
+              element.remove();
+            }
           }
-        }
 
-        // Add/reorder elements to match desired order
-        for (let i = 0; i < orderedElements.length; i++) {
-          const desiredElement = orderedElements[i];
-          const currentElement = parentElement.children[i];
+          // Add/reorder elements to match desired order
+          for (let i = 0; i < orderedElements.length; i++) {
+            const desiredElement = orderedElements[i];
+            const currentElement = parentElement.children[i];
 
-          if (currentElement !== desiredElement) {
-            // Insert element at correct position
-            if (i >= parentElement.children.length) {
-              // Append to end
-              parentElement.appendChild(desiredElement);
-            } else {
-              // Insert before current element at this position
-              parentElement.insertBefore(
-                desiredElement,
-                parentElement.children[i]
-              );
+            if (currentElement !== desiredElement) {
+              // Insert element at correct position
+              if (i >= parentElement.children.length) {
+                // Append to end
+                parentElement.appendChild(desiredElement);
+              } else {
+                // Insert before current element at this position
+                parentElement.insertBefore(
+                  desiredElement,
+                  parentElement.children[i]
+                );
+              }
             }
           }
         }
