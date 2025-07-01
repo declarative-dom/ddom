@@ -257,7 +257,6 @@ export function adoptArray<T>(
   parentElement: Element,
   options: DOMSpecOptions = {}
 ): void {
-  const { css = true, scopeReactiveProperties } = options;
   // Create the reactive MappedArrayExpr instance
   const reactiveArray = new MappedArray(arrayExpr, parentElement);
 
@@ -268,6 +267,9 @@ export function adoptArray<T>(
   // Function to update the current array state with fine-grained updates
   // True key-based diffing inspired by the futuristic ComponentRepeater
   const updateArray = (items: any[]) => {
+    // Consistent key generation function
+    const getItemKey = (item: any) => item.id || JSON.stringify(item);
+
     // Track components by stable keys, not indices
     const currentKeys = new Set<string>();
     const newComponentsByKey = new Map<string, Element>();
@@ -277,18 +279,18 @@ export function adoptArray<T>(
 
     // Build sets of current and new keys
     const previousKeys = new Set(
-      previousItems.map((item) => item.id || JSON.stringify(item))
+      previousItems.map((item) => getItemKey(item))
     );
 
     items.forEach((item: any) => {
       if (item && typeof item === 'object' && item.tagName) {
-        const key = item.id || JSON.stringify(item);
+        const key = getItemKey(item);
         currentKeys.add(key);
 
         if (previousKeys.has(key)) {
-          // Check if properties changed
+          // Check if properties changed - find by same key generation logic
           const previousItem = previousItems.find(
-            (prev) => (prev.id || JSON.stringify(prev)) === key
+            (prev) => getItemKey(prev) === key
           );
           if (!deepEqual(item, previousItem)) {
             keysToUpdate.add(key);
@@ -309,7 +311,7 @@ export function adoptArray<T>(
     // Remove unused components
     keysToRemove.forEach((key) => {
       const index = previousItems.findIndex(
-        (item) => (item.id || JSON.stringify(item)) === key
+        (item) => getItemKey(item) === key
       );
       if (index >= 0) {
         const element = renderedElements.get(index);
@@ -323,36 +325,37 @@ export function adoptArray<T>(
     // Create new components
     keysToCreate.forEach((key) => {
       const item = items.find(
-        (item) => (item.id || JSON.stringify(item)) === key
+        (item) => getItemKey(item) === key
       );
       if (item) {
-        const element = createElement(item, { css, scopeReactiveProperties });
+        const element = createElement(item, options);
         newComponentsByKey.set(key, element);
       }
     });
 
-    // Update existing components (property-level diffing)
+    // Update existing components (pure signal-based updates)
     keysToUpdate.forEach((key) => {
       const item = items.find(
-        (item) => (item.id || JSON.stringify(item)) === key
+        (item) => getItemKey(item) === key
       );
       const previousIndex = previousItems.findIndex(
-        (prev) => (prev.id || JSON.stringify(prev)) === key
+        (prev) => getItemKey(prev) === key
       );
 
       if (item && previousIndex >= 0) {
         const element = renderedElements.get(previousIndex);
         if (element) {
-          // Granular property updates
+          // Pure signal-based updates - only update $-prefixed reactive properties
           Object.entries(item).forEach(([prop, value]) => {
-            if (prop !== 'tagName' && (element as any)[prop] !== value) {
-              if (typeof value === 'object' && value !== null) {
-                // For complex objects, use adoptNode for deep updates
-                adoptNode({ [prop]: value } as any, element as any, { css });
-              } else {
-                (element as any)[prop] = value;
+            if (prop.startsWith('$')) {
+              // Update reactive property signal
+              const signal = (element as any)[prop];
+              if (signal && typeof signal.set === 'function') {
+                signal.set(value);
               }
             }
+            // Note: children are handled through reactive signals, not direct updates
+            // Non-reactive properties should not change after element creation
           });
 
           newComponentsByKey.set(key, element);
@@ -364,7 +367,7 @@ export function adoptArray<T>(
     currentKeys.forEach((key) => {
       if (!keysToCreate.has(key) && !keysToUpdate.has(key)) {
         const previousIndex = previousItems.findIndex(
-          (prev) => (prev.id || JSON.stringify(prev)) === key
+          (prev) => getItemKey(prev) === key
         );
         if (previousIndex >= 0) {
           const element = renderedElements.get(previousIndex);
@@ -377,7 +380,7 @@ export function adoptArray<T>(
 
     // Efficient DOM manipulation with fragments
     const orderedElements = items
-      .map((item) => newComponentsByKey.get(item.id || JSON.stringify(item)))
+      .map((item) => newComponentsByKey.get(getItemKey(item)))
       .filter((element): element is Element => element !== undefined);
 
     // Surgical DOM manipulation - only touch what changed (inspired by React reconciliation)
