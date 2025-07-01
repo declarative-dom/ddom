@@ -20,6 +20,8 @@ import { Signal, createEffect, ComponentSignalWatcher } from './signals';
 
 import { insertRules } from './styleSheets';
 
+import { MappedArray, isMappedArrayExpr } from './arrays';
+
 import {
   DocumentSpec,
   DOMNode,
@@ -95,19 +97,38 @@ export function shouldBeSignal(key: string, value: any): boolean {
 // === REACTIVE PROPERTY CREATION ===
 
 /**
- * Creates a reactive property using a direct Signal.State object.
+ * Creates a reactive property using a direct Signal.State object or MappedArray.
  * This ensures proper dependency tracking with the TC39 Signals polyfill.
+ * Handles MappedArrayExpr objects by creating MappedArray instances and returning their computed signals.
  *
  * @param el - The element to attach the property to
  * @param property - The property name
- * @param initialValue - The initial value for the property
- * @returns The Signal.State instance
+ * @param initialValue - The initial value for the property (can be MappedArrayExpr)
+ * @returns The Signal.State instance or Signal.Computed from MappedArray
  */
 export function createReactiveProperty(
   el: any,
   property: string,
   initialValue: any
-): Signal.State<any> {
+): Signal.State<any> | Signal.Computed<any> {
+  // Handle MappedArrayExpr objects
+  if (isMappedArrayExpr(initialValue)) {
+    // Create MappedArray instance with element as context
+    const mappedArray = new MappedArray(initialValue, el instanceof Element ? el : undefined);
+    
+    // Store the MappedArray instance for potential cleanup
+    if (!el.__ddom_mapped_arrays) {
+      el.__ddom_mapped_arrays = [];
+    }
+    el.__ddom_mapped_arrays.push(mappedArray);
+    
+    // Return the computed signal from MappedArray
+    const computedSignal = mappedArray.getSignal();
+    el[property] = computedSignal;
+    return computedSignal;
+  }
+  
+  // Handle regular values with Signal.State
   const signal = new Signal.State(initialValue);
   el[property] = signal;
   return signal;
@@ -370,8 +391,12 @@ function assignPropertyValue(
   if (shouldBeSignal(key, value)) {
     if (typeof value === 'object' && value !== null && Signal.isState(value)) {
       el[key] = value; // Already a signal
+    } else if (typeof value === 'object' && value !== null && Signal.isComputed(value)) {
+      el[key] = value; // Already a computed signal
+    } else if (isMappedArrayExpr(value)) {
+      createReactiveProperty(el, key, value); // Create MappedArray -> Computed Signal
     } else {
-      createReactiveProperty(el, key, value); // Create new signal
+      createReactiveProperty(el, key, value); // Create new Signal.State
     }
     return;
   }

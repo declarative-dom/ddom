@@ -67,7 +67,7 @@ export type SortExpr<T = any> = {
 
 /**
  * MappedArrayExpr Type Definition
- * Provides a declarative way to define arrays with built-in filtering, sorting, and mapping capabilities.
+ * Provides a declarative way to define arrays with built-in filtering, sorting, grouping, and mapping capabilities.
  * This type enables complex data transformations without imperative code.
  * @template T - The type of items in the source array.
  * @template R - The type of items after mapping transformation.
@@ -82,6 +82,7 @@ export type SortExpr<T = any> = {
  *   - A static value for direct mapping
  * @property filter - Optional array of filters to apply to items before mapping.
  * @property sort - Optional array of sort operations to apply before mapping.
+ * @property groupBy - Optional function to group items by a key before mapping.
  * @property prepend - Optional array of items to add at the beginning of the result.
  * @property append - Optional array of items to add at the end of the result.
  */
@@ -90,6 +91,7 @@ export type MappedArrayExpr<T = any, R = any> = {
 	map?: string | R;
 	filter?: FilterExpr<T>[];
 	sort?: SortExpr<T>[];
+	groupBy?: (item: T, index: number) => string | number;
 	prepend?: R[];
 	append?: R[];
 };

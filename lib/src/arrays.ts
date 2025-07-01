@@ -260,6 +260,27 @@ export class MappedArray<T, U = any> {
         if (expr.sort && expr.sort.length > 0) {
           processedArray = applySorting(processedArray, expr.sort);
         }
+
+        // Apply groupBy if specified
+        if (expr.groupBy) {
+          // Use Object.groupBy with fallback for older environments
+          const groupByFn = (Object as any).groupBy || ((arr: any[], fn: any) => {
+            return arr.reduce((groups: any, item: any, index: number) => {
+              const key = fn(item, index);
+              if (!groups[key]) groups[key] = [];
+              groups[key].push(item);
+              return groups;
+            }, {});
+          });
+          
+          const groups = groupByFn(processedArray, expr.groupBy);
+          
+          // Convert groups object to array of group objects
+          processedArray = Object.entries(groups).map(([key, items]) => ({
+            key: key === 'undefined' ? undefined : (isNaN(Number(key)) ? key : Number(key)),
+            items: items || []
+          })) as any;
+        }
         
         // Apply mapping
         let mappedArray: U[];
