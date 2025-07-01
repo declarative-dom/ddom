@@ -74,26 +74,6 @@ export function isPropertyAccessor(value: string): boolean {
 }
 
 /**
- * Detects if a property descriptor contains a getter function.
- *
- * @param descriptor - The property descriptor to check
- * @returns True if the descriptor has a getter
- */
-export function isGetterDescriptor(descriptor: PropertyDescriptor): boolean {
-  return descriptor.get !== undefined;
-}
-
-/**
- * Detects if a property descriptor contains a setter function.
- *
- * @param descriptor - The property descriptor to check
- * @returns True if the descriptor has a setter
- */
-export function isSetterDescriptor(descriptor: PropertyDescriptor): boolean {
-  return descriptor.set !== undefined;
-}
-
-/**
  * Determines if a property should be made reactive based on DDOM rules.
  * Only reactive-prefixed properties become signals - everything else is static.
  * This makes the behavior completely predictable and explicit.
@@ -247,10 +227,9 @@ function createHandler(
     spec: DOMSpec,
     el: DOMNode,
     key: string,
-    descriptor: PropertyDescriptor,
+    value: any,
     css: boolean = true
   ): void => {
-    const value = descriptor.value;
     if (!value || (condition && !condition(el, css))) return;
 
     try {
@@ -265,13 +244,13 @@ function createHandler(
 
 /**
  * Type definition for DDOM property handlers.
- * Each handler receives the spec, element, property key, descriptor, optional CSS flag, and scope properties.
+ * Each handler receives the spec, element, property key, value, and optional CSS flag.
  */
 export type DDOMPropertyHandler = (
   spec: DOMSpec,
   el: DOMNode,
   key: string,
-  descriptor: PropertyDescriptor,
+  value: any,
   css?: boolean
 ) => void;
 
@@ -283,10 +262,9 @@ export function handleAttributesProperty(
   spec: DOMSpec,
   el: DOMNode,
   key: string,
-  descriptor: PropertyDescriptor,
+  value: any,
   _css?: boolean
 ): void {
-  const value = descriptor.value;
   if (!value || typeof value !== 'object' || !(el instanceof Element)) return;
 
   Object.entries(value).forEach(([attrName, attrValue]) =>
@@ -344,26 +322,17 @@ export const handleStyleProperty = createHandler(
 
 /**
  * Unified property value assignment with all the DDOM logic.
- * Handles ES6 getters/setters, property accessors, template literals,
- * functions, reactive properties, and direct value assignment.
+ * Handles property accessors, template literals, functions, reactive properties, and direct value assignment.
  * 
  * @param el - The element to assign the property to
  * @param key - The property name
- * @param descriptor - The property descriptor containing the value
+ * @param value - The property value
  */
 function assignPropertyValue(
   el: any,
   key: string,
-  descriptor: PropertyDescriptor
+  value: any
 ): void {
-  const value = descriptor.value;
-
-  // Handle ES6 getter/setter
-  // if (isGetterDescriptor(descriptor) || isSetterDescriptor(descriptor)) {
-  //   bindAccessorProperty(el, key, descriptor);
-  //   return;
-  // }
-
   // Handle property accessor strings
   if (typeof value === 'string' && isPropertyAccessor(value)) {
     const resolved = resolvePropertyAccessor(value, el);
@@ -416,19 +385,19 @@ function assignPropertyValue(
  * @param spec - The declarative DOM specification
  * @param el - The target DOM node
  * @param key - The property key
- * @param descriptor - The property descriptor
+ * @param value - The property value
  * @param _css - Whether to process CSS styles (unused in this handler)
  */
 export function handleDefaultProperty(
   spec: DOMSpec,
   el: DOMNode,
   key: string,
-  descriptor: PropertyDescriptor,
+  value: any,
   _css?: boolean
 ): void {
   if (!Object.hasOwn(el, key)) {
     // Property doesn't exist - create it normally
-    assignPropertyValue(el, key, descriptor);
+    assignPropertyValue(el, key, value);
   }
 }
 
@@ -443,7 +412,7 @@ export function handleDefaultProperty(
  * @example
  * ```typescript
  * const handler = getHandler('attributes');
- * handler(spec, element, 'attributes', descriptor, true);
+ * handler(spec, element, 'attributes', value, true);
  * ```
  */
 export function getHandler(key: string): DDOMPropertyHandler {
@@ -651,118 +620,6 @@ export function resolvePropertyAccessor(
   }
 }
 
-// === ES6 GETTER/SETTER SUPPORT (DEPRECATED) ===
-
-/**
- * Converts a getter function into a computed signal and sets up reactive property binding.
- * This enables ES6 getter syntax to work with DDOM's reactive system.
- *
- * @param el - The DOM element
- * @param property - The property name
- * @param getter - The getter function
- * @returns A cleanup function to dispose of the effect
- */
-export function bindGetterProperty(
-  el: any,
-  property: string,
-  getter: () => any
-): () => void {
-  // Create a computed signal from the getter (signals available as this.$property)
-  const computedValue = new Signal.Computed(() => {
-    try {
-      return getter.call(el);
-    } catch (error) {
-      console.warn(
-        `Getter evaluation failed for property "${property}":`,
-        error
-      );
-      return undefined;
-    }
-  });
-
-  // For DOM properties, set up reactive updates that modify the actual DOM property
-  return createReactiveBinding(computedValue, (newValue) => {
-    // Use Object.getOwnPropertyDescriptor to get the native setter if it exists
-    const descriptor = Object.getOwnPropertyDescriptor(
-      Object.getPrototypeOf(el),
-      property
-    );
-    if (descriptor && descriptor.set) {
-      descriptor.set.call(el, newValue);
-    } else {
-      (el as any)[property] = newValue;
-    }
-  });
-}
-
-/**
- * Sets up a setter function as a reactive property updater.
- * This enables ES6 setter syntax to work with DDOM's reactive system.
- *
- * @param el - The DOM element
- * @param property - The property name
- * @param setter - The setter function
- */
-export function bindSetterProperty(
-  el: any,
-  property: string,
-  setter: (value: any) => void
-): void {
-  // Define a property with the setter that can be called reactively
-  Object.defineProperty(el, property, {
-    set: function (value: any) {
-      try {
-        setter.call(this, value);
-      } catch (error) {
-        console.warn(
-          `Setter evaluation failed for property "${property}":`,
-          error
-        );
-      }
-    },
-    configurable: true,
-    enumerable: true,
-  });
-}
-
-/**
- * Sets up getter and/or setter for a property with ES6 accessor support.
- * For getters: Creates computed signal + effect that updates the property
- * For setters: Defines the property with the setter function
- *
- * @param el - The DOM element
- * @param property - The property name
- * @param descriptor - The property descriptor with get and/or set
- * @returns A cleanup function to dispose of getter effects (if any)
- */
-export function bindAccessorProperty(
-  el: any,
-  property: string,
-  descriptor: PropertyDescriptor
-): (() => void) | undefined {
-  if (descriptor.get) {
-    // Bind getter as a computed signal for reactive updates
-    return bindGetterProperty(el, property, descriptor.get);
-  } else {
-    // Standard accessor property - signals available as this.$property
-    const propDescriptor: PropertyDescriptor = {
-      configurable: true,
-      enumerable: true,
-    };
-
-    if (descriptor.set) {
-      propDescriptor.set = descriptor.set;
-    }
-
-    if (descriptor.get) {
-      propDescriptor.get = descriptor.get;
-    }
-
-    Object.defineProperty(el, property, propDescriptor);
-    return undefined;
-  }
-}
-
 /**
  * Processes a property using the appropriate DDOM handler.
  * This is the main entry point for property processing, dispatching to specialized handlers.
@@ -770,18 +627,18 @@ export function bindAccessorProperty(
  * @param spec - The declarative DOM specification
  * @param el - The target DOM node
  * @param key - The property key
- * @param descriptor - The property descriptor
+ * @param value - The property value
  * @param css - Whether to process CSS styles (default: true)
  */
 export function processProperty(
   spec: DOMSpec,
   el: DOMNode,
   key: string,
-  descriptor: PropertyDescriptor,
+  value: any,
   css: boolean = true
 ): void {
   const handler = getHandler(key);
-  handler(spec, el, key, descriptor, css);
+  handler(spec, el, key, value, css);
 }
 
 // === UTILITY FUNCTIONS ===
