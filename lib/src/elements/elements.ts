@@ -79,8 +79,8 @@ export function adoptNode(
   options: DOMSpecOptions = {}
 ): void {
   const { css = true, ignoreKeys = [], scopeReactiveProperties } = options;
-  // Process all properties using descriptors - handles both values and native getters/setters
-  const specDescriptors = Object.getOwnPropertyDescriptors(spec);
+  // Process all properties using key/value pairs
+  const specEntries = Object.entries(spec);
 
   // Inherit parent reactive properties directly (simple assignment)
   if (scopeReactiveProperties) {
@@ -88,13 +88,13 @@ export function adoptNode(
   }
 
   // Filter reactive properties from spec for processing and child inheritance
-  const localReactiveProperties = Object.entries(specDescriptors).filter(([key]) =>
+  const localReactiveProperties = specEntries.filter(([key]) =>
     key.startsWith('$')
   );
 
   // Process reactive properties directly on this element
-  localReactiveProperties.forEach(([key, descriptor]) => {
-    processProperty(spec, el, key, descriptor, css);
+  localReactiveProperties.forEach(([key, value]) => {
+    processProperty(spec, el, key, value, css);
   });
 
   // Combine parent and local reactive properties for children
@@ -111,16 +111,16 @@ export function adoptNode(
 
   // Handle protected properties first (id, tagName) - set once, never reactive
   if ('id' in spec && spec.id !== undefined && el instanceof HTMLElement) {
-    processProperty(spec, el, 'id', specDescriptors.id, css);
+    processProperty(spec, el, 'id', spec.id, css);
     allIgnoreKeys.push('id');
   }
 
   // Process all other properties with new reactivity model
-  Object.entries(specDescriptors).forEach(([key, descriptor]) => {
+  specEntries.forEach(([key, value]) => {
     if (allIgnoreKeys.includes(key)) {
       return;
     }
-    processProperty(spec, el, key, descriptor, css);
+    processProperty(spec, el, key, value, css);
   });
 
   // Handle children last to ensure all properties are set before appending
