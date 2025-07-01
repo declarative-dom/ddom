@@ -124,7 +124,7 @@ export type StyleExpr = {
 type WritableOverrides = {
 	tagName?: string;
 	attributes?: Record<string, string>;
-	children?: HTMLElementSpec[] | MappedArrayExpr<any[], CustomElementSpec>;
+	children?: HTMLElementSpec[] | MappedArrayExpr<any[], CustomElementSpec> | (HTMLElementSpec | MappedArrayExpr<any, HTMLElementSpec>)[];
 	document?: Partial<DocumentSpec>
 	customElements?: CustomElementSpec[];
 	style?: StyleExpr;

@@ -1,7 +1,7 @@
 import { adoptDocument, adoptNode, adoptWindow, appendChild, createElement } from './elements/elements';
 import { adoptStyleSheet, clearStyleSheet } from './styleSheets/styleSheets';
 import { define } from './customElements/customElements';
-import { MappedArray } from './arrays/arrays';
+import { MappedArray, isMappedArrayExpr } from './arrays/arrays';
 import { createEffect, ComponentSignalWatcher } from './events/Signal';
 import { Signal } from 'signal-polyfill';
 import { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate, isPropertyAccessor, resolvePropertyAccessor, createReactiveProperty } from './properties';
@@ -13,7 +13,7 @@ export { adoptStyleSheet, clearStyleSheet } from './styleSheets/styleSheets';
 export { define } from './customElements/customElements';
 export { createEffect, ComponentSignalWatcher } from './events/Signal';
 export { Signal } from 'signal-polyfill';
-export { MappedArray } from './arrays/arrays';
+export { MappedArray, isMappedArrayExpr } from './arrays/arrays';
 export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate, isPropertyAccessor, resolvePropertyAccessor, createReactiveProperty } from './properties';
 
 // Default export: DDOM function with namespace properties
@@ -37,6 +37,7 @@ Object.assign(DDOM, {
 	createReactiveProperty,
 	ComponentSignalWatcher,
 	MappedArray,
+	isMappedArrayExpr,
 	Signal,
 	parseTemplateLiteral,
 	bindTemplate,
