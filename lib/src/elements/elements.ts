@@ -126,15 +126,37 @@ export function adoptNode(
   // Handle children last to ensure all properties are set before appending
   if ('children' in spec && spec.children) {
     const children = spec.children;
+    console.log('Processing children:', JSON.stringify(children, null, 2));
+    console.log('Array.isArray(children):', Array.isArray(children));
+    console.log('isMappedArrayExpr(children):', isMappedArrayExpr(children));
+    
     if (isMappedArrayExpr(children)) {
+      // Legacy support: single MappedArrayExpr as children
+      console.log('Taking LEGACY path');
       try {
         adoptArray(children, el as Element, { css, scopeReactiveProperties: allReactiveProperties });
       } catch (error) {
         console.warn(`Failed to process MappedArrayExpr for children:`, error);
       }
     } else if (Array.isArray(children)) {
-      children.forEach((child: HTMLElementSpec) => {
-        appendChild(child, el as DOMNode, { css, scopeReactiveProperties: allReactiveProperties });
+      // New support: mixed arrays of HTMLElementSpec and MappedArrayExpr
+      console.log('Taking MIXED ARRAY path');
+      children.forEach((child, index) => {
+        console.log(`Processing child ${index}:`, child);
+        console.log(`Is MappedArrayExpr: ${isMappedArrayExpr(child)}`);
+        if (isMappedArrayExpr(child)) {
+          console.log(`Taking MappedArrayExpr path for child ${index}`);
+          try {
+            adoptArray(child, el as Element, { css, scopeReactiveProperties: allReactiveProperties });
+          } catch (error) {
+            console.warn(`Failed to process MappedArrayExpr child:`, error);
+          }
+        } else {
+          console.log(`Taking static path for child ${index}`);
+          console.log('About to appendChild static child:', child);
+          appendChild(child, el as DOMNode, { css, scopeReactiveProperties: allReactiveProperties });
+          console.log('After appendChild, el children count:', (el as Element).children.length);
+        }
       });
     } else {
       console.warn(`Invalid children value for key "children":`, children);
