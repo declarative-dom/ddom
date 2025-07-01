@@ -138,7 +138,7 @@ export function adoptNode(
       children.forEach((child) => {
         if (isMappedArrayExpr(child)) {
           try {
-            adoptArray(child, el as Element, { css, scopeReactiveProperties: allReactiveProperties, appendMode: true });
+            adoptArray(child, el as Element, { css, scopeReactiveProperties: allReactiveProperties });
           } catch (error) {
             console.warn(`Failed to process MappedArrayExpr child:`, error);
           }
@@ -257,6 +257,8 @@ export function createElement(
  * creation functions.
  *
  * Uses modern fine-grained updates instead of clearing and re-rendering everything.
+ * Each MappedArray instance rigorously tracks only the elements it owns and manages,
+ * never interfering with elements managed by other MappedArrays or static children.
  *
  * @param arrayExpr - The MappedArray configuration
  * @param parentElement - The parent DOM element to render items into
@@ -265,18 +267,19 @@ export function createElement(
 export function adoptArray<T>(
   arrayExpr: MappedArrayExpr<T, any>,
   parentElement: Element,
-  options: DOMSpecOptions & { appendMode?: boolean } = {}
+  options: DOMSpecOptions = {}
 ): void {
-  const { css = true, scopeReactiveProperties, appendMode = false } = options;
+  const { css = true, scopeReactiveProperties } = options;
   // Create the reactive MappedArrayExpr instance
   const reactiveArray = new MappedArray(arrayExpr, parentElement);
 
-  // Keep track of rendered elements by index for efficient updates
-  const renderedElements = new Map<number, Element>();
+  // Rigorously track only the elements controlled by this MappedArray instance
+  // Each element is tracked by its stable key for efficient lookups and updates
+  const renderedElements = new Map<string, Element>();
   let previousItems: any[] = [];
 
   // Function to update the current array state with fine-grained updates
-  // True key-based diffing inspired by the futuristic ComponentRepeater
+  // Only operates on elements owned by this MappedArray instance
   const updateArray = (items: any[]) => {
     // Track components by stable keys, not indices
     const currentKeys = new Set<string>();
@@ -316,17 +319,12 @@ export function adoptArray<T>(
       }
     }
 
-    // Remove unused components
+    // Remove unused components - only touch elements we own
     keysToRemove.forEach((key) => {
-      const index = previousItems.findIndex(
-        (item) => (item.id || JSON.stringify(item)) === key
-      );
-      if (index >= 0) {
-        const element = renderedElements.get(index);
-        if (element && element.parentNode === parentElement) {
-          element.remove();
-        }
-        renderedElements.delete(index);
+      const element = renderedElements.get(key);
+      if (element && element.parentNode === parentElement) {
+        element.remove();
+        renderedElements.delete(key);
       }
     });
 
@@ -337,121 +335,73 @@ export function adoptArray<T>(
       );
       if (item) {
         const element = createElement(item, { css, scopeReactiveProperties });
+        renderedElements.set(key, element);
         newComponentsByKey.set(key, element);
       }
     });
 
-    // Update existing components (property-level diffing)
+    // Update existing components (property-level diffing) - only our own elements
     keysToUpdate.forEach((key) => {
       const item = items.find(
         (item) => (item.id || JSON.stringify(item)) === key
       );
-      const previousIndex = previousItems.findIndex(
-        (prev) => (prev.id || JSON.stringify(prev)) === key
-      );
+      const element = renderedElements.get(key);
 
-      if (item && previousIndex >= 0) {
-        const element = renderedElements.get(previousIndex);
-        if (element) {
-          // Granular property updates
-          Object.entries(item).forEach(([prop, value]) => {
-            if (prop !== 'tagName' && (element as any)[prop] !== value) {
-              if (typeof value === 'object' && value !== null) {
-                // For complex objects, use adoptNode for deep updates
-                adoptNode({ [prop]: value } as any, element as any, { css });
-              } else {
-                (element as any)[prop] = value;
-              }
+      if (item && element) {
+        // Granular property updates
+        Object.entries(item).forEach(([prop, value]) => {
+          if (prop !== 'tagName' && (element as any)[prop] !== value) {
+            if (typeof value === 'object' && value !== null) {
+              // For complex objects, use adoptNode for deep updates
+              adoptNode({ [prop]: value } as any, element as any, { css });
+            } else {
+              (element as any)[prop] = value;
             }
-          });
+          }
+        });
 
+        newComponentsByKey.set(key, element);
+      }
+    });
+
+    // Reuse unchanged components - only our own elements
+    currentKeys.forEach((key) => {
+      if (!keysToCreate.has(key) && !keysToUpdate.has(key)) {
+        const element = renderedElements.get(key);
+        if (element) {
           newComponentsByKey.set(key, element);
         }
       }
     });
 
-    // Reuse unchanged components
-    currentKeys.forEach((key) => {
-      if (!keysToCreate.has(key) && !keysToUpdate.has(key)) {
-        const previousIndex = previousItems.findIndex(
-          (prev) => (prev.id || JSON.stringify(prev)) === key
-        );
-        if (previousIndex >= 0) {
-          const element = renderedElements.get(previousIndex);
-          if (element) {
-            newComponentsByKey.set(key, element);
-          }
-        }
-      }
-    });
-
-    // Efficient DOM manipulation with fragments
+    // Get ordered elements for this MappedArray
     const orderedElements = items
       .map((item) => newComponentsByKey.get(item.id || JSON.stringify(item)))
       .filter((element): element is Element => element !== undefined);
 
-    // Surgical DOM manipulation - only touch what changed (inspired by React reconciliation)
+    // Surgical DOM manipulation - only manage our own elements
     if (
       keysToCreate.size > 0 ||
       keysToRemove.size > 0 ||
       keysToUpdate.size > 0
     ) {
-      if (appendMode) {
-        // In append mode, just add our elements without touching existing ones
-        const fragment = document.createDocumentFragment();
-        orderedElements.forEach((element) => fragment.appendChild(element));
-        parentElement.appendChild(fragment);
-      } else {
-        // Legacy behavior: manage entire children collection
-        const currentChildren = Array.from(parentElement.children);
-
-        if (orderedElements.length === 0) {
-          // Clear all children if no elements needed
-          parentElement.replaceChildren();
-        } else if (currentChildren.length === 0) {
-          // Initial render - use fragment
-          const fragment = document.createDocumentFragment();
-          orderedElements.forEach((element) => fragment.appendChild(element));
-          parentElement.appendChild(fragment);
-        } else {
-          // Precise DOM updates - only move/add/remove what's needed
-          const newElementSet = new Set(orderedElements);
-
-          // Remove elements that shouldn't be there anymore
-          for (const element of currentChildren) {
-            if (!newElementSet.has(element)) {
-              element.remove();
-            }
-          }
-
-          // Add/reorder elements to match desired order
-          for (let i = 0; i < orderedElements.length; i++) {
-            const desiredElement = orderedElements[i];
-            const currentElement = parentElement.children[i];
-
-            if (currentElement !== desiredElement) {
-              // Insert element at correct position
-              if (i >= parentElement.children.length) {
-                // Append to end
-                parentElement.appendChild(desiredElement);
-              } else {
-                // Insert before current element at this position
-                parentElement.insertBefore(
-                  desiredElement,
-                  parentElement.children[i]
-                );
-              }
-            }
-          }
+      // Create a document fragment for efficient DOM updates
+      const fragment = document.createDocumentFragment();
+      orderedElements.forEach((element) => {
+        // Ensure element is in the fragment for proper ordering
+        if (element.parentNode !== fragment) {
+          fragment.appendChild(element);
         }
+      });
+
+      // Insert the fragment at the appropriate position
+      // This works whether we're the only children or mixed with others
+      if (fragment.hasChildNodes()) {
+        parentElement.appendChild(fragment);
       }
     }
 
-    // Update tracking structures
-    renderedElements.clear();
-    orderedElements.forEach((element, index) => {
-      renderedElements.set(index, element);
-    });
+    // Update our tracking - only store current items for next update
     previousItems = [...items];
   };
 
