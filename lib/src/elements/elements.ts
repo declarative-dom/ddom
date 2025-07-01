@@ -94,7 +94,7 @@ export function adoptNode(
 
   // Process reactive properties directly on this element
   localReactiveProperties.forEach(([key, value]) => {
-    processProperty(spec, el, key, value, css);
+    processProperty(spec, el, key, value, options);
   });
 
   // Combine parent and local reactive properties for children
@@ -111,7 +111,7 @@ export function adoptNode(
 
   // Handle protected properties first (id, tagName) - set once, never reactive
   if ('id' in spec && spec.id !== undefined && el instanceof HTMLElement) {
-    processProperty(spec, el, 'id', spec.id, css);
+    processProperty(spec, el, 'id', spec.id, options);
     allIgnoreKeys.push('id');
   }
 
@@ -120,7 +120,7 @@ export function adoptNode(
     if (allIgnoreKeys.includes(key)) {
       return;
     }
-    processProperty(spec, el, key, value, css);
+    processProperty(spec, el, key, value, options);
   });
 
   // Handle children last to ensure all properties are set before appending
