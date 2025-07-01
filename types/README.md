@@ -16,7 +16,10 @@ import { MappedArrayExpr, FilterExpr, StyleExpr, CustomElementSpec } from '@decl
 // Example: Define a mapped array expression
 const mappedArray: MappedArrayExpr<{ id: number; name: string }, string> = {
   items: [{ id: 1, name: 'Item 1' }, { id: 2, name: 'Item 2' }],
-  map: (item) => item.name,
+  map: {
+    tagName: (item) => item.id === 1 ? 'div' : 'span',
+    className: (item) => item.name.toLowerCase().replace(/\s+/g, '-'),
+  },
   filter: [{ leftOperand: 'id', operator: '>=', rightOperand: 2 }],
 };
 

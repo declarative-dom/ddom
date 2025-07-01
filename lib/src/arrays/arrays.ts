@@ -11,7 +11,7 @@ import {
 } from '../events';
 
 import {
-	isPropertyAccessor,
+  isPropertyAccessor,
   parseTemplateLiteral,
   resolvePropertyAccessor
 } from '../properties';
@@ -158,10 +158,10 @@ export function isMappedArrayExpr<T>(value: any): value is MappedArrayExpr<T, an
  * @example
  * ```typescript
  * const reactiveArray = new MappedArray({
- *   items: userSignal,
+ *   items: 'this.$userSignal',
  *   filter: [{ leftOperand: 'active', operator: '===', rightOperand: true }],
  *   sort: [{ sortBy: 'name', direction: 'asc' }],
- *   map: (user) => ({ tagName: 'div', textContent: user.name })
+ *   map: { tagName: 'div', textContent: (item) => item.name }
  * });
  * ```
  */
@@ -169,6 +169,8 @@ export class MappedArray<T, U = any> {
   private sourceSignal: SignalNode<T[]>;
   private computed: Signal.Computed<U[]>;
   private signalWatcher: ComponentSignalWatcher;
+  private mutableProps: string[] | null = null;
+
   /**
    * Creates a new MappedArray instance with the specified configuration.
    * Sets up the reactive pipeline for processing array data through filtering,
@@ -186,6 +188,11 @@ export class MappedArray<T, U = any> {
     // Initialize isolated signal watcher for this MappedArray
     this.signalWatcher = new ComponentSignalWatcher();
     
+    // Analyze mutable properties once during construction
+    if (expr.map && typeof expr.map === 'object' && expr.map !== null) {
+      this.mutableProps = analyzeMutableProperties(expr.map);
+    }
+
     // Handle different source types
     if (Signal.isState(expr.items) || Signal.isComputed(expr.items)) {
       this.sourceSignal = expr.items;
@@ -213,7 +220,7 @@ export class MappedArray<T, U = any> {
       // Handle function that returns array or Signal
       try {
         const functionResult = expr.items(parentElement);
-        
+
         // Check if the function returned a Signal
         if (Signal.isState(functionResult) || Signal.isComputed(functionResult)) {
           this.sourceSignal = functionResult;
@@ -234,12 +241,12 @@ export class MappedArray<T, U = any> {
     this.computed = new Signal.Computed(() => {
       try {
         const sourceArray = this.sourceSignal.get();
-        
+
         if (!Array.isArray(sourceArray)) {
           console.error('MappedArray: sourceSignal.get() did not return an array:', sourceArray);
           throw new Error('Source signal must contain an array');
         }
-        
+
         let processedArray = [...sourceArray];
 
         // Apply filtering
@@ -252,28 +259,12 @@ export class MappedArray<T, U = any> {
         // Apply sorting
         if (expr.sort && expr.sort.length > 0) {
           processedArray = applySorting(processedArray, expr.sort);
-        }        // Apply mapping
+        }
+        
+        // Apply mapping
         let mappedArray: U[];
         if (expr.map) {
-          if (typeof expr.map === 'function') {
-            mappedArray = processedArray.map(expr.map as (item: T, index: number) => U);
-          } else if (typeof expr.map === 'string') {
-            // String template mapping
-            mappedArray = processedArray.map((item: any, _index) => {
-              if (typeof item === 'object' && item !== null) {
-                return parseTemplateLiteral(expr.map as string, item);
-              }
-              return item;
-            }) as U[];
-          } else {
-            // Static object mapping with template support
-            mappedArray = processedArray.map((item: any, index) => {
-              if (typeof expr.map === 'object' && expr.map !== null) {
-                return transformObjectTemplate(expr.map, item, index, (parentElement || document.body) as Node);
-              }
-              return expr.map;
-            }) as U[];
-          }
+          mappedArray = applyMap(expr.map, processedArray, (parentElement || document.body) as Node) as U[];
         } else {
           mappedArray = processedArray as any;
         }
@@ -303,6 +294,16 @@ export class MappedArray<T, U = any> {
   }
 
   /**
+   * Get the list of mutable properties from the map template.
+   * These are properties that can change and need to be updated when items change.
+   * 
+   * @returns Array of property names that are mutable (function values)
+   */
+  getMutableProps(): string[] {
+    return this.mutableProps || [];
+  }
+
+  /**
    * Get the underlying signal for direct access.
    * Useful for integrating with other reactive systems or debugging.
    * 
@@ -310,7 +311,9 @@ export class MappedArray<T, U = any> {
    */
   getSignal(): Signal.Computed<U[]> {
     return this.computed;
-  }  /**
+  }
+
+  /**
    * Update the source array (only works if source is a Signal.State).
    * Triggers reactive updates throughout the system when called.
    * 
@@ -324,7 +327,7 @@ export class MappedArray<T, U = any> {
       throw new Error('Cannot set array value on non-state source');
     }
   }
-  
+
   /**
    * Dispose of this MappedArray and all its resources.
    * Implements explicit resource management for automatic cleanup.
@@ -343,36 +346,88 @@ export class MappedArray<T, U = any> {
  * @param context - The context object containing values for template substitution
  * @param index - The current index in the array (for function evaluation)
  * @param el - The element context for resolving property accessors
- * @returns The transformed template with all substitutions applied
- * @example
- * ```typescript
- * const result = transformObjectTemplate(
- *   { tagName: 'div', textContent: '{name}', className: (item) => item.active ? 'active' : '' },
- *   { name: 'John', active: true },
- *   0,
- *   document.createElement('div')
- * );
- * // Returns: { tagName: 'div', textContent: 'John', className: 'active' }
- * ```
+ * @returns Object with transformed template value
  */
-function transformObjectTemplate(template: any, context: any, index: number = 0, el: Node): any {
-  if (typeof template === 'function') {
-    // Function values are evaluated immediately with item and index
-    return template(context, index);
-  } else if (typeof template === 'string') {
-    if (isPropertyAccessor(template)) {
-      // Resolve property accessors
-      return resolvePropertyAccessor(template, el);
+function transformObjectTemplate(template: any, context: any, index: number = 0, el: Node): { value: any } {
+  function transform(template: any): any {
+    if (typeof template === 'function') {
+      // Function values are evaluated immediately with item and index
+      return template(context, index);
+    } else if (typeof template === 'string') {
+      if (isPropertyAccessor(template)) {
+        // Resolve property accessors
+        return resolvePropertyAccessor(template, el);
+      }
+      return template;
+    } else if (Array.isArray(template)) {
+      return template.map((item) => transform(item));
+    } else if (template && typeof template === 'object') {
+      const result: any = {};
+      for (const [key, value] of Object.entries(template)) {
+        result[key] = transform(value);
+      }
+      return result;
     }
     return template;
-  } else if (Array.isArray(template)) {
-    return template.map((item, itemIndex) => transformObjectTemplate(item, context, itemIndex, el));
-  } else if (template && typeof template === 'object') {
-    const result: any = {};
-    for (const [key, value] of Object.entries(template)) {
-      result[key] = transformObjectTemplate(value, context, index, el);
-    }
-    return result;
   }
-  return template;
+
+  return { value: transform(template) };
+}
+
+/**
+ * Applies mapping transformation to an array using either object or string templates.
+ * Handles function evaluation within templates and supports all mapping types.
+ * 
+ * @param mapTemplate - Either an object template, string template, or direct value to apply
+ * @param processedArray - The array of items to map
+ * @param el - The element context for resolving property accessors
+ * @returns The mapped array with all transformations applied
+ */
+function applyMap(mapTemplate: any, processedArray: any[], el: Node): any[] {
+  if (typeof mapTemplate === 'string') {
+    // String template mapping
+    return processedArray.map((item: any, _index) => {
+      if (typeof item === 'object' && item !== null) {
+        return parseTemplateLiteral(mapTemplate, item);
+      }
+      return item;
+    });
+  } else if (typeof mapTemplate === 'object' && mapTemplate !== null) {
+    // Object template mapping
+    return processedArray.map((item: any, index) => {
+      const result = transformObjectTemplate(mapTemplate, item, index, el);
+      return result.value;
+    });
+  } else {
+    // Direct value mapping (no transformation)
+    return processedArray.map(() => mapTemplate);
+  }
+}
+
+/**
+ * Analyzes a map template to collect all mutable properties (function values).
+ * This is done once during construction to optimize runtime performance.
+ * 
+ * @param mapTemplate - The template to analyze
+ * @returns Array of property names that have function values
+ */
+function analyzeMutableProperties(mapTemplate: any): string[] {
+  const mutableProps: string[] = [];
+
+  function analyze(template: any, prop: string = ''): void {
+    if (typeof template === 'function') {
+      if (prop) {
+        mutableProps.push(prop);
+      }
+    } else if (Array.isArray(template)) {
+      template.forEach((item) => analyze(item, prop));
+    } else if (template && typeof template === 'object') {
+      for (const [key, value] of Object.entries(template)) {
+        analyze(value, key);
+      }
+    }
+  }
+
+  analyze(mapTemplate);
+  return mutableProps;
 }

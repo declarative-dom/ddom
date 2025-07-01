@@ -35,7 +35,10 @@ describe('Component-Level Signal Isolation', () => {
     const sourceArray = new Signal.State([1, 2, 3]);
     const mappedArray = new MappedArray({
       items: sourceArray,
-      map: (item) => ({ tagName: 'div', textContent: `Item ${item}` })
+      map: {
+        tagName: 'div',
+        textContent: (item) => `Item ${item}`
+      }
     });
     
     expect(mappedArray).toBeDefined();
@@ -120,10 +123,10 @@ describe('Component-Level Signal Isolation', () => {
       tagName: 'div',
       children: {
         items: [1, 2, 3],
-        map: (item) => ({
+        map: {
           tagName: 'span',
-          textContent: `Item: ${item}`
-        })
+          textContent: (item) => `Item: ${item}`
+        }
       }
     });
 
@@ -241,7 +244,10 @@ describe('Component-Level Signal Isolation', () => {
     const mappedArray = new MappedArray({
       items: sourceData,
       filter: [{ leftOperand: (item) => item, operator: '>', rightOperand: 2 }],
-      map: (item) => ({ tagName: 'div', textContent: `Item: ${item}` })
+      map: {
+        tagName: 'div',
+        textContent: (item) => `Item: ${item}`
+      }
     });
     
     // Should work normally
@@ -277,11 +283,11 @@ describe('Component-Level Signal Isolation', () => {
               { id: 2, name: 'Bob' },
               { id: 3, name: 'Charlie' }
             ],
-            map: (person) => ({
+            map: {
               tagName: 'div',
               className: 'person-item',
-              textContent: `${person.name} (ID: ${person.id})`
-            })
+              textContent: (person) => `${person.name} (ID: ${person.id})`
+            }
           }
         }
       ]

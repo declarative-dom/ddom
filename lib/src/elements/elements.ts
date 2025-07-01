@@ -259,6 +259,7 @@ export function adoptArray<T>(
 ): void {
   // Create the reactive MappedArrayExpr instance
   const reactiveArray = new MappedArray(arrayExpr, parentElement);
+  const mutableProps = reactiveArray.getMutableProps();
 
   // Keep track of rendered elements by index for efficient updates
   const renderedElements = new Map<number, Element>();
@@ -345,17 +346,25 @@ export function adoptArray<T>(
       if (item && previousIndex >= 0) {
         const element = renderedElements.get(previousIndex);
         if (element) {
-          // Pure signal-based updates - only update $-prefixed reactive properties
-          Object.entries(item).forEach(([prop, value]) => {
-            if (prop.startsWith('$')) {
-              // Update reactive property signal
-              const signal = (element as any)[prop];
-              if (signal && typeof signal.set === 'function') {
-                signal.set(value);
+          // debug
+          console.debug(`Updating existing component for key ${key} with mutable properties`, mutableProps);
+          // Efficient mutable property updates using pre-analyzed properties
+          mutableProps.forEach((prop: string) => {
+            // debug
+            console.debug(`Updating property ${prop} for key ${key}`);
+            if (prop in item) {
+              const value = item[prop];
+              if (prop.startsWith('$')) {
+                // Update reactive property signal
+                const signal = (element as any)[prop];
+                if (signal && typeof signal.set === 'function') {
+                  signal.set(value);
+                }
+              } else {
+                // Direct property assignment for non-reactive mutable properties
+                (element as any)[prop] = value;
               }
             }
-            // Note: children are handled through reactive signals, not direct updates
-            // Non-reactive properties should not change after element creation
           });
 
           newComponentsByKey.set(key, element);
@@ -470,7 +479,7 @@ export function adoptArray<T>(
     updateArray(currentItems);
 
     // Return empty cleanup since we're not deferring the update
-    return () => {};
+    return () => { };
   }, componentWatcher);
 
   // Note: effectCleanup could be returned if the caller needs to clean up manually,

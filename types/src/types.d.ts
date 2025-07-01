@@ -76,7 +76,10 @@ export type SortExpr<T = any> = {
  *   - A function that returns an array
  *   - A Signal.State or Signal.Computed containing an array
  *   - A string address like "window.todos" or "this.parentNode.items" that resolves to a signal
- * @property map - Transformation to apply to each item. Can be a property name, function, or static value.
+ * @property map - Transformation to apply to each item. Can be:
+ *   - An object template with function properties for dynamic values
+ *   - A string template for simple interpolation
+ *   - A static value for direct mapping
  * @property filter - Optional array of filters to apply to items before mapping.
  * @property sort - Optional array of sort operations to apply before mapping.
  * @property prepend - Optional array of items to add at the beginning of the result.
@@ -84,7 +87,7 @@ export type SortExpr<T = any> = {
  */
 export type MappedArrayExpr<T = any, R = any> = {
 	items: T[] | ((contextNode?: Node) => T[]) | Signal.State<T[]> | Signal.Computed<T[]> | string;
-	map: string | R | ((item: T, index: number) => R);
+	map?: string | R;
 	filter?: FilterExpr<T>[];
 	sort?: SortExpr<T>[];
 	prepend?: R[];
