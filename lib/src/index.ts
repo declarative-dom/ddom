@@ -1,19 +1,19 @@
-import { adoptDocument, adoptNode, adoptWindow, appendChild, createElement } from './elements/elements';
-import { adoptStyleSheet, clearStyleSheet } from './styleSheets/styleSheets';
-import { define } from './customElements/customElements';
-import { MappedArray } from './arrays/arrays';
-import { createEffect, ComponentSignalWatcher } from './events/Signal';
+import { adoptDocument, adoptNode, adoptWindow, appendChild, createElement } from './elements';
+import { adoptStyleSheet, clearStyleSheet } from './styleSheets';
+import { define } from './customElements';
+import { MappedArray } from './arrays';
+import { createEffect, ComponentSignalWatcher } from './signals';
 import { Signal } from 'signal-polyfill';
-import { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate, isPropertyAccessor, resolvePropertyAccessor, createReactiveProperty } from './properties';
+import { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate, createReactiveProperty } from './properties';
 
 // Named exports for compatibility
-export { adoptDocument, adoptNode, adoptWindow, createElement } from './elements/elements';
-export type { DOMSpecOptions, ReactiveProperties } from './elements/elements';
-export { adoptStyleSheet, clearStyleSheet } from './styleSheets/styleSheets';
-export { define } from './customElements/customElements';
-export { createEffect, ComponentSignalWatcher } from './events/Signal';
+export { adoptDocument, adoptNode, adoptWindow, createElement } from './elements';
+export type { DOMSpecOptions, ReactiveProperties } from './elements';
+export { adoptStyleSheet, clearStyleSheet } from './styleSheets';
+export { define } from './customElements';
+export { createEffect, ComponentSignalWatcher } from './signals';
 export { Signal } from 'signal-polyfill';
-export { MappedArray } from './arrays/arrays';
+export { MappedArray } from './arrays';
 export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate, isPropertyAccessor, resolvePropertyAccessor, createReactiveProperty } from './properties';
 
 // Default export: DDOM function with namespace properties

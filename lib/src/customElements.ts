@@ -2,19 +2,19 @@ import {
 	CustomElementSpec,
 	DocumentSpec,
 	HTMLElementSpec,
-} from '../../../types/src';
+} from '../../types/src';
 
 import {
 	adoptNode,
-} from '../elements';
+} from './elements';
 
 import {
 	ComponentSignalWatcher,
-} from '../events';
+} from './signals';
 
 import {
 	insertRules,
-} from '../styleSheets';
+} from './styleSheets';
 
 /**
  * Registers an array of custom elements with the browser's CustomElementRegistry.

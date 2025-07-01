@@ -5,13 +5,13 @@ import {
   HTMLElementSpec,
   WindowSpec,
   DOMNode,
-} from '../../../types/src';
+} from '../../types/src';
 
-import { MappedArray, isMappedArrayExpr } from '../arrays';
+import { MappedArray, isMappedArrayExpr } from './arrays';
 
-import { createEffect, ComponentSignalWatcher, Signal } from '../events';
+import { createEffect, ComponentSignalWatcher, Signal } from './signals';
 
-import { processProperty } from '../properties';
+import { processProperty } from './properties';
 
 
 /**

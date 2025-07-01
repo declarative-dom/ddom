@@ -2,19 +2,19 @@ import {
   MappedArrayExpr,
   FilterExpr,
   SortExpr,
-} from '../../../types/src';
+} from '../../types/src';
 
 import {
   Signal,
   SignalNode,
   ComponentSignalWatcher
-} from '../events';
+} from './signals';
 
 import {
   isPropertyAccessor,
   parseTemplateLiteral,
   resolvePropertyAccessor
-} from '../properties';
+} from './properties';
 
 
 /**

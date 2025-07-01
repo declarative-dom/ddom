@@ -1,6 +1,6 @@
 import {
 	StyleExpr,
-} from '../../../types/src';
+} from '../../types/src';
 
 
 // Global stylesheet reference for DDOM styles

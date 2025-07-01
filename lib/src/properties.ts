@@ -12,13 +12,13 @@
  * automatic cleanup, and optimized performance.
  */
 
-import { define } from '../customElements';
+import { define } from './customElements';
 
-import { adoptNode } from '../elements';
+import { adoptNode } from './elements';
 
-import { Signal, createEffect, ComponentSignalWatcher } from '../events';
+import { Signal, createEffect, ComponentSignalWatcher } from './signals';
 
-import { insertRules } from '../styleSheets';
+import { insertRules } from './styleSheets';
 
 import {
   DocumentSpec,
@@ -27,9 +27,9 @@ import {
   HTMLElementSpec,
   StyleExpr,
   WindowSpec,
-} from '../../../types/src';
+} from '../../types/src';
 
-import { DOMSpecOptions } from '../elements';
+import { DOMSpecOptions } from './elements';
 
 // === PROPERTY DETECTION AND CLASSIFICATION ===
 
