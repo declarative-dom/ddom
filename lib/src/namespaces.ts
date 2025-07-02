@@ -16,7 +16,7 @@
 import { Signal, createEffect, ComponentSignalWatcher } from './signals';
 import { DOMNode, DOMSpec, RequestConfig, RequestState } from '../../types/src';
 import { DOMSpecOptions } from './elements';
-import { parseTemplateLiteral, computedTemplate, processProperty, isTemplateLiteral, isPropertyAccessor, resolvePropertyAccessor } from './properties';
+import { resolvePropertyValue } from './properties';
 
 // === NAMESPACE DETECTION ===
 
@@ -87,7 +87,7 @@ export type NamespaceHandler = (
 
 /**
  * Creates a reactive Request signal with fetch functionality.
- * Uses the properties module utilities to resolve individual properties within the Request spec.
+ * Uses direct property processing to resolve reactive values in the Request config.
  *
  * @param el - The element to attach the request signal to
  * @param key - The property key
@@ -112,13 +112,12 @@ function createRequestSignal(
 
   const requestSignal = new Signal.State(initialState);
 
-  // Process the config using properties module utilities to resolve reactive values
-  // Use ignoreKeys to control which properties should not be processed as reactive
+  // Process the config to resolve reactive values
   const configOptions: DOMSpecOptions = {
     ...options,
     ignoreKeys: ['trigger', 'debounce', ...(options.ignoreKeys || [])]
   };
-  const processedConfig = processConfigObject(config, el, configOptions);
+  const processedConfig = processOptions(config, el, configOptions);
 
   // Add fetch method for manual triggering
   (requestSignal as any).fetch = () => executeRequest(requestSignal, processedConfig, el);
@@ -133,41 +132,28 @@ function createRequestSignal(
 }
 
 /**
- * Processes configuration object using processProperty for each individual property.
- * Uses the properties module utilities through processProperty to maintain consistency.
+ * Processes a Request configuration object to resolve reactive values.
+ * Uses the unified resolvePropertyValue function for consistent behavior.
  *
- * @param config - The configuration object to process
+ * @param config - The request configuration to process
  * @param contextNode - The context node for template evaluation
  * @param options - DOMSpecOptions containing ignoreKeys and other processing options
- * @returns Processed configuration with reactive values
+ * @returns Processed configuration with reactive values resolved
  */
-function processConfigObject(config: any, contextNode: Node, options: DOMSpecOptions = {}): any {
+function processOptions(config: any, contextNode: Node, options: DOMSpecOptions = {}): any {
   const processed: any = { ...config };
-  const { ignoreKeys = [] } = options;
-
-  // Create a temporary object to hold processed values
-  const tempElement: any = {};
-
-  // Process each configuration property using processProperty
+  
+  // Process each configuration property using the unified resolvePropertyValue
   Object.keys(processed).forEach(key => {
-    if (ignoreKeys.includes(key)) {
-      return; // Skip ignored keys
-    }
-
     const value = processed[key];
     
-    if (typeof value === 'string' && isTemplateLiteral(value)) {
-      // Use computedTemplate directly for reactive templates
-      processed[key] = computedTemplate(value, contextNode);
-    } else if (typeof value === 'string' && isPropertyAccessor(value)) {
-      // Use resolvePropertyAccessor directly for property accessors
-      const resolved = resolvePropertyAccessor(value, contextNode);
-      processed[key] = resolved !== null ? resolved : value;
-    } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
       // Recursively process nested objects (like headers)
-      processed[key] = processConfigObject(value, contextNode, options);
+      processed[key] = processOptions(value, contextNode, options);
+    } else {
+      // Use the unified property resolution
+      processed[key] = resolvePropertyValue(key, value, contextNode, options);
     }
-    // For other values, keep them as-is
   });
 
   return processed;
