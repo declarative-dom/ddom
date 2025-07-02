@@ -266,7 +266,7 @@ export interface RequestConfig {
   signal?: any;
   
   // DDOM extensions for declarative control
-  trigger?: 'auto' | 'manual'; // Auto (default) or manual triggering
-  debounce?: number; // Debouncing for auto requests
-  return?: 'arrayBuffer' | 'blob' | 'bytes' | 'clone' | 'formData' | 'json' | 'text'; // Response parsing method (default: auto-detect)
+  disabled?: boolean; // Disable auto execution (default: false) - matches standard DOM pattern
+  delay?: number; // Delay/debounce in milliseconds - matches Web Animations API
+  responseType?: 'arrayBuffer' | 'blob' | 'formData' | 'json' | 'text'; // Matches XMLHttpRequest.responseType
 }

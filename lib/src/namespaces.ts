@@ -16,7 +16,7 @@
 import { Signal, createEffect, ComponentSignalWatcher } from './signals';
 import { DOMNode, DOMSpec, RequestConfig } from '../../types/src';
 import { DOMSpecOptions } from './elements';
-import { resolvePropertyValue } from './properties';
+import { resolvePropertyValue, evaluatePropertyValue } from './properties';
 
 // === NAMESPACE DETECTION ===
 
@@ -118,20 +118,20 @@ function bindRequest(
   // Process the config to resolve reactive values and check validity
   const configOptions: DOMSpecOptions = {
     ...options,
-    ignoreKeys: ['trigger', 'debounce', 'return', ...(options.ignoreKeys || [])]
+    ignoreKeys: ['disabled', 'delay', 'responseType', ...(options.ignoreKeys || [])]
   };
   const { config: processedConfig, isValid } = resolveConfig(config, el, configOptions);
 
   // Add fetch method for manual triggering
   (requestSignal as any).fetch = () => {
     if (isValid) {
-      executeRequest(requestSignal, processedConfig, config.return);
+      executeRequest(requestSignal, processedConfig, config.responseType);
     }
   };
 
-  // Set up auto triggering if enabled (default mode)
-  if (config.trigger !== 'manual') {
-    setupAutoTrigger(requestSignal, config, el, configOptions, config.debounce, config.return);
+  // Set up auto triggering if not disabled (default mode)
+  if (!config.disabled) {
+    setupAutoTrigger(requestSignal, config, el, configOptions, config.delay, config.responseType);
   }
 
   (el as any)[key] = requestSignal;
@@ -172,7 +172,7 @@ function resolveConfig(config: any, contextNode: any, options: DOMSpecOptions = 
       processed[key] = resolvedValue;
       
       // Skip validity check for DDOM-specific properties
-      if (key !== 'trigger' && key !== 'debounce' && key !== 'return' && !valueIsValid) {
+      if (key !== 'disabled' && key !== 'delay' && key !== 'responseType' && !valueIsValid) {
         isValid = false;
       }
     }
@@ -189,7 +189,7 @@ function resolveConfig(config: any, contextNode: any, options: DOMSpecOptions = 
  * @param originalConfig - The original configuration object
  * @param contextNode - The context node for resolution
  * @param configOptions - The processing options
- * @param debounce - Optional debounce delay in milliseconds
+ * @param delay - Optional delay in milliseconds (matches Web Animations API)
  * @param returnFormat - How to parse the response
  */
 function setupAutoTrigger(
@@ -197,7 +197,7 @@ function setupAutoTrigger(
   originalConfig: any,
   contextNode: any,
   configOptions: DOMSpecOptions,
-  debounce?: number,
+  delay?: number,
   returnFormat?: string
 ): void {
   let debounceTimer: any = null;
@@ -216,16 +216,16 @@ function setupAutoTrigger(
         return;
       }
 
-      // Clear existing debounce timer
+      // Clear existing delay timer
       if (debounceTimer) {
         clearTimeout(debounceTimer);
       }
 
-      // Execute with debounce if specified
-      if (debounce && debounce > 0) {
+      // Execute with delay if specified (matches Web Animations API pattern)
+      if (delay && delay > 0) {
         debounceTimer = setTimeout(() => {
           executeRequest(requestSignal, resolvedConfig, returnFormat);
-        }, debounce);
+        }, delay);
       } else {
         executeRequest(requestSignal, resolvedConfig, returnFormat);
       }
@@ -244,35 +244,39 @@ function setupAutoTrigger(
 
 /**
  * Executes the actual fetch request and updates the signal with the parsed data.
- * Uses the already-resolved config from resolveConfig - no additional resolution needed.
+ * Uses the modular evaluatePropertyValue to extract final values from resolved config.
  *
  * @param requestSignal - The request signal to update with response data
- * @param requestOptions - The already-resolved configuration from resolveConfig
+ * @param resolvedConfig - The resolved configuration from resolveConfig
  * @param returnFormat - How to parse the response (json, text, etc.)
  */
 async function executeRequest(
   requestSignal: Signal.State<any>,
-  requestOptions: any,
+  resolvedConfig: any,
   returnFormat?: string
 ): Promise<void> {
-  try {    
+  try {
+    // Use the modular evaluatePropertyValue to extract final values
+    const finalConfig = evaluatePropertyValue(resolvedConfig);
+    
     // URL is required
-    if (!requestOptions.url) {
+    if (!finalConfig.url) {
       throw new Error('Request URL is required');
     }
     
     // Handle relative URLs
-    let url = requestOptions.url;
+    let url = finalConfig.url;
     if (!url.startsWith('http')) {
       const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
       url = new URL(url, base).toString();
     }
     
     // Create Request instance with the resolved URL
+    const requestOptions = { ...finalConfig };
     delete requestOptions.url;
-    delete requestOptions.trigger;
-    delete requestOptions.debounce;
-    delete requestOptions.return;
+    delete requestOptions.disabled;
+    delete requestOptions.delay;
+    delete requestOptions.responseType;
     
     // Handle basic JSON serialization for object bodies
     if (requestOptions.body && typeof requestOptions.body === 'object' && 

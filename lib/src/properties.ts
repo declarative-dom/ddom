@@ -393,6 +393,39 @@ export function resolvePropertyValue(
 // === PROPERTY ASSIGNMENT (Side Effects) ===
 
 /**
+ * Evaluates a resolved value to its final primitive form.
+ * This is the counterpart to assignPropertyValue - it extracts values instead of binding them.
+ * 
+ * @param value - The resolved value (could be a signal, object, or primitive)
+ * @returns The final primitive value
+ */
+export function evaluatePropertyValue(value: any): any {
+  // Handle signals - extract their current values
+  if (typeof value === 'object' && value !== null && Signal.isState(value)) {
+    return (value as Signal.State<any>).get();
+  } else if (typeof value === 'object' && value !== null && Signal.isComputed(value)) {
+    return (value as Signal.Computed<any>).get();
+  }
+  
+  // Handle nested objects recursively
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    const evaluated: any = {};
+    Object.entries(value).forEach(([key, nestedValue]) => {
+      evaluated[key] = evaluatePropertyValue(nestedValue);
+    });
+    return evaluated;
+  }
+  
+  // Handle arrays recursively
+  if (Array.isArray(value)) {
+    return value.map(item => evaluatePropertyValue(item));
+  }
+  
+  // Everything else returns as-is
+  return value;
+}
+
+/**
  * Assigns a resolved value to an element property with appropriate DDOM logic.
  * Handles reactive properties, namespaced properties, and DOM binding.
  * 

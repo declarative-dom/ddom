@@ -51,8 +51,9 @@ interface RequestConfig {
   signal?: any;                   // AbortController signal
   
   // DDOM extensions
-  trigger?: 'auto' | 'manual';    // Trigger mode (default: 'auto')
-  debounce?: number;              // Debounce delay in ms
+  disabled?: boolean;             // Disable auto execution (default: false)
+  delay?: number;                 // Delay in milliseconds
+  responseType?: 'arrayBuffer' | 'blob' | 'formData' | 'json' | 'text'; // Response parsing method
 }
 ```
 
@@ -78,7 +79,7 @@ Automatically executes requests when reactive dependencies change:
 $userProfile: {
   Request: {
     url: '/api/users/${this.$userId.get()}'
-    // trigger: 'auto' is the default
+    // disabled: false is the default
   }
 }
 ```
@@ -92,7 +93,7 @@ $createUser: {
   Request: {
     url: '/api/users',
     method: 'POST',
-    trigger: 'manual',
+    disabled: true, // Manual triggering
     body: {
       name: '${this.$userName.get()}',
       email: '${this.$userEmail.get()}'
@@ -210,13 +211,13 @@ if (state.error) {
 
 ## Debouncing
 
-Use debouncing to prevent rapid successive requests:
+Use delay to prevent rapid successive requests:
 
 ```javascript
 $searchResults: {
   Request: {
     url: '/api/search?q=${this.$query.get()}',
-    debounce: 300  // Wait 300ms after last change
+    delay: 300  // Wait 300ms after last change
   }
 }
 ```

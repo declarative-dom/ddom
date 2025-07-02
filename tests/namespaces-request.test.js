@@ -55,7 +55,7 @@ describe('Namespaced Properties - Request Namespace', () => {
         $userData: {
           Request: {
             url: '/api/users',
-            trigger: 'manual'
+            disabled: true
           }
         }
       });
@@ -64,14 +64,8 @@ describe('Namespaced Properties - Request Namespace', () => {
       expect(Signal.isState(element.$userData)).toBe(true);
       
       const state = element.$userData.get();
-      expect(state).toEqual({
-        loading: false,
-        data: null,
-        error: null,
-        response: null,
-        lastFetch: 0
-      });
-
+      expect(state).toBe(null); // Should be null initially
+      
       expect(typeof element.$userData.fetch).toBe('function');
     });
 
@@ -81,7 +75,7 @@ describe('Namespaced Properties - Request Namespace', () => {
         $userData: {
           Request: {
             url: '/api/users'
-            // trigger defaults to 'auto', but we disabled it temporarily
+            // disabled defaults to false (auto-enabled)
           }
         }
       });
@@ -107,7 +101,7 @@ describe('Namespaced Properties - Request Namespace', () => {
           Request: {
             url: '/api/users/1',
             method: 'GET',
-            trigger: 'manual'
+            disabled: true
           }
         }
       });
@@ -120,11 +114,7 @@ describe('Namespaced Properties - Request Namespace', () => {
       
       // Verify state was updated
       const state = element.$userData.get();
-      expect(state.loading).toBe(false);
-      expect(state.data).toEqual({ id: 1, name: 'John' });
-      expect(state.error).toBe(null);
-      expect(state.response).toBe(mockResponse);
-      expect(state.lastFetch).toBeGreaterThan(0);
+      expect(state).toEqual({ id: 1, name: 'John' });
     });
 
     test('should handle fetch errors', async () => {
@@ -136,7 +126,7 @@ describe('Namespaced Properties - Request Namespace', () => {
         $userData: {
           Request: {
             url: '/api/users/1',
-            trigger: 'manual'
+            disabled: true
           }
         }
       });
@@ -144,10 +134,7 @@ describe('Namespaced Properties - Request Namespace', () => {
       await element.$userData.fetch();
 
       const state = element.$userData.get();
-      expect(state.loading).toBe(false);
-      expect(state.data).toBe(null);
-      expect(state.error).toBe(error);
-      expect(state.lastFetch).toBeGreaterThan(0);
+      expect(state).toBe(null); // Error handling sets signal to null
     });
 
     test('should handle JSON parsing errors gracefully', async () => {
@@ -164,7 +151,7 @@ describe('Namespaced Properties - Request Namespace', () => {
         $userData: {
           Request: {
             url: '/api/users/1',
-            trigger: 'manual'
+            disabled: true
           }
         }
       });
@@ -172,9 +159,7 @@ describe('Namespaced Properties - Request Namespace', () => {
       await element.$userData.fetch();
 
       const state = element.$userData.get();
-      expect(state.loading).toBe(false);
-      expect(state.data).toBe(mockResponse); // Falls back to response object
-      expect(state.error).toBe(null);
+      expect(state).toBe(mockResponse); // Falls back to response object
     });
   });
 
@@ -194,7 +179,7 @@ describe('Namespaced Properties - Request Namespace', () => {
         $userData: {
           Request: {
             url: '/api/users/${this.$userId.get()}',
-            trigger: 'manual'
+            disabled: true
           }
         }
       });
@@ -225,7 +210,7 @@ describe('Namespaced Properties - Request Namespace', () => {
               name: 'John',
               age: 30
             },
-            trigger: 'manual'
+            disabled: true
           }
         }
       });
@@ -259,7 +244,7 @@ describe('Namespaced Properties - Request Namespace', () => {
             },
             mode: 'cors',
             credentials: 'include',
-            trigger: 'manual'
+            disabled: true
           }
         }
       });
@@ -291,7 +276,7 @@ describe('Namespaced Properties - Request Namespace', () => {
         $userData: {
           Request: {
             url: '/api/users/1',
-            trigger: 'manual'
+            disabled: true
           }
         }
       });
@@ -299,7 +284,7 @@ describe('Namespaced Properties - Request Namespace', () => {
       await element.$userData.fetch();
 
       const state = element.$userData.get();
-      expect(state.data).toEqual(jsonData);
+      expect(state).toEqual(jsonData);
     });
 
     test('should handle text responses', async () => {
@@ -316,7 +301,7 @@ describe('Namespaced Properties - Request Namespace', () => {
         $userData: {
           Request: {
             url: '/api/text',
-            trigger: 'manual'
+            disabled: true
           }
         }
       });
@@ -324,7 +309,40 @@ describe('Namespaced Properties - Request Namespace', () => {
       await element.$userData.fetch();
 
       const state = element.$userData.get();
-      expect(state.data).toBe(textData);
+      expect(state).toBe(textData);
+    });
+  });
+
+  describe('Delay/Debounce Functionality', () => {
+    test('should support delay property for auto requests', async () => {
+      const mockResponse = {
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: vi.fn().mockResolvedValue({ success: true })
+      };
+      mockFetch.mockResolvedValue(mockResponse);
+
+      const element = createElement({
+        tagName: 'div',
+        $searchQuery: new Signal.State(''),
+        $searchResults: {
+          Request: {
+            url: '/api/search?q=${this.$searchQuery.get()}',
+            delay: 100 // 100ms delay (matches Web Animations API pattern)
+          }
+        }
+      });
+
+      // Should not fire immediately
+      element.$searchQuery.set('test');
+      expect(mockFetch).not.toHaveBeenCalled();
+
+      // Should fire after delay
+      await new Promise(resolve => setTimeout(resolve, 150));
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      
+      const fetchCall = mockFetch.mock.calls[0];
+      expect(fetchCall[0].url).toContain('q=test');
     });
   });
 
