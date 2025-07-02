@@ -44,7 +44,17 @@ export function isNamespacedProperty(value: any): boolean {
   }
 
   const namespace = keys[0];
-  return namespace in NAMESPACE_HANDLERS;
+  if (!(namespace in NAMESPACE_HANDLERS)) {
+    return false;
+  }
+
+  // Additional validation: ensure the config value is an object
+  const config = value[namespace];
+  if (!config || typeof config !== 'object' || Array.isArray(config)) {
+    return false;
+  }
+
+  return true;
 }
 
 /**

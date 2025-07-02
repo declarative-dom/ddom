@@ -327,6 +327,43 @@ dictionary ReadableStreamConfig {
   (DOMString or sequence<any>) data;
 };
 
+// Cookie namespace for browser cookie management
+dictionary CookieConfig {
+  required DOMString name;
+  DOMString value;
+  DOMString initialValue;
+  DOMString domain;
+  DOMString path;
+  (Date or DOMString) expires;
+  long maxAge;
+  boolean secure;
+  ("strict" or "lax" or "none") sameSite;
+};
+
+// SessionStorage namespace for session storage management
+dictionary SessionStorageConfig {
+  required DOMString key;
+  any value;
+  any initialValue;
+};
+
+// LocalStorage namespace for local storage management
+dictionary LocalStorageConfig {
+  required DOMString key;
+  any value;
+  any initialValue;
+};
+
+// IndexedDB namespace for database operations
+dictionary IndexedDBConfig {
+  required DOMString database;
+  required DOMString store;
+  any key;
+  any value;
+  any initialValue;
+  long version;
+};
+
 // Namespace wrapper for Web API integrations
 dictionary NamespaceWrapper {
   RequestConfig Request;
@@ -335,6 +372,10 @@ dictionary NamespaceWrapper {
   BlobConfig Blob;
   ArrayBufferConfig ArrayBuffer;
   ReadableStreamConfig ReadableStream;
+  CookieConfig Cookie;
+  SessionStorageConfig SessionStorage;
+  LocalStorageConfig LocalStorage;
+  IndexedDBConfig IndexedDB;
 };
 ```
 
@@ -677,6 +718,49 @@ DDOM provides declarative access to Web APIs through namespaced properties. Each
     ReadableStream: {
       data: '${this.$streamContent.get()}'
     }
+  },
+  
+  // Cookie namespace - reactive cookie management
+  $userPrefs: {
+    Cookie: {
+      name: 'userPreferences',
+      initialValue: '{"theme":"light","lang":"en"}',
+      path: '/',
+      maxAge: 86400
+    }
+  },
+  
+  // SessionStorage namespace - reactive session data
+  $sessionData: {
+    SessionStorage: {
+      key: 'currentSession',
+      initialValue: { startTime: Date.now(), userId: null }
+    }
+  },
+  
+  // LocalStorage namespace - reactive persistent settings
+  $appSettings: {
+    LocalStorage: {
+      key: 'appConfig',
+      initialValue: { 
+        theme: 'light', 
+        notifications: true 
+      }
+    }
+  },
+  
+  // IndexedDB namespace - reactive database operations
+  $userData: {
+    IndexedDB: {
+      database: 'UserDB',
+      store: 'profiles',
+      key: '${this.$userId.get()}',
+      initialValue: { 
+        name: '', 
+        email: '', 
+        preferences: {} 
+      }
+    }
   }
 }
 ```
@@ -688,6 +772,10 @@ DDOM provides declarative access to Web APIs through namespaced properties. Each
 - `Blob` - Binary data creation with MIME type handling
 - `ArrayBuffer` - Buffer management with automatic encoding
 - `ReadableStream` - Stream creation with data sources
+- `Cookie` - Browser cookie management with reactive updates
+- `SessionStorage` - Session storage key-value management with reactivity
+- `LocalStorage` - Local storage key-value management with reactivity
+- `IndexedDB` - IndexedDB database operations with async support
 
 All namespaces support template literals and property accessors for reactive configuration, and automatically create computed signals that update when dependencies change.
 
