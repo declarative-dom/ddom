@@ -92,7 +92,8 @@ export function shouldBeSignal(key: string, value: any): boolean {
   return (
     key.startsWith('$') &&
     !(typeof value === 'string' && value.includes('${')) && // Not a template literal
-    typeof value !== 'function'
+    typeof value !== 'function' &&
+    !isNamespacedProperty(value) // Not a namespaced property
   );
 }
 
@@ -358,7 +359,7 @@ function assignPropertyValue(
   key: string,
   value: any
 ): void {
-  // Handle namespaced properties first
+  // Handle namespaced properties first (before shouldBeSignal check)
   if (isNamespacedProperty(value)) {
     processNamespacedProperty({} as any, el, key, value);
     return;

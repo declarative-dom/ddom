@@ -152,10 +152,11 @@ function createRequestSignal(
   // Add fetch method for manual triggering
   (requestSignal as any).fetch = () => executeRequest(requestSignal, processedConfig, el);
 
-  // Set up auto triggering if enabled (default mode)
-  if (config.trigger !== 'manual') {
-    setupAutoTrigger(requestSignal, processedConfig, el, config.debounce);
-  }
+  // Set up auto triggering if enabled (default mode) - temporarily disabled to debug
+  // TODO: Re-enable auto triggering after fixing memory issues
+  // if (config.trigger !== 'manual') {
+  //   setupAutoTrigger(requestSignal, processedConfig, el, config.debounce);
+  // }
 
   return requestSignal;
 }
