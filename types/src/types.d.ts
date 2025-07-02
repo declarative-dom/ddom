@@ -244,3 +244,29 @@ export type ElementSpec = HTMLElementSpec | HTMLBodyElementSpec | HTMLHeadElemen
  * Includes all standard DOM node types that can be parents or targets of DOM operations.
  */
 export type DOMNode = HTMLElement | HTMLBodyElement | HTMLHeadElement | Document | ShadowRoot | DocumentFragment | Window;
+
+/**
+ * RequestConfig Type Definition
+ * Configuration for Request namespace properties in DDOM.
+ * Uses standard Request constructor properties with minimal DDOM extensions.
+ */
+export interface RequestConfig {
+  url: string;
+  method?: string;
+  headers?: Record<string, string>;
+  body?: any;
+  mode?: RequestMode;
+  credentials?: RequestCredentials;
+  cache?: RequestCache;
+  redirect?: RequestRedirect;
+  referrer?: string;
+  referrerPolicy?: ReferrerPolicy;
+  integrity?: string;
+  keepalive?: boolean;
+  signal?: any;
+  
+  // DDOM extensions for declarative control
+  disabled?: boolean; // Disable auto execution (default: false) - matches standard DOM pattern
+  delay?: number; // Delay/debounce in milliseconds - matches Web Animations API
+  responseType?: 'arrayBuffer' | 'blob' | 'formData' | 'json' | 'text'; // Matches XMLHttpRequest.responseType
+}

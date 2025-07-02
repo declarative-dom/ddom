@@ -22,6 +22,8 @@ import { insertRules } from './styleSheets';
 
 import { MappedArray, isMappedArrayExpr } from './arrays';
 
+import { isNamespacedProperty, processNamespacedProperty } from './namespaces';
+
 import {
   DocumentSpec,
   DOMNode,
@@ -90,7 +92,8 @@ export function shouldBeSignal(key: string, value: any): boolean {
   return (
     key.startsWith('$') &&
     !(typeof value === 'string' && value.includes('${')) && // Not a template literal
-    typeof value !== 'function'
+    typeof value !== 'function' &&
+    !isNamespacedProperty(value) // Not a namespaced property
   );
 }
 
@@ -343,51 +346,125 @@ export const handleStyleProperty = createHandler(
   (el, options = {}) => el instanceof Element && (options.css !== false)
 );
 
+// === VALUE RESOLUTION (Pure Functions) ===
+
 /**
- * Unified property value assignment with all the DDOM logic.
- * Handles property accessors, template literals, functions, reactive properties, and direct value assignment.
+ * Resolves a property value to its final form without side effects.
+ * This is a pure function that only transforms values - no DOM manipulation.
+ * 
+ * @param key - The property name
+ * @param value - The property value to resolve
+ * @param contextNode - The context for template/accessor evaluation
+ * @param options - Optional configuration
+ * @returns Resolved value (signals, computed signals, or primitives)
+ */
+export function resolvePropertyValue(
+  key: string,
+  value: any,
+  contextNode: any, // Accept any context
+  options: DOMSpecOptions = {}
+): any {
+  const { ignoreKeys = [] } = options;
+  
+  // Skip ignored keys - return as-is
+  if (ignoreKeys.includes(key)) {
+    return value;
+  }
+
+  // Handle property accessor strings
+  if (typeof value === 'string' && isPropertyAccessor(value)) {
+    const resolved = resolvePropertyAccessor(value, contextNode);
+    return resolved !== null ? resolved : value;
+  }
+
+  // Handle template literals - return computed signal
+  if (typeof value === 'string' && isTemplateLiteral(value)) {
+    return computedTemplate(value, contextNode);
+  }
+
+  // Everything else returns as-is
+  return value;
+}
+
+// === PROPERTY ASSIGNMENT (Side Effects) ===
+
+/**
+ * Evaluates a resolved value to its final primitive form with validity checking.
+ * This is the counterpart to assignPropertyValue - it extracts values and determines validity.
+ * Recursively evaluates nested structures and collects validity state from all evaluations.
+ * 
+ * @param value - The resolved value (could be a signal, object, or primitive)
+ * @returns Object with final primitive value and validity flag
+ */
+export function evaluatePropertyValue(value: any): { value: any; isValid: boolean } {
+  let isValid = true;
+  
+  const evaluate = (val: any): any => {
+    // Handle signals - extract their current values
+    if (typeof val === 'object' && val !== null && Signal.isState(val)) {
+      const extracted = (val as Signal.State<any>).get();
+      if (extracted === '' || extracted === null || extracted === undefined || extracted === 'undefined') {
+        isValid = false;
+      }
+      return extracted;
+    } else if (typeof val === 'object' && val !== null && Signal.isComputed(val)) {
+      const extracted = (val as Signal.Computed<any>).get();
+      if (extracted === '' || extracted === null || extracted === undefined || extracted === 'undefined') {
+        isValid = false;
+      }
+      return extracted;
+    }
+    
+    // Handle nested objects recursively
+    if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+      const evaluated: any = {};
+      Object.entries(val).forEach(([key, nestedValue]) => {
+        evaluated[key] = evaluate(nestedValue);
+      });
+      return evaluated;
+    }
+    
+    // Handle arrays recursively
+    if (Array.isArray(val)) {
+      return val.map(item => evaluate(item));
+    }
+    
+    // Check primitive validity
+    if (val === '' || val === null || val === undefined || val === 'undefined') {
+      isValid = false;
+    }
+    
+    // Everything else returns as-is
+    return val;
+  };
+  
+  const evaluatedValue = evaluate(value);
+  
+  return { value: evaluatedValue, isValid };
+}
+
+/**
+ * Assigns a resolved value to an element property with appropriate DDOM logic.
+ * Handles reactive properties, namespaced properties, and DOM binding.
  * 
  * @param el - The element to assign the property to
  * @param key - The property name
- * @param value - The property value
+ * @param value - The already-resolved property value
+ * @param options - Optional configuration
  */
-function assignPropertyValue(
+export function assignPropertyValue(
   el: any,
   key: string,
-  value: any
+  value: any,
+  options: DOMSpecOptions = {}
 ): void {
-  // Handle property accessor strings
-  if (typeof value === 'string' && isPropertyAccessor(value)) {
-    const resolved = resolvePropertyAccessor(value, el);
-    if (resolved !== null) {
-      el[key] = resolved;
-    } else {
-      console.warn(
-        `Failed to resolve property accessor "${value}" for property "${key}"`
-      );
-    }
+  // Handle namespaced properties
+  if (isNamespacedProperty(value)) {
+    processNamespacedProperty({} as any, el, key, value, options);
     return;
   }
 
-  // Handle template literals
-  if (typeof value === 'string' && isTemplateLiteral(value)) {
-    if (key.startsWith('$')) {
-      // Reactive property with template literal = computed signal
-      el[key] = computedTemplate(value, el);
-    } else {
-      // Regular property with template literal = reactive binding to DOM
-      bindPropertyTemplate(el, key, value);
-    }
-    return;
-  }
-
-  // Handle functions - no scope wrapping needed, signals available as this.$property
-  if (typeof value === 'function') {
-    el[key] = value;
-    return;
-  }
-
-  // Handle reactive properties (only reactive-prefixed)
+  // Handle reactive properties (only $-prefixed)
   if (shouldBeSignal(key, value)) {
     if (typeof value === 'object' && value !== null && Signal.isState(value)) {
       el[key] = value; // Already a signal
@@ -401,48 +478,65 @@ function assignPropertyValue(
     return;
   }
 
-  // Everything else: set directly (immutable properties, DOM properties, etc.)
+  // Handle template literals on regular properties (create reactive DOM binding)
+  // FIXED: Check if value is a computed signal from template resolution
+  if (typeof value === 'object' && value !== null && Signal.isComputed(value) && !key.startsWith('$')) {
+    // For computed signals, we need to create an effect to update the property
+    createReactiveBinding(
+      value as Signal.Computed<any>,
+      (newValue) => (el[key] = newValue),
+      (newValue) => el[key] !== newValue
+    );
+    return;
+  }
+
+  // Handle functions
+  if (typeof value === 'function') {
+    el[key] = value;
+    return;
+  }
+
+  // Everything else: direct assignment
   el[key] = value;
 }
 
 /**
  * Default property handler for properties that don't have specialized handlers.
- * Creates properties that don't already exist on the element using assignPropertyValue.
+ * Uses the modular resolve-then-assign pattern directly.
  * 
  * @param spec - The declarative DOM specification
  * @param el - The target DOM node
  * @param key - The property key
  * @param value - The property value
- * @param _options - Optional configuration object (unused in this handler)
+ * @param options - Optional configuration object
  */
 export function handleDefaultProperty(
   spec: DOMSpec,
   el: DOMNode,
   key: string,
   value: any,
-  _options: DOMSpecOptions = {}
+  options: DOMSpecOptions = {}
 ): void {
   if (!Object.hasOwn(el, key)) {
-    // Property doesn't exist - create it normally
-    assignPropertyValue(el, key, value);
+    // Property doesn't exist - resolve then assign
+    const resolvedValue = resolvePropertyValue(key, value, el, options);
+    assignPropertyValue(el, key, resolvedValue, options);
   }
 }
 
 /**
  * Gets the appropriate handler function for a given property key.
- * This function serves as an index/dispatcher that returns the correct handler
- * based on the property name. Uses a switch statement for optimal performance
- * and clear code organization.
+ * Uses a switch statement for optimal performance and clear code organization.
  *
  * @param key - The property key to get a handler for
  * @returns The appropriate handler function for the property
  * @example
  * ```typescript
- * const handler = getHandler('attributes');
- * handler(spec, element, 'attributes', value, true);
+ * const handler = getDOMHandler('attributes', { class: 'test' });
+ * handler(spec, element, 'attributes', value, options);
  * ```
  */
-export function getHandler(key: string): DDOMPropertyHandler {
+export function getDOMHandler(key: string): DDOMPropertyHandler {
   switch (key) {
     case 'attributes':
       return handleAttributesProperty;
@@ -474,7 +568,7 @@ export function getHandler(key: string): DDOMPropertyHandler {
 
 /**
  * Evaluates JavaScript template literals using DOM nodes as context.
- * Uses native JavaScript template literal syntax with the context node as 'this'.
+ * Uses explicit .get() calls for signal access in templates.
  *
  * @param template - The template string to evaluate as a JavaScript template literal
  * @param contextNode - The DOM node to use as the context ('this') for template evaluation
@@ -496,14 +590,20 @@ export function parseTemplateLiteral(
  * Creates a template function bound to a specific context.
  *
  * @param template - The template string to bind
- * @returns A function that evaluates the template with the given context
+ * @returns A function that evaluates the template
  */
-export const bindTemplate = (template: string) => (context: any) =>
-  new Function('return `' + template + '`').call(context);
+export const bindTemplate = (template: string) => (context: any) => {
+  try {
+    return new Function('return `' + template + '`').call(context);
+  } catch (error) {
+    console.warn(`Template binding failed: ${error}, Template: ${template}`);
+    return template;
+  }
+};
 
 /**
  * Creates a Computed Signal that automatically re-evaluates a template
- * when its dependencies change.
+ * when its dependencies change. Uses explicit .get() calls for signal access.
  *
  * @param template - The template string to make reactive
  * @param contextNode - The DOM node to use as context
@@ -655,7 +755,7 @@ export function resolvePropertyAccessor(
  * @param el - The target DOM node
  * @param key - The property key
  * @param value - The property value
- * @param options - Optional configuration object with css flag and other options
+ * @param options - Optional configuration object with css flag, ignoreKeys and other options
  */
 export function processProperty(
   spec: DOMSpec,
@@ -664,7 +764,7 @@ export function processProperty(
   value: any,
   options: DOMSpecOptions = {}
 ): void {
-  const handler = getHandler(key);
+  const handler = getDOMHandler(key);
   handler(spec, el, key, value, options);
 }
 

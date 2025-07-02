@@ -269,6 +269,75 @@ typedef (HTMLElementSpec or HTMLBodyElementSpec or HTMLHeadElementSpec or Custom
 typedef (HTMLElementSpec or HTMLBodyElementSpec or HTMLHeadElementSpec or CustomElementSpec or DocumentSpec or WindowSpec) DOMSpec;
 ```
 
+#### 2.6 Web API Namespace Types
+
+```webidl
+// Request namespace for fetch API integration
+dictionary RequestConfig {
+  // Standard Request constructor properties
+  required DOMString url;
+  DOMString method;
+  record<DOMString, DOMString> headers;
+  any body;
+  RequestMode mode;
+  RequestCredentials credentials;
+  RequestCache cache;
+  RequestRedirect redirect;
+  DOMString referrer;
+  ReferrerPolicy referrerPolicy;
+  DOMString integrity;
+  boolean keepalive;
+  any signal;
+  
+  // DDOM extensions
+  boolean disabled;
+  long delay;
+  ("arrayBuffer" or "blob" or "formData" or "json" or "text") responseType;
+};
+
+// FormData namespace for form data construction
+dictionary FormDataConfig {
+  // Dynamic field mapping - any property name to any value
+  // Supports File objects, Blob objects, and string values
+};
+
+// URLSearchParams namespace for URL parameter handling
+dictionary URLSearchParamsConfig {
+  // Dynamic parameter mapping - property names become parameter names
+  // Values can be strings, numbers, or arrays for multi-value parameters
+};
+
+// Blob namespace for binary data creation
+dictionary BlobConfig {
+  required (DOMString or sequence<any>) content;
+  DOMString type;
+  ("transparent" or "native") endings;
+};
+
+// ArrayBuffer namespace for buffer management
+dictionary ArrayBufferConfig {
+  required (DOMString or sequence<octet> or Uint8Array or ArrayBuffer) data;
+  DOMString encoding;
+};
+
+// ReadableStream namespace for stream creation
+dictionary ReadableStreamConfig {
+  ReadableStreamDefaultSource source;
+  QueuingStrategy strategy;
+  (DOMString or sequence<any>) data;
+};
+
+// Namespace wrapper for Web API integrations
+dictionary NamespaceWrapper {
+  RequestConfig Request;
+  FormDataConfig FormData;
+  URLSearchParamsConfig URLSearchParams;
+  BlobConfig Blob;
+  ArrayBufferConfig ArrayBuffer;
+  ReadableStreamConfig ReadableStream;
+};
+```
+
 ### 3. Syntax Rules
 
 #### 3.1 Standard Properties
@@ -551,6 +620,76 @@ Children can be defined using MappedArrayExpr for dynamic list rendering:
   }
 }
 ```
+
+#### 3.12 Web API Namespaces
+
+DDOM provides declarative access to Web APIs through namespaced properties. Each namespace creates reactive signals that wrap standard Web API constructors:
+
+```javascript
+{
+  // Request namespace - reactive HTTP requests
+  $apiData: {
+    Request: {
+      url: '/api/users/${this.$userId.get()}',
+      method: 'GET',
+      headers: {
+        'Authorization': 'Bearer ${this.$token.get()}'
+      },
+      delay: 300 // Debounce rapid requests
+    }
+  },
+  
+  // FormData namespace - reactive form construction
+  $uploadData: {
+    FormData: {
+      file: '${this.$selectedFile.get()}',
+      description: '${this.$description.get()}',
+      timestamp: '${Date.now()}'
+    }
+  },
+  
+  // URLSearchParams namespace - reactive URL parameters
+  $queryParams: {
+    URLSearchParams: {
+      q: '${this.$searchQuery.get()}',
+      page: '${this.$currentPage.get()}',
+      limit: 20
+    }
+  },
+  
+  // Blob namespace - reactive binary data
+  $csvFile: {
+    Blob: {
+      content: '${this.$csvData.get()}',
+      type: 'text/csv'
+    }
+  },
+  
+  // ArrayBuffer namespace - reactive buffers
+  $binaryData: {
+    ArrayBuffer: {
+      data: '${this.$textInput.get()}' // UTF-8 encoded
+    }
+  },
+  
+  // ReadableStream namespace - reactive streams
+  $dataStream: {
+    ReadableStream: {
+      data: '${this.$streamContent.get()}'
+    }
+  }
+}
+```
+
+**Supported Namespaces:**
+- `Request` - Fetch API integration with automatic reactivity
+- `FormData` - Form data construction with File/Blob support
+- `URLSearchParams` - URL parameter building with multi-value support
+- `Blob` - Binary data creation with MIME type handling
+- `ArrayBuffer` - Buffer management with automatic encoding
+- `ReadableStream` - Stream creation with data sources
+
+All namespaces support template literals and property accessors for reactive configuration, and automatically create computed signals that update when dependencies change.
 
 ### 4. Custom Elements
 

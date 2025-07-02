@@ -83,8 +83,8 @@ export function adoptNode(
   const specEntries = Object.entries(spec);
 
   // Inherit parent reactive properties directly (simple assignment)
-  if (scopeReactiveProperties) {
-    Object.assign(el, scopeReactiveProperties);
+  if (options.scopeReactiveProperties) {
+    Object.assign(el, options.scopeReactiveProperties);
   }
 
   // Filter reactive properties from spec for processing and child inheritance
@@ -98,29 +98,28 @@ export function adoptNode(
   });
 
   // Combine parent and local reactive properties for children
-  const allReactiveProperties: ReactiveProperties = {
-    ...scopeReactiveProperties,
+  options.scopeReactiveProperties = {
+    ...options.scopeReactiveProperties,
     ...Object.fromEntries(localReactiveProperties.map(([key]) => [key, (el as any)[key]]))
   };
 
-  let allIgnoreKeys = [
+  options.ignoreKeys = [
     'children',
-    ...ignoreKeys,
-    ...Object.keys(allReactiveProperties || {}),
+    ...(options.ignoreKeys? options.ignoreKeys : []),
+    ...Object.keys(localReactiveProperties || {}),
   ];
 
   // Handle protected properties first (id, tagName) - set once, never reactive
   if ('id' in spec && spec.id !== undefined && el instanceof HTMLElement) {
     processProperty(spec, el, 'id', spec.id, options);
-    allIgnoreKeys.push('id');
+    options.ignoreKeys.push('id');
   }
 
   // Process all other properties with new reactivity model
   specEntries.forEach(([key, value]) => {
-    if (allIgnoreKeys.includes(key)) {
-      return;
+    if (!options.ignoreKeys?.includes(key)) {
+      processProperty(spec, el, key, value, options);
     }
-    processProperty(spec, el, key, value, options);
   });
 
   // Handle children last to ensure all properties are set before appending
@@ -128,13 +127,13 @@ export function adoptNode(
     const children = spec.children;
     if (isMappedArrayExpr(children)) {
       try {
-        adoptArray(children, el as Element, { css, scopeReactiveProperties: allReactiveProperties });
+        adoptArray(children, el as Element, options);
       } catch (error) {
         console.warn(`Failed to process MappedArrayExpr for children:`, error);
       }
     } else if (Array.isArray(children)) {
       children.forEach((child: HTMLElementSpec) => {
-        appendChild(child, el as DOMNode, { css, scopeReactiveProperties: allReactiveProperties });
+        appendChild(child, el as DOMNode, options);
       });
     } else {
       console.warn(`Invalid children value for key "children":`, children);
