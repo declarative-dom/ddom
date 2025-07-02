@@ -270,3 +270,56 @@ export interface RequestConfig {
   delay?: number; // Delay/debounce in milliseconds - matches Web Animations API
   responseType?: 'arrayBuffer' | 'blob' | 'formData' | 'json' | 'text'; // Matches XMLHttpRequest.responseType
 }
+
+/**
+ * CookieConfig Type Definition
+ * Configuration for Cookie namespace properties in DDOM.
+ * Manages individual cookies via document.cookie with reactive updates.
+ */
+export interface CookieConfig {
+  name: string;                       // Required: cookie name
+  value?: string;                     // Cookie value to set
+  initialValue?: string;              // Initial value if cookie doesn't exist
+  domain?: string;                    // Cookie domain
+  path?: string;                      // Cookie path (default: current path)
+  expires?: Date | string;            // Expiration date
+  maxAge?: number;                    // Max age in seconds
+  secure?: boolean;                   // Secure flag
+  sameSite?: 'strict' | 'lax' | 'none'; // SameSite attribute
+}
+
+/**
+ * SessionStorageConfig Type Definition
+ * Configuration for SessionStorage namespace properties in DDOM.
+ * Manages sessionStorage key-value pairs with reactive updates.
+ */
+export interface SessionStorageConfig {
+  key: string;                        // Required: storage key
+  value?: any;                        // Value to set
+  initialValue?: any;                 // Initial value if key doesn't exist
+}
+
+/**
+ * LocalStorageConfig Type Definition
+ * Configuration for LocalStorage namespace properties in DDOM.
+ * Manages localStorage key-value pairs with reactive updates.
+ */
+export interface LocalStorageConfig {
+  key: string;                        // Required: storage key
+  value?: any;                        // Value to set
+  initialValue?: any;                 // Initial value if key doesn't exist
+}
+
+/**
+ * IndexedDBConfig Type Definition
+ * Configuration for IndexedDB namespace properties in DDOM.
+ * Manages IndexedDB database operations with reactive updates.
+ */
+export interface IndexedDBConfig {
+  database: string;                   // Required: database name
+  store: string;                      // Required: object store name
+  key?: any;                          // Key for the record
+  value?: any;                        // Value to set
+  initialValue?: any;                 // Initial value if record doesn't exist
+  version?: number;                   // Database version (default: 1)
+}

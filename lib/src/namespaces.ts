@@ -504,6 +504,306 @@ const bindReadableStream = createNamespaceHandler(
   })
 );
 
+/**
+ * Cookie namespace - creates reactive cookie management
+ */
+const bindCookie = createNamespaceHandler(
+  (config: any, key: string): config is { name: string; value?: string; domain?: string; path?: string; expires?: Date | string; maxAge?: number; secure?: boolean; sameSite?: string; initialValue?: string } => 
+    validateObjectConfig(config, key, ['name']),
+  (resolvedConfig: any, key: string) => {
+    const { value: finalConfig, isValid } = evaluatePropertyValue(resolvedConfig);
+    if (!isValid || !finalConfig.name) return new Signal.State(null);
+
+    // Determine initial value - check cookie first, then use initialValue/value
+    let initialValue = null;
+    if (typeof document !== 'undefined') {
+      const existingValue = getCookieValue(finalConfig.name);
+      if (existingValue !== null) {
+        initialValue = existingValue;
+      } else {
+        initialValue = finalConfig.initialValue !== undefined ? finalConfig.initialValue : finalConfig.value;
+        // Set the cookie if we have an initial value
+        if (initialValue !== undefined) {
+          setCookie(finalConfig.name, String(initialValue), finalConfig);
+        }
+      }
+    } else {
+      initialValue = finalConfig.initialValue !== undefined ? finalConfig.initialValue : finalConfig.value;
+    }
+
+    // Create state signal with initial value
+    const cookieSignal = new Signal.State(initialValue || null);
+
+    // Set up effect to update cookie when signal changes
+    createEffect(() => {
+      if (typeof document === 'undefined' || !finalConfig.name) return;
+      const currentValue = cookieSignal.get();
+      if (currentValue !== null) {
+        setCookie(finalConfig.name, String(currentValue), finalConfig);
+      }
+    });
+
+    return cookieSignal;
+  }
+);
+
+/**
+ * SessionStorage namespace - creates reactive sessionStorage management
+ */
+const bindSessionStorage = createNamespaceHandler(
+  (config: any, key: string): config is { key: string; value?: any; initialValue?: any } => 
+    validateObjectConfig(config, key, ['key']),
+  (resolvedConfig: any, key: string) => {
+    const { value: finalConfig, isValid } = evaluatePropertyValue(resolvedConfig);
+    if (!isValid || !finalConfig.key) return new Signal.State(null);
+
+    // Determine initial value - check sessionStorage first, then use initialValue/value
+    let initialValue = null;
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      const existingValue = window.sessionStorage.getItem(finalConfig.key);
+      if (existingValue !== null) {
+        try {
+          initialValue = JSON.parse(existingValue);
+        } catch {
+          initialValue = existingValue;
+        }
+      } else {
+        initialValue = finalConfig.initialValue !== undefined ? finalConfig.initialValue : finalConfig.value;
+        // Set the sessionStorage if we have an initial value
+        if (initialValue !== undefined) {
+          const valueToStore = typeof initialValue === 'string' ? initialValue : JSON.stringify(initialValue);
+          window.sessionStorage.setItem(finalConfig.key, valueToStore);
+        }
+      }
+    } else {
+      initialValue = finalConfig.initialValue !== undefined ? finalConfig.initialValue : finalConfig.value;
+    }
+
+    // Create state signal with initial value
+    const storageSignal = new Signal.State(initialValue || null);
+
+    // Set up effect to update sessionStorage when signal changes
+    createEffect(() => {
+      if (typeof window === 'undefined' || !window.sessionStorage || !finalConfig.key) return;
+      const currentValue = storageSignal.get();
+      if (currentValue !== null) {
+        const valueToStore = typeof currentValue === 'string' ? currentValue : JSON.stringify(currentValue);
+        window.sessionStorage.setItem(finalConfig.key, valueToStore);
+      }
+    });
+
+    return storageSignal;
+  }
+);
+
+/**
+ * LocalStorage namespace - creates reactive localStorage management
+ */
+const bindLocalStorage = createNamespaceHandler(
+  (config: any, key: string): config is { key: string; value?: any; initialValue?: any } => 
+    validateObjectConfig(config, key, ['key']),
+  (resolvedConfig: any, key: string) => {
+    const { value: finalConfig, isValid } = evaluatePropertyValue(resolvedConfig);
+    if (!isValid || !finalConfig.key) return new Signal.State(null);
+
+    // Determine initial value - check localStorage first, then use initialValue/value
+    let initialValue = null;
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const existingValue = window.localStorage.getItem(finalConfig.key);
+      if (existingValue !== null) {
+        try {
+          initialValue = JSON.parse(existingValue);
+        } catch {
+          initialValue = existingValue;
+        }
+      } else {
+        initialValue = finalConfig.initialValue !== undefined ? finalConfig.initialValue : finalConfig.value;
+        // Set the localStorage if we have an initial value
+        if (initialValue !== undefined) {
+          const valueToStore = typeof initialValue === 'string' ? initialValue : JSON.stringify(initialValue);
+          window.localStorage.setItem(finalConfig.key, valueToStore);
+        }
+      }
+    } else {
+      initialValue = finalConfig.initialValue !== undefined ? finalConfig.initialValue : finalConfig.value;
+    }
+
+    // Create state signal with initial value
+    const storageSignal = new Signal.State(initialValue || null);
+
+    // Set up effect to update localStorage when signal changes
+    createEffect(() => {
+      if (typeof window === 'undefined' || !window.localStorage || !finalConfig.key) return;
+      const currentValue = storageSignal.get();
+      if (currentValue !== null) {
+        const valueToStore = typeof currentValue === 'string' ? currentValue : JSON.stringify(currentValue);
+        window.localStorage.setItem(finalConfig.key, valueToStore);
+      }
+    });
+
+    return storageSignal;
+  }
+);
+
+/**
+ * IndexedDB namespace - creates reactive IndexedDB management
+ */
+const bindIndexedDB = createNamespaceHandler(
+  (config: any, key: string): config is { database: string; store: string; key?: any; value?: any; initialValue?: any; version?: number } => 
+    validateObjectConfig(config, key, ['database', 'store']),
+  (resolvedConfig: any, key: string) => {
+    const dbSignal = new Signal.Computed(() => {
+      const { value: finalConfig, isValid } = evaluatePropertyValue(resolvedConfig);
+      if (!isValid || !finalConfig.database || !finalConfig.store) return null;
+
+      // For IndexedDB, we'll return a promise-like object that can be awaited
+      if (typeof window === 'undefined' || !window.indexedDB) return null;
+
+      // Return an object with async methods for IndexedDB operations
+      return {
+        database: finalConfig.database,
+        store: finalConfig.store,
+        key: finalConfig.key,
+        version: finalConfig.version || 1,
+        initialValue: finalConfig.initialValue !== undefined ? finalConfig.initialValue : finalConfig.value,
+        
+        async get() {
+          try {
+            const db = await openDatabase(this.database, this.version, this.store);
+            if (this.key !== undefined) {
+              const existingValue = await getFromIndexedDB(db, this.store, this.key);
+              if (existingValue !== undefined) {
+                return existingValue;
+              }
+              return this.initialValue || null;
+            }
+            return null;
+          } catch (error) {
+            console.warn(`IndexedDB get failed for property "${key}":`, error);
+            return null;
+          }
+        },
+
+        async set(value: any) {
+          try {
+            if (this.key !== undefined) {
+              const db = await openDatabase(this.database, this.version, this.store);
+              await setInIndexedDB(db, this.store, this.key, value);
+            }
+          } catch (error) {
+            console.warn(`IndexedDB set failed for property "${key}":`, error);
+          }
+        },
+
+        async initialize() {
+          if (this.initialValue !== undefined && this.key !== undefined) {
+            try {
+              const db = await openDatabase(this.database, this.version, this.store);
+              const existingValue = await getFromIndexedDB(db, this.store, this.key);
+              if (existingValue === undefined) {
+                await setInIndexedDB(db, this.store, this.key, this.initialValue);
+              }
+            } catch (error) {
+              console.warn(`IndexedDB initialization failed for property "${key}":`, error);
+            }
+          }
+        }
+      };
+    });
+
+    // Initialize the IndexedDB entry if needed
+    const dbObject = dbSignal.get();
+    if (dbObject && typeof dbObject.initialize === 'function') {
+      dbObject.initialize().catch(() => {
+        // Silently handle initialization errors
+      });
+    }
+
+    return dbSignal;
+  }
+);
+
+// === STORAGE UTILITY FUNCTIONS ===
+
+/**
+ * Get cookie value by name
+ */
+function getCookieValue(name: string): string | null {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) {
+    const result = parts.pop()?.split(';').shift();
+    return result ? decodeURIComponent(result) : null;
+  }
+  return null;
+}
+
+/**
+ * Set cookie with options
+ */
+function setCookie(name: string, value: string, options: any = {}) {
+  let cookieString = `${name}=${encodeURIComponent(value)}`;
+  
+  if (options.domain) cookieString += `; domain=${options.domain}`;
+  if (options.path) cookieString += `; path=${options.path}`;
+  if (options.expires) {
+    const expires = options.expires instanceof Date ? options.expires : new Date(options.expires);
+    cookieString += `; expires=${expires.toUTCString()}`;
+  }
+  if (options.maxAge) cookieString += `; max-age=${options.maxAge}`;
+  if (options.secure) cookieString += `; secure`;
+  if (options.sameSite) cookieString += `; samesite=${options.sameSite}`;
+  
+  document.cookie = cookieString;
+}
+
+/**
+ * Open IndexedDB database
+ */
+function openDatabase(name: string, version: number, storeName: string): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = window.indexedDB.open(name, version);
+    
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains(storeName)) {
+        db.createObjectStore(storeName);
+      }
+    };
+  });
+}
+
+/**
+ * Get value from IndexedDB
+ */
+function getFromIndexedDB(db: IDBDatabase, storeName: string, key: any): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeName, 'readonly');
+    const store = transaction.objectStore(storeName);
+    const request = store.get(key);
+    
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+  });
+}
+
+/**
+ * Set value in IndexedDB
+ */
+function setInIndexedDB(db: IDBDatabase, storeName: string, key: any, value: any): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeName, 'readwrite');
+    const store = transaction.objectStore(storeName);
+    const request = store.put(value, key);
+    
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve();
+  });
+}
+
 // === NAMESPACE HANDLERS REGISTRY ===
 
 /**
@@ -517,6 +817,10 @@ export const NAMESPACE_HANDLERS: Record<string, NamespaceHandler> = {
   'Blob': bindBlob,
   'ArrayBuffer': bindArrayBuffer,
   'ReadableStream': bindReadableStream,
+  'Cookie': bindCookie,
+  'SessionStorage': bindSessionStorage,
+  'LocalStorage': bindLocalStorage,
+  'IndexedDB': bindIndexedDB,
   // Future namespaces will be added here:
   // 'WebSocket': handleWebSocketProperty,
   // 'IntersectionObserver': handleIntersectionObserverProperty,
