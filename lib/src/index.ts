@@ -5,7 +5,7 @@ import { MappedArray } from './arrays';
 import { createEffect, ComponentSignalWatcher } from './signals';
 import { Signal } from 'signal-polyfill';
 import { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate, createReactiveProperty } from './properties';
-import { isNamespacedProperty, processNamespacedProperty, NAMESPACE_HANDLERS, RequestConfig, RequestState } from './namespaces';
+import { isNamespacedProperty, processNamespacedProperty, NAMESPACE_HANDLERS } from './namespaces';
 
 // Named exports for compatibility
 export { adoptDocument, adoptNode, adoptWindow, createElement } from './elements';
@@ -17,7 +17,7 @@ export { Signal } from 'signal-polyfill';
 export { MappedArray } from './arrays';
 export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate, isPropertyAccessor, resolvePropertyAccessor, createReactiveProperty } from './properties';
 export { isNamespacedProperty, processNamespacedProperty, NAMESPACE_HANDLERS, extractNamespace } from './namespaces';
-export type { RequestConfig, RequestState } from './namespaces';
+export type { RequestConfig, RequestState } from '../../types/src';
 
 // Default export: DDOM function with namespace properties
 function DDOM(spec: any) {

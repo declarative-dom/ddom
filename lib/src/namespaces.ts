@@ -14,9 +14,9 @@
  */
 
 import { Signal, createEffect, ComponentSignalWatcher } from './signals';
-import { DOMNode, DOMSpec } from '../../types/src';
+import { DOMNode, DOMSpec, RequestConfig, RequestState } from '../../types/src';
 import { DOMSpecOptions } from './elements';
-import { parseTemplateLiteral, computedTemplate } from './properties';
+import { parseTemplateLiteral, computedTemplate, processProperty, isTemplateLiteral, isPropertyAccessor, resolvePropertyAccessor } from './properties';
 
 // === NAMESPACE DETECTION ===
 
@@ -69,43 +69,7 @@ export function extractNamespace(value: any): { namespace: string; config: any }
   return { namespace, config };
 }
 
-// === TYPE DEFINITIONS ===
 
-/**
- * Type definition for Request namespace configuration.
- * Uses standard Request constructor properties with minimal DDOM extensions.
- */
-export interface RequestConfig {
-  url: string;
-  method?: string;
-  headers?: Record<string, string>;
-  body?: any;
-  mode?: RequestMode;
-  credentials?: RequestCredentials;
-  cache?: RequestCache;
-  redirect?: RequestRedirect;
-  referrer?: string;
-  referrerPolicy?: ReferrerPolicy;
-  integrity?: string;
-  keepalive?: boolean;
-  signal?: any;
-  
-  // Minimal DDOM extensions (only two non-standard properties)
-  trigger?: 'auto' | 'manual'; // Only two modes: auto (default) or manual
-  debounce?: number; // Standard debouncing for auto requests
-}
-
-/**
- * Type definition for Request state management.
- * Each request creates a reactive signal with this state structure.
- */
-export interface RequestState {
-  loading: boolean;     // Request in progress
-  data: any;           // Parsed response data  
-  error: Error | null; // Request error, if any
-  response: Response | null; // Raw fetch Response
-  lastFetch: number;   // Timestamp of last request
-}
 
 /**
  * Type definition for namespace handlers.
@@ -123,17 +87,19 @@ export type NamespaceHandler = (
 
 /**
  * Creates a reactive Request signal with fetch functionality.
- * Handles both auto and manual trigger modes with proper state management.
+ * Uses the properties module utilities to resolve individual properties within the Request spec.
  *
  * @param el - The element to attach the request signal to
  * @param key - The property key
  * @param config - The request configuration
+ * @param options - The DOMSpecOptions for property processing
  * @returns The reactive request signal
  */
 function createRequestSignal(
   el: any,
   key: string,
-  config: RequestConfig
+  config: RequestConfig,
+  options: DOMSpecOptions = {}
 ): Signal.State<RequestState> {
   // Initialize request state
   const initialState: RequestState = {
@@ -146,42 +112,55 @@ function createRequestSignal(
 
   const requestSignal = new Signal.State(initialState);
 
-  // Process template literals in configuration
-  const processedConfig = processRequestConfig(config, el);
+  // Process the config using properties module utilities to resolve reactive values
+  // Use ignoreKeys to control which properties should not be processed as reactive
+  const ignoreKeys = ['trigger', 'debounce', ...(options.ignoreKeys || [])];
+  const processedConfig = processRequestConfig(config, el, ignoreKeys);
 
   // Add fetch method for manual triggering
   (requestSignal as any).fetch = () => executeRequest(requestSignal, processedConfig, el);
 
-  // Set up auto triggering if enabled (default mode) - temporarily disabled to debug
-  // TODO: Re-enable auto triggering after fixing memory issues
-  // if (config.trigger !== 'manual') {
-  //   setupAutoTrigger(requestSignal, processedConfig, el, config.debounce);
-  // }
+  // Set up auto triggering if enabled (default mode)
+  // Temporarily disabled to debug memory issues
+  if (false && config.trigger !== 'manual') {
+    setupAutoTrigger(requestSignal, processedConfig, el, config.debounce);
+  }
 
   return requestSignal;
 }
 
 /**
- * Processes request configuration, handling template literals and reactive dependencies.
+ * Processes request configuration using properties module utilities.
+ * Resolves individual properties like template literals and reactive values.
  *
- * @param config - The raw request configuration
+ * @param config - The request configuration
  * @param contextNode - The context node for template evaluation
- * @returns Processed configuration with computed signals for reactive values
+ * @param ignoreKeys - Keys to ignore during processing
+ * @returns Processed configuration with reactive values
  */
-function processRequestConfig(config: RequestConfig, contextNode: Node): any {
+function processRequestConfig(config: RequestConfig, contextNode: Node, ignoreKeys: string[]): any {
   const processed: any = { ...config };
 
-  // Process each configuration value for template literals
+  // Process each configuration property using properties module utilities
   Object.keys(processed).forEach(key => {
+    if (ignoreKeys.includes(key)) {
+      return; // Skip ignored keys
+    }
+
     const value = processed[key];
     
-    if (typeof value === 'string' && value.includes('${')) {
+    if (typeof value === 'string' && isTemplateLiteral(value)) {
       // Create computed signal for reactive template
       processed[key] = computedTemplate(value, contextNode);
+    } else if (typeof value === 'string' && isPropertyAccessor(value)) {
+      // Resolve property accessor
+      const resolved = resolvePropertyAccessor(value, contextNode);
+      processed[key] = resolved !== null ? resolved : value;
     } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-      // Recursively process nested objects (like headers, body)
-      processed[key] = processRequestConfig(value, contextNode);
+      // Recursively process nested objects (like headers)
+      processed[key] = processRequestConfig(value, contextNode, ignoreKeys);
     }
+    // For other values, keep them as-is
   });
 
   return processed;
@@ -189,54 +168,46 @@ function processRequestConfig(config: RequestConfig, contextNode: Node): any {
 
 /**
  * Sets up automatic request triggering based on reactive dependencies.
+ * Simplified logic: any parameter that resolves to an empty string blocks the request.
  *
  * @param requestSignal - The request signal to update
- * @param config - The processed request configuration
+ * @param processedConfig - The processed request configuration
  * @param contextNode - The context node
  * @param debounce - Optional debounce delay in milliseconds
  */
 function setupAutoTrigger(
   requestSignal: Signal.State<RequestState>,
-  config: any,
+  processedConfig: any,
   contextNode: Node,
   debounce?: number
 ): void {
   let debounceTimer: any = null;
-  let hasTriggered = false; // Prevent initial double execution
 
   const componentWatcher = (globalThis as any).__ddom_component_watcher as
     | ComponentSignalWatcher
     | undefined;
 
   const cleanup = createEffect(() => {
-    // This effect will re-run when any reactive dependencies change
-    const hasAllRequiredValues = checkRequiredValues(config);
+    // Check if any parameter resolves to an empty string
+    const hasEmptyValues = checkForEmptyValues(processedConfig);
     
-    if (!hasAllRequiredValues) {
-      // Don't execute if required values are missing
+    if (hasEmptyValues) {
+      // Don't execute if any values are empty strings
       return;
     }
 
-    // Skip the first execution if we haven't triggered yet
-    if (!hasTriggered) {
-      hasTriggered = true;
-      
-      // Clear existing debounce timer
-      if (debounceTimer) {
-        clearTimeout(debounceTimer);
-      }
+    // Clear existing debounce timer
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
 
-      // Execute with debounce if specified
-      if (debounce && debounce > 0) {
-        debounceTimer = setTimeout(() => {
-          executeRequest(requestSignal, config, contextNode);
-        }, debounce);
-      } else {
-        // Use setTimeout to avoid immediate execution during setup
-        setTimeout(() => {
-          executeRequest(requestSignal, config, contextNode);
-        }, 0);
-      }
+    // Execute with debounce if specified
+    if (debounce && debounce > 0) {
+      debounceTimer = setTimeout(() => {
+        executeRequest(requestSignal, processedConfig, contextNode);
+      }, debounce);
+    } else {
+      executeRequest(requestSignal, processedConfig, contextNode);
     }
   }, componentWatcher);
 
@@ -248,37 +219,54 @@ function setupAutoTrigger(
 }
 
 /**
- * Checks if all required values are present for request execution.
+ * Checks if any parameter resolves to an empty string.
+ * Simplified logic as requested: empty string values block the request.
  *
- * @param config - The request configuration
- * @returns True if all required values are available
+ * @param processedConfig - The processed configuration
+ * @returns True if any values are empty strings
  */
-function checkRequiredValues(config: any): boolean {
+function checkForEmptyValues(processedConfig: any): boolean {
   try {
-    // URL is required
-    const url = Signal.isComputed(config.url) ? config.url.get() : config.url;
-    if (!url || url === null || url === undefined || url === '') {
-      return false;
+    // Check all properties for empty string values
+    for (const [key, value] of Object.entries(processedConfig)) {
+      // Skip DDOM-specific properties
+      if (key === 'trigger' || key === 'debounce') {
+        continue;
+      }
+
+      let resolvedValue = value;
+      
+      // Resolve signals if needed
+      if (typeof value === 'object' && value !== null && Signal.isState(value)) {
+        resolvedValue = (value as Signal.State<any>).get();
+      } else if (typeof value === 'object' && value !== null && Signal.isComputed(value)) {
+        resolvedValue = (value as Signal.Computed<any>).get();
+      }
+
+      // Check if the resolved value is an empty string
+      if (resolvedValue === '') {
+        return true; // Found empty string, block request
+      }
     }
 
-    // Add other validation as needed
-    return true;
+    return false; // No empty strings found
   } catch (error) {
     // If there's an error getting reactive values, assume not ready
-    return false;
+    return true;
   }
 }
 
 /**
  * Executes the actual fetch request and updates the signal state.
+ * Works with the properties-processed configuration.
  *
  * @param requestSignal - The request signal to update
- * @param config - The processed request configuration  
+ * @param processedConfig - The processed configuration  
  * @param contextNode - The context node
  */
 async function executeRequest(
   requestSignal: Signal.State<RequestState>,
-  config: any,
+  processedConfig: any,
   contextNode: Node
 ): Promise<void> {
   // Update loading state
@@ -290,20 +278,40 @@ async function executeRequest(
   });
 
   try {
-    // Resolve all reactive values in config
-    const resolvedConfig = resolveConfig(config);
+    // Resolve all values in processedConfig
+    const resolvedConfig = resolveConfigElement(processedConfig);
     
-    // Handle relative URLs by creating a full URL if needed
+    // URL is required
+    if (!resolvedConfig.url) {
+      throw new Error('Request URL is required');
+    }
+    
+    // Handle relative URLs
     let url = resolvedConfig.url;
-    if (url && !url.startsWith('http')) {
-      // For testing and relative URLs, use current origin or localhost
+    if (!url.startsWith('http')) {
       const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
       url = new URL(url, base).toString();
     }
     
     // Create Request instance with the resolved URL
     const requestOptions = { ...resolvedConfig };
-    delete requestOptions.url; // Remove url from options since it's passed as first parameter
+    delete requestOptions.url;
+    delete requestOptions.trigger;
+    delete requestOptions.debounce;
+    
+    // Handle basic JSON serialization for object bodies
+    if (requestOptions.body && typeof requestOptions.body === 'object' && 
+        requestOptions.body.constructor === Object) {
+      requestOptions.body = JSON.stringify(requestOptions.body);
+      
+      // Set Content-Type header if not already specified
+      if (!requestOptions.headers) {
+        requestOptions.headers = {};
+      }
+      if (!requestOptions.headers['Content-Type'] && !requestOptions.headers['content-type']) {
+        requestOptions.headers['Content-Type'] = 'application/json';
+      }
+    }
     
     const request = new Request(url, requestOptions);
     
@@ -344,43 +352,28 @@ async function executeRequest(
 }
 
 /**
- * Resolves all computed signals and template literals in the configuration.
+ * Resolves all signals and computed values in the processed configuration.
+ * Works with the properties-processed configuration.
  *
- * @param config - The configuration with potential reactive values
+ * @param processedConfig - The processed configuration with potential reactive values
  * @returns Configuration with all values resolved
  */
-function resolveConfig(config: any): any {
+function resolveConfigElement(processedConfig: any): any {
   const resolved: any = {};
 
-  Object.keys(config).forEach(key => {
-    // Skip DDOM-specific properties
-    if (key === 'trigger' || key === 'debounce') {
-      return;
-    }
-
-    const value = config[key];
+  Object.entries(processedConfig).forEach(([key, value]) => {
+    let resolvedValue = value;
     
-    if (Signal.isComputed(value)) {
-      resolved[key] = value.get();
+    if (typeof value === 'object' && value !== null && Signal.isState(value)) {
+      resolvedValue = (value as Signal.State<any>).get();
+    } else if (typeof value === 'object' && value !== null && Signal.isComputed(value)) {
+      resolvedValue = (value as Signal.Computed<any>).get();
     } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-      resolved[key] = resolveConfig(value);
-    } else {
-      resolved[key] = value;
+      resolvedValue = resolveConfigElement(value);
     }
-  });
-
-  // Handle body serialization
-  if (resolved.body && typeof resolved.body === 'object') {
-    resolved.body = JSON.stringify(resolved.body);
     
-    // Set content-type header if not already specified
-    if (!resolved.headers) {
-      resolved.headers = {};
-    }
-    if (!resolved.headers['Content-Type'] && !resolved.headers['content-type']) {
-      resolved.headers['Content-Type'] = 'application/json';
-    }
-  }
+    resolved[key] = resolvedValue;
+  });
 
   return resolved;
 }
@@ -388,6 +381,7 @@ function resolveConfig(config: any): any {
 /**
  * Handles the Request namespace property.
  * Creates a reactive request signal with fetch functionality.
+ * Uses the properties module for consistent property processing.
  */
 function handleRequestProperty(
   spec: DOMSpec,
@@ -407,7 +401,7 @@ function handleRequestProperty(
   }
 
   try {
-    const requestSignal = createRequestSignal(el, key, config);
+    const requestSignal = createRequestSignal(el, key, config, options);
     (el as any)[key] = requestSignal;
   } catch (error) {
     console.warn(`Failed to create Request signal for property "${key}":`, error);
