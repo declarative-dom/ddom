@@ -114,8 +114,11 @@ function createRequestSignal(
 
   // Process the config using properties module utilities to resolve reactive values
   // Use ignoreKeys to control which properties should not be processed as reactive
-  const ignoreKeys = ['trigger', 'debounce', ...(options.ignoreKeys || [])];
-  const processedConfig = processRequestConfig(config, el, ignoreKeys);
+  const configOptions: DOMSpecOptions = {
+    ...options,
+    ignoreKeys: ['trigger', 'debounce', ...(options.ignoreKeys || [])]
+  };
+  const processedConfig = processConfigObject(config, el, configOptions);
 
   // Add fetch method for manual triggering
   (requestSignal as any).fetch = () => executeRequest(requestSignal, processedConfig, el);
@@ -130,18 +133,22 @@ function createRequestSignal(
 }
 
 /**
- * Processes request configuration using properties module utilities.
- * Resolves individual properties like template literals and reactive values.
+ * Processes configuration object using processProperty for each individual property.
+ * Uses the properties module utilities through processProperty to maintain consistency.
  *
- * @param config - The request configuration
+ * @param config - The configuration object to process
  * @param contextNode - The context node for template evaluation
- * @param ignoreKeys - Keys to ignore during processing
+ * @param options - DOMSpecOptions containing ignoreKeys and other processing options
  * @returns Processed configuration with reactive values
  */
-function processRequestConfig(config: RequestConfig, contextNode: Node, ignoreKeys: string[]): any {
+function processConfigObject(config: any, contextNode: Node, options: DOMSpecOptions = {}): any {
   const processed: any = { ...config };
+  const { ignoreKeys = [] } = options;
 
-  // Process each configuration property using properties module utilities
+  // Create a temporary object to hold processed values
+  const tempElement: any = {};
+
+  // Process each configuration property using processProperty
   Object.keys(processed).forEach(key => {
     if (ignoreKeys.includes(key)) {
       return; // Skip ignored keys
@@ -150,15 +157,15 @@ function processRequestConfig(config: RequestConfig, contextNode: Node, ignoreKe
     const value = processed[key];
     
     if (typeof value === 'string' && isTemplateLiteral(value)) {
-      // Create computed signal for reactive template
+      // Use computedTemplate directly for reactive templates
       processed[key] = computedTemplate(value, contextNode);
     } else if (typeof value === 'string' && isPropertyAccessor(value)) {
-      // Resolve property accessor
+      // Use resolvePropertyAccessor directly for property accessors
       const resolved = resolvePropertyAccessor(value, contextNode);
       processed[key] = resolved !== null ? resolved : value;
     } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
       // Recursively process nested objects (like headers)
-      processed[key] = processRequestConfig(value, contextNode, ignoreKeys);
+      processed[key] = processConfigObject(value, contextNode, options);
     }
     // For other values, keep them as-is
   });
