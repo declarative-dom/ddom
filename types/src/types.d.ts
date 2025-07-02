@@ -244,3 +244,41 @@ export type ElementSpec = HTMLElementSpec | HTMLBodyElementSpec | HTMLHeadElemen
  * Includes all standard DOM node types that can be parents or targets of DOM operations.
  */
 export type DOMNode = HTMLElement | HTMLBodyElement | HTMLHeadElement | Document | ShadowRoot | DocumentFragment | Window;
+
+/**
+ * RequestConfig Type Definition
+ * Configuration for Request namespace properties in DDOM.
+ * Uses standard Request constructor properties with minimal DDOM extensions.
+ */
+export interface RequestConfig {
+  url: string;
+  method?: string;
+  headers?: Record<string, string>;
+  body?: any;
+  mode?: RequestMode;
+  credentials?: RequestCredentials;
+  cache?: RequestCache;
+  redirect?: RequestRedirect;
+  referrer?: string;
+  referrerPolicy?: ReferrerPolicy;
+  integrity?: string;
+  keepalive?: boolean;
+  signal?: any;
+  
+  // Minimal DDOM extensions (only two non-standard properties)
+  trigger?: 'auto' | 'manual'; // Only two modes: auto (default) or manual
+  debounce?: number; // Standard debouncing for auto requests
+}
+
+/**
+ * RequestState Type Definition
+ * State structure for Request namespace signals.
+ * Each request creates a reactive signal with this state structure.
+ */
+export interface RequestState {
+  loading: boolean;     // Request in progress
+  data: any;           // Parsed response data  
+  error: Error | null; // Request error, if any
+  response: Response | null; // Raw fetch Response
+  lastFetch: number;   // Timestamp of last request
+}

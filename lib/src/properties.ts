@@ -22,6 +22,8 @@ import { insertRules } from './styleSheets';
 
 import { MappedArray, isMappedArrayExpr } from './arrays';
 
+import { isNamespacedProperty, processNamespacedProperty } from './namespaces';
+
 import {
   DocumentSpec,
   DOMNode,
@@ -345,7 +347,7 @@ export const handleStyleProperty = createHandler(
 
 /**
  * Unified property value assignment with all the DDOM logic.
- * Handles property accessors, template literals, functions, reactive properties, and direct value assignment.
+ * Handles property accessors, template literals, functions, reactive properties, namespaced properties, and direct value assignment.
  * 
  * @param el - The element to assign the property to
  * @param key - The property name
@@ -356,6 +358,12 @@ function assignPropertyValue(
   key: string,
   value: any
 ): void {
+  // Handle namespaced properties first
+  if (isNamespacedProperty(value)) {
+    processNamespacedProperty({} as any, el, key, value);
+    return;
+  }
+
   // Handle property accessor strings
   if (typeof value === 'string' && isPropertyAccessor(value)) {
     const resolved = resolvePropertyAccessor(value, el);
@@ -429,20 +437,36 @@ export function handleDefaultProperty(
 }
 
 /**
- * Gets the appropriate handler function for a given property key.
+ * Gets the appropriate handler function for a given property key and value.
  * This function serves as an index/dispatcher that returns the correct handler
- * based on the property name. Uses a switch statement for optimal performance
+ * based on the property name and value type. Uses a switch statement for optimal performance
  * and clear code organization.
  *
+ * Priority order:
+ * 1. Namespaced properties (objects with single namespace key)
+ * 2. Special DDOM properties (attributes, document, etc.)
+ * 3. Default property handling
+ *
  * @param key - The property key to get a handler for
+ * @param value - The property value to check for namespace detection
  * @returns The appropriate handler function for the property
  * @example
  * ```typescript
- * const handler = getHandler('attributes');
- * handler(spec, element, 'attributes', value, true);
+ * const handler = getHandler('attributes', { class: 'test' });
+ * handler(spec, element, 'attributes', value, options);
+ * 
+ * const requestHandler = getHandler('$userData', { Request: { url: '/api/users' } });
+ * requestHandler(spec, element, '$userData', value, options);
  * ```
  */
-export function getHandler(key: string): DDOMPropertyHandler {
+export function getHandler(key: string, value?: any): DDOMPropertyHandler {
+  // First check for namespaced properties
+  if (value && isNamespacedProperty(value)) {
+    return (spec, el, key, value, options) => 
+      processNamespacedProperty(spec, el, key, value, options);
+  }
+
+  // Then check for special DDOM properties
   switch (key) {
     case 'attributes':
       return handleAttributesProperty;
@@ -664,7 +688,7 @@ export function processProperty(
   value: any,
   options: DOMSpecOptions = {}
 ): void {
-  const handler = getHandler(key);
+  const handler = getHandler(key, value);
   handler(spec, el, key, value, options);
 }
 
