@@ -138,11 +138,10 @@ function bindRequest(
 }
 
 /**
- * Processes a Request configuration object and sets up reactive dependencies.
- * Returns the processed config with template signals ready for reactive tracking.
- * This is run once during setup to create the reactive structure.
+ * Processes a configuration object recursively using the unified property resolution.
+ * Reuses the existing resolvePropertyValue function from properties.ts to avoid duplication.
  *
- * @param config - The request configuration to process
+ * @param config - The configuration object to process
  * @param contextNode - The context node for template evaluation
  * @param options - DOMSpecOptions containing ignoreKeys and other processing options
  * @returns Processed config with template signals
@@ -150,7 +149,6 @@ function bindRequest(
 function resolveConfig(config: any, contextNode: any, options: DOMSpecOptions = {}): any {
   const processed: any = { ...config };
 
-  // Process each configuration property using the unified resolvePropertyValue
   Object.keys(processed).forEach(key => {
     const value = processed[key];
 
@@ -158,7 +156,7 @@ function resolveConfig(config: any, contextNode: any, options: DOMSpecOptions = 
       // Recursively process nested objects (like headers)
       processed[key] = resolveConfig(value, contextNode, options);
     } else {
-      // Use the unified property resolution to create template signals
+      // Use the unified property resolution from properties.ts
       processed[key] = resolvePropertyValue(key, value, contextNode, options);
     }
   });
@@ -333,6 +331,179 @@ async function executeRequest(
   }
 }
 
+// === GENERIC NAMESPACE UTILITIES ===
+
+/**
+ * Generic namespace handler factory that reduces boilerplate.
+ * Creates consistent handlers with validation, error handling, and reactive config processing.
+ *
+ * @param validateConfig - Function to validate the configuration object
+ * @param createSignal - Function that creates the appropriate signal from resolved config
+ * @returns A standardized namespace handler function
+ */
+function createNamespaceHandler<T>(
+  validateConfig: (config: any, key: string) => config is T,
+  createSignal: (resolvedConfig: any, key: string) => Signal.State<any> | Signal.Computed<any>
+): NamespaceHandler {
+  return (_spec: DOMSpec, el: any, key: string, config: any, options: DOMSpecOptions = {}): void => {
+    if (!validateConfig(config, key)) {
+      return; // Validation handles error logging
+    }
+
+    try {
+      // Process the config to set up reactive dependencies
+      const resolvedConfig = resolveConfig(config, el, options);
+      
+      // Create the appropriate signal
+      const signal = createSignal(resolvedConfig, key);
+      
+      // Assign to element
+      (el as any)[key] = signal;
+    } catch (error) {
+      console.warn(`Failed to create ${key.split('$')[0]} signal for property "${key}":`, error);
+    }
+  };
+}
+
+/**
+ * Standard validation for object-based configurations.
+ */
+function validateObjectConfig(config: any, key: string, requiredProps: string[] = []): boolean {
+  if (!config || typeof config !== 'object') {
+    console.warn(`Invalid configuration for property "${key}" - expected object`);
+    return false;
+  }
+  
+  for (const prop of requiredProps) {
+    if (!(prop in config)) {
+      console.warn(`Configuration missing required "${prop}" property for "${key}"`);
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+// === NAMESPACE IMPLEMENTATIONS ===
+
+/**
+ * FormData namespace - creates reactive FormData objects
+ */
+const bindFormData = createNamespaceHandler(
+  (config: any, key: string): config is Record<string, any> => 
+    validateObjectConfig(config, key),
+  (resolvedConfig: any) => new Signal.Computed(() => {
+    const { value: finalConfig, isValid } = evaluatePropertyValue(resolvedConfig);
+    if (!isValid) return new FormData();
+
+    const formData = new FormData();
+    Object.entries(finalConfig).forEach(([fieldKey, fieldValue]) => {
+      if (fieldValue != null) {
+        formData.append(fieldKey, fieldValue instanceof File || fieldValue instanceof Blob 
+          ? fieldValue : String(fieldValue));
+      }
+    });
+    return formData;
+  })
+);
+
+/**
+ * URLSearchParams namespace - creates reactive URLSearchParams objects
+ */
+const bindURLSearchParams = createNamespaceHandler(
+  (config: any, key: string): config is Record<string, any> => 
+    validateObjectConfig(config, key),
+  (resolvedConfig: any) => new Signal.Computed(() => {
+    const { value: finalConfig, isValid } = evaluatePropertyValue(resolvedConfig);
+    if (!isValid) return new URLSearchParams();
+
+    const params = new URLSearchParams();
+    Object.entries(finalConfig).forEach(([paramKey, paramValue]) => {
+      if (paramValue != null) {
+        if (Array.isArray(paramValue)) {
+          paramValue.forEach(value => params.append(paramKey, String(value)));
+        } else {
+          params.append(paramKey, String(paramValue));
+        }
+      }
+    });
+    return params;
+  })
+);
+
+/**
+ * Blob namespace - creates reactive Blob objects
+ */
+const bindBlob = createNamespaceHandler(
+  (config: any, key: string): config is { content: any; type?: string; endings?: string } => 
+    validateObjectConfig(config, key, ['content']),
+  (resolvedConfig: any) => new Signal.Computed(() => {
+    const { value: finalConfig, isValid } = evaluatePropertyValue(resolvedConfig);
+    if (!isValid || !finalConfig.content) return new Blob();
+
+    const content = finalConfig.content;
+    const blobParts = Array.isArray(content) ? content : [content];
+    const blobOptions: BlobPropertyBag = {};
+    if (finalConfig.type) blobOptions.type = finalConfig.type;
+    if (finalConfig.endings) blobOptions.endings = finalConfig.endings as EndingType;
+
+    return new Blob(blobParts, blobOptions);
+  })
+);
+
+/**
+ * ArrayBuffer namespace - creates reactive ArrayBuffer objects
+ */
+const bindArrayBuffer = createNamespaceHandler(
+  (config: any, key: string): config is { data: any; encoding?: string } => 
+    validateObjectConfig(config, key, ['data']),
+  (resolvedConfig: any, key: string) => new Signal.Computed(() => {
+    const { value: finalConfig, isValid } = evaluatePropertyValue(resolvedConfig);
+    if (!isValid || !finalConfig.data) return new ArrayBuffer(0);
+
+    const data = finalConfig.data;
+    if (data instanceof ArrayBuffer) return data;
+    if (data instanceof Uint8Array) return data.buffer;
+    if (Array.isArray(data)) return new Uint8Array(data).buffer;
+    if (typeof data === 'string') return new TextEncoder().encode(data).buffer;
+    
+    console.warn(`Unsupported ArrayBuffer data type for property "${key}"`);
+    return new ArrayBuffer(0);
+  })
+);
+
+/**
+ * ReadableStream namespace - creates reactive ReadableStream objects
+ */
+const bindReadableStream = createNamespaceHandler(
+  (config: any, key: string): config is { source?: any; strategy?: any; data?: any } => 
+    validateObjectConfig(config, key),
+  (resolvedConfig: any) => new Signal.Computed(() => {
+    const { value: finalConfig, isValid } = evaluatePropertyValue(resolvedConfig);
+    if (!isValid) return new ReadableStream();
+
+    if (finalConfig.source?.start) {
+      return new ReadableStream(finalConfig.source, finalConfig.strategy);
+    } else if (finalConfig.data) {
+      const data = finalConfig.data;
+      return new ReadableStream({
+        start(controller) {
+          if (Array.isArray(data)) {
+            data.forEach(chunk => controller.enqueue(chunk));
+          } else if (typeof data === 'string') {
+            controller.enqueue(new TextEncoder().encode(data));
+          } else {
+            controller.enqueue(data);
+          }
+          controller.close();
+        }
+      }, finalConfig.strategy);
+    }
+    
+    return new ReadableStream({ start: (controller) => controller.close() });
+  })
+);
+
 // === NAMESPACE HANDLERS REGISTRY ===
 
 /**
@@ -341,6 +512,11 @@ async function executeRequest(
  */
 export const NAMESPACE_HANDLERS: Record<string, NamespaceHandler> = {
   'Request': bindRequest,
+  'FormData': bindFormData,
+  'URLSearchParams': bindURLSearchParams,
+  'Blob': bindBlob,
+  'ArrayBuffer': bindArrayBuffer,
+  'ReadableStream': bindReadableStream,
   // Future namespaces will be added here:
   // 'WebSocket': handleWebSocketProperty,
   // 'IntersectionObserver': handleIntersectionObserverProperty,

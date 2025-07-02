@@ -164,15 +164,14 @@ Strings beginning with `document.`, `this.` or `window.` are provisioned as prop
 
 ### ⚡ Template Literal Reactivity
 
-Strings with `${...}` are automatically converted to reactive template expressions using explicit signal access:
+Strings with `${...}` are automatically converted to reactive template expressions, allowing dynamic content updates:
 
 ```JavaScript
 {
   tagName: 'div',
-  // Signals use explicit .get() calls in templates
-  textContent: 'Count is ${this.$counter.get()}',     // ← Explicit signal access
-  className: 'status ${this.$counter.get() > 10 ? "high" : "low"}', // ← Works with expressions
-  title: 'User: ${this.$name.get()} (${this.$age.get()})', // ← Multiple signals, all explicit
+  // Standard property with template - provisioned as reactive DOM binding
+  textContent: 'Count is ${window.$counter.get()}',
+  className: 'status ${window.$counter.get() > 10 ? "high" : "low"}',
 }
 ```
 
@@ -222,17 +221,6 @@ console.log(app.$displayText);           // Signal.Computed { ... }
 
 NOTE: Scopes are partitioned at the window, document, and custom element levels. Each custom element creates a new scope boundary, enforcing component-level isolation.
 
-### 🔒 Protected Properties
-
-DOM immutable properties `id` and `tagName` are automatically protected from reactivity:
-
-```JavaScript
-{
-  tagName: 'my-element',  // ← Set once, never reactive
-  id: 'unique-id',        // ← Protected property
-  $count: 0               // ← This becomes reactive
-}
-```
 
 ### 🌐 Dynamic Mapped Arrays
 
@@ -270,6 +258,55 @@ Create dynamic lists that automatically update when data changes:
     }
 }
 ```
+
+### 🌐 Web API Namespaces
+
+DDOM provides declarative access to Web APIs through namespaced properties, enabling reactive integration with browser functionality:
+
+```JavaScript
+{
+  // Reactive HTTP requests
+  $userData: {
+    Request: {
+      url: '/api/users/${this.$userId.get()}',
+      method: 'GET',
+      delay: 300 // Debounce requests
+    }
+  },
+  
+  // Reactive form data
+  $uploadForm: {
+    FormData: {
+      file: '${this.$selectedFile.get()}',
+      description: '${this.$description.get()}'
+    }
+  },
+  
+  // Reactive URL parameters
+  $searchParams: {
+    URLSearchParams: {
+      q: '${this.$query.get()}',
+      page: '${this.$page.get()}'
+    }
+  },
+  
+  // Use in API calls
+  $searchResults: {
+    Request: {
+      url: '/api/search?${this.$searchParams.get().toString()}'
+    }
+  }
+}
+```
+
+**Supported Namespaces:**
+- **Request** - Declarative fetch API integration
+- **FormData** - Reactive form data construction
+- **URLSearchParams** - Reactive URL parameter handling
+- **Blob** - Reactive binary data creation
+- **ArrayBuffer** - Reactive buffer management
+- **ReadableStream** - Reactive stream creation
+
 
 ### 🔄 Fine-grained Reactivity
 
@@ -363,8 +400,7 @@ npm run lint:fix
                         }
                     ]
                 }
-            }
-        });
+            });
         
         console.log('App created:', app);
     </script>
@@ -382,6 +418,29 @@ The `examples/` directory contains comprehensive demonstrations:
 * **`dynamic-list.html`** - Dynamic list with reactive signals
 * **`reactive-custom-elements.html`** - Custom elements with reactivity
 * **`performance-test.html`** - Performance benchmarking
+* **`declarative-fetch.js`** - Weather dashboard with real-time API integration
+
+### Weather Dashboard Example
+
+The weather dashboard demonstrates real-world API integration using DDOM's declarative fetch capabilities:
+
+- **Reactive location selection** - Automatically updates coordinates when location changes
+- **Debounced API requests** - Prevents excessive calls with intelligent delay
+- **Template literal URLs** - Dynamic URLs built from reactive properties
+- **Error handling** - Graceful fallbacks for missing data
+- **Beautiful UI** - Modern design with responsive grid layout
+
+```javascript
+// Key features from the weather example:
+$weatherData: {
+  Request: {
+    url: 'https://api.weather.gov/points/${this.$currentCoords().lat},${this.$currentCoords().lon}',
+    delay: 500 // Debounce API calls
+  }
+}
+```
+
+This creates a reactive signal that automatically fetches new weather data whenever the coordinates change, with built-in debouncing to prevent rapid API calls.
 
 ## Testing
 

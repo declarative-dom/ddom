@@ -1,4 +1,19 @@
-# Request Namespace
+# Web API Namespaces
+
+DDOM provides declarative namespaces for common Web APIs, enabling reactive integration with standard browser functionality. Each namespace follows the same pattern: standard Web API properties with minimal DDOM extensions for reactivity and control.
+
+## Supported Namespaces
+
+- **Request** - Declarative fetch API integration
+- **FormData** - Reactive form data construction
+- **URLSearchParams** - Reactive URL parameter handling  
+- **Blob** - Reactive binary data creation
+- **ArrayBuffer** - Reactive buffer management
+- **ReadableStream** - Reactive stream creation
+
+---
+
+## Request Namespace
 
 The Request namespace provides declarative fetch API integration for DDOM applications. It enables reactive HTTP requests using standard `Request` constructor properties with minimal DDOM extensions.
 
@@ -291,3 +306,427 @@ The namespace architecture supports future additions:
 - Additional HTTP-related namespaces as needed
 
 Each namespace follows the same pattern: standard Web API properties with minimal DDOM extensions for reactivity and control.
+
+---
+
+## FormData Namespace
+
+The FormData namespace creates reactive FormData objects for handling form submissions and file uploads declaratively.
+
+### Basic Usage
+
+```javascript
+$formData: {
+  FormData: {
+    name: '${this.$userName.get()}',
+    email: '${this.$userEmail.get()}',
+    file: '${this.$selectedFile.get()}' // File object from input
+  }
+}
+```
+
+### Configuration
+
+```typescript
+interface FormDataConfig {
+  [fieldName: string]: any; // Field values (strings, Files, Blobs)
+}
+```
+
+### Examples
+
+#### Contact Form Data
+```javascript
+$contactForm: {
+  FormData: {
+    name: '${this.$name.get()}',
+    email: '${this.$email.get()}',
+    message: '${this.$message.get()}',
+    timestamp: '${Date.now()}'
+  }
+}
+```
+
+#### File Upload with Metadata
+```javascript
+$uploadData: {
+  FormData: {
+    file: '${this.$selectedFile.get()}',
+    description: '${this.$fileDescription.get()}',
+    category: '${this.$selectedCategory.get()}',
+    userId: '${this.$currentUser.get().id}'
+  }
+}
+```
+
+---
+
+## URLSearchParams Namespace
+
+The URLSearchParams namespace creates reactive URL parameter strings for API calls and navigation.
+
+### Basic Usage
+
+```javascript
+$queryParams: {
+  URLSearchParams: {
+    q: '${this.$searchQuery.get()}',
+    page: '${this.$currentPage.get()}',
+    limit: 20
+  }
+}
+```
+
+### Configuration
+
+```typescript
+interface URLSearchParamsConfig {
+  [paramName: string]: string | number | string[]; // Parameter values
+}
+```
+
+### Examples
+
+#### Search Parameters
+```javascript
+$searchParams: {
+  URLSearchParams: {
+    q: '${this.$query.get()}',
+    category: '${this.$selectedCategory.get()}',
+    sort: '${this.$sortOrder.get()}',
+    page: '${this.$currentPage.get()}'
+  }
+}
+
+// Use in API call
+$searchResults: {
+  Request: {
+    url: '/api/search?${this.$searchParams.get().toString()}'
+  }
+}
+```
+
+#### Multi-value Parameters
+```javascript
+$filterParams: {
+  URLSearchParams: {
+    tags: ['${this.$selectedTags.get().join("','")}'], // Array of values
+    status: '${this.$statusFilter.get()}',
+    limit: 50
+  }
+}
+```
+
+---
+
+## Blob Namespace
+
+The Blob namespace creates reactive binary data objects for file handling and data processing.
+
+### Basic Usage
+
+```javascript
+$textBlob: {
+  Blob: {
+    content: '${this.$textContent.get()}',
+    type: 'text/plain'
+  }
+}
+```
+
+### Configuration
+
+```typescript
+interface BlobConfig {
+  content: any | any[]; // Blob content (string, ArrayBuffer, etc.)
+  type?: string;        // MIME type
+  endings?: 'transparent' | 'native'; // Line ending handling
+}
+```
+
+### Examples
+
+#### Text File Creation
+```javascript
+$csvFile: {
+  Blob: {
+    content: '${this.$csvData.get()}',
+    type: 'text/csv',
+    endings: 'native'
+  }
+}
+```
+
+#### JSON Export
+```javascript
+$jsonExport: {
+  Blob: {
+    content: '${JSON.stringify(this.$exportData.get(), null, 2)}',
+    type: 'application/json'
+  }
+}
+```
+
+#### Multi-part Content
+```javascript
+$combinedFile: {
+  Blob: {
+    content: [
+      '${this.$header.get()}',
+      '${this.$body.get()}',
+      '${this.$footer.get()}'
+    ],
+    type: 'text/plain'
+  }
+}
+```
+
+---
+
+## ArrayBuffer Namespace
+
+The ArrayBuffer namespace creates reactive binary buffers for low-level data manipulation.
+
+### Basic Usage
+
+```javascript
+$binaryData: {
+  ArrayBuffer: {
+    data: '${this.$textInput.get()}' // Will be UTF-8 encoded
+  }
+}
+```
+
+### Configuration
+
+```typescript
+interface ArrayBufferConfig {
+  data: string | number[] | Uint8Array | ArrayBuffer; // Source data
+  encoding?: string; // Encoding hint (for strings)
+}
+```
+
+### Examples
+
+#### Text to Binary
+```javascript
+$encodedText: {
+  ArrayBuffer: {
+    data: '${this.$message.get()}' // Automatically UTF-8 encoded
+  }
+}
+```
+
+#### Numeric Array to Buffer
+```javascript
+$numericBuffer: {
+  ArrayBuffer: {
+    data: [72, 101, 108, 108, 111] // "Hello" in ASCII
+  }
+}
+```
+
+#### From Existing Buffer
+```javascript
+$copiedBuffer: {
+  ArrayBuffer: {
+    data: '${this.$sourceBuffer.get()}' // Copy existing ArrayBuffer
+  }
+}
+```
+
+---
+
+## ReadableStream Namespace
+
+The ReadableStream namespace creates reactive streaming data sources for processing large datasets.
+
+### Basic Usage
+
+```javascript
+$textStream: {
+  ReadableStream: {
+    data: '${this.$streamContent.get()}'
+  }
+}
+```
+
+### Configuration
+
+```typescript
+interface ReadableStreamConfig {
+  source?: ReadableStreamDefaultSource; // Custom stream source
+  strategy?: QueuingStrategy;           // Queuing strategy
+  data?: any | any[];                   // Simple data to stream
+}
+```
+
+### Examples
+
+#### Text Streaming
+```javascript
+$logStream: {
+  ReadableStream: {
+    data: '${this.$logContent.get()}'
+  }
+}
+```
+
+#### Array Streaming
+```javascript
+$dataStream: {
+  ReadableStream: {
+    data: ['${this.$items.get().join("','")}'] // Stream array items
+  }
+}
+```
+
+#### Custom Source
+```javascript
+$customStream: {
+  ReadableStream: {
+    source: {
+      start(controller) {
+        // Custom streaming logic
+        const data = this.$streamData.get();
+        data.forEach(chunk => controller.enqueue(chunk));
+        controller.close();
+      }
+    },
+    strategy: { highWaterMark: 1024 }
+  }
+}
+```
+
+---
+
+## Namespace Integration Examples
+
+### Complete File Upload Example
+
+```javascript
+{
+  $selectedFile: null,
+  $uploadDescription: '',
+  
+  // Create form data
+  $uploadForm: {
+    FormData: {
+      file: '${this.$selectedFile.get()}',
+      description: '${this.$uploadDescription.get()}',
+      timestamp: '${Date.now()}'
+    }
+  },
+  
+  // Submit upload
+  $uploadRequest: {
+    Request: {
+      url: '/api/upload',
+      method: 'POST',
+      body: '${this.$uploadForm.get()}',
+      disabled: true // Manual trigger
+    }
+  },
+  
+  children: [{
+    tagName: 'input',
+    attributes: { type: 'file' },
+    onchange: function(e) {
+      this.$selectedFile.set(e.target.files[0]);
+    }
+  }, {
+    tagName: 'textarea',
+    placeholder: 'File description...',
+    oninput: function(e) {
+      this.$uploadDescription.set(e.target.value);
+    }
+  }, {
+    tagName: 'button',
+    textContent: 'Upload File',
+    onclick: async function() {
+      await this.$uploadRequest.fetch();
+    }
+  }]
+}
+```
+
+### API Search with Parameters
+
+```javascript
+{
+  $searchQuery: '',
+  $filters: { category: 'all', sort: 'relevance' },
+  
+  // Build search parameters
+  $searchParams: {
+    URLSearchParams: {
+      q: '${this.$searchQuery.get()}',
+      category: '${this.$filters.get().category}',
+      sort: '${this.$filters.get().sort}',
+      timestamp: '${Date.now()}'
+    }
+  },
+  
+  // Execute search
+  $searchResults: {
+    Request: {
+      url: '/api/search?${this.$searchParams.get().toString()}',
+      delay: 300 // Debounce searches
+    }
+  },
+  
+  children: [{
+    tagName: 'input',
+    placeholder: 'Search...',
+    oninput: function(e) {
+      this.$searchQuery.set(e.target.value);
+    }
+  }, {
+    tagName: 'div',
+    textContent: 'Results: ${this.$searchResults.get()?.length || 0}'
+  }]
+}
+```
+
+### Data Export Pipeline
+
+```javascript
+{
+  $exportData: [],
+  
+  // Convert to JSON
+  $jsonData: '${JSON.stringify(this.$exportData.get(), null, 2)}',
+  
+  // Create downloadable blob
+  $exportFile: {
+    Blob: {
+      content: '${this.$jsonData}',
+      type: 'application/json'
+    }
+  },
+  
+  // Create download URL
+  $downloadUrl: '${URL.createObjectURL(this.$exportFile.get())}',
+  
+  children: [{
+    tagName: 'button',
+    textContent: 'Export Data',
+    onclick: function() {
+      this.$exportData.set([
+        { id: 1, name: 'Item 1' },
+        { id: 2, name: 'Item 2' }
+      ]);
+    }
+  }, {
+    tagName: 'a',
+    textContent: 'Download Export',
+    attributes: {
+      href: '${this.$downloadUrl}',
+      download: 'export.json'
+    },
+    style: {
+      display: '${this.$exportData.get().length ? "inline" : "none"}'
+    }
+  }]
+}
+```
