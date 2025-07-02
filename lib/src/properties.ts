@@ -356,50 +356,63 @@ export const handleStyleProperty = createHandler(
  * @param value - The property value to resolve
  * @param contextNode - The context for template/accessor evaluation
  * @param options - Optional configuration
- * @returns Object with resolved value and validity flag
+ * @returns Resolved value (signals, computed signals, or primitives)
  */
 export function resolvePropertyValue(
   key: string,
   value: any,
-  contextNode: any, // Accept any context - more flexible
+  contextNode: any, // Accept any context
   options: DOMSpecOptions = {}
-): { value: any; isValid: boolean } {
+): any {
   const { ignoreKeys = [] } = options;
   
-  // Skip ignored keys - always valid
+  // Skip ignored keys - return as-is
   if (ignoreKeys.includes(key)) {
-    return { value, isValid: true };
+    return value;
   }
 
   // Handle property accessor strings
   if (typeof value === 'string' && isPropertyAccessor(value)) {
     const resolved = resolvePropertyAccessor(value, contextNode);
-    return { value: resolved !== null ? resolved : value, isValid: resolved !== null };
+    return resolved !== null ? resolved : value;
   }
 
-  // Handle template literals
+  // Handle template literals - return computed signal
   if (typeof value === 'string' && isTemplateLiteral(value)) {
-    const computedSignal = computedTemplate(value, contextNode);
-    return { value: computedSignal, isValid: true };
+    return computedTemplate(value, contextNode);
   }
 
-  // For simple values, check if empty string (invalid)
-  const isValid = value !== '';
-  
   // Everything else returns as-is
-  return { value, isValid };
+  return value;
 }
 
 // === PROPERTY ASSIGNMENT (Side Effects) ===
 
 /**
- * Evaluates a resolved value to its final primitive form.
- * This is the counterpart to assignPropertyValue - it extracts values instead of binding them.
+ * Evaluates a resolved value to its final primitive form with validity checking.
+ * This is the counterpart to assignPropertyValue - it extracts values and determines validity.
+ * 
+ * @param value - The resolved value (could be a signal, object, or primitive)
+ * @param options - Optional configuration for validity checking
+ * @returns Object with final primitive value and validity flag
+ */
+export function evaluatePropertyValue(value: any): { value: any; isValid: boolean } {  
+  const evaluatedValue = evaluatePropertyValuePrimitive(value);
+  
+  // Determine validity - empty strings, null, undefined are invalid for most use cases
+  const isValid = evaluatedValue !== '' && evaluatedValue !== null && evaluatedValue !== undefined && evaluatedValue !== 'undefined';
+  
+  return { value: evaluatedValue, isValid };
+}
+
+/**
+ * Evaluates a resolved value to its final primitive form without validity checking.
+ * This is a pure evaluation function that extracts signal values recursively.
  * 
  * @param value - The resolved value (could be a signal, object, or primitive)
  * @returns The final primitive value
  */
-export function evaluatePropertyValue(value: any): any {
+export function evaluatePropertyValuePrimitive(value: any): any {
   // Handle signals - extract their current values
   if (typeof value === 'object' && value !== null && Signal.isState(value)) {
     return (value as Signal.State<any>).get();
@@ -411,14 +424,14 @@ export function evaluatePropertyValue(value: any): any {
   if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
     const evaluated: any = {};
     Object.entries(value).forEach(([key, nestedValue]) => {
-      evaluated[key] = evaluatePropertyValue(nestedValue);
+      evaluated[key] = evaluatePropertyValuePrimitive(nestedValue);
     });
     return evaluated;
   }
   
   // Handle arrays recursively
   if (Array.isArray(value)) {
-    return value.map(item => evaluatePropertyValue(item));
+    return value.map(item => evaluatePropertyValuePrimitive(item));
   }
   
   // Everything else returns as-is
@@ -501,7 +514,7 @@ export function handleDefaultProperty(
 ): void {
   if (!Object.hasOwn(el, key)) {
     // Property doesn't exist - resolve then assign
-    const { value: resolvedValue } = resolvePropertyValue(key, value, el, options);
+    const resolvedValue = resolvePropertyValue(key, value, el, options);
     assignPropertyValue(el, key, resolvedValue, options);
   }
 }

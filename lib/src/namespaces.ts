@@ -65,7 +65,7 @@ export function extractNamespace(value: any): { namespace: string; config: any }
 
   const namespace = Object.keys(value)[0];
   const config = value[namespace];
-  
+
   return { namespace, config };
 }
 
@@ -112,93 +112,70 @@ function bindRequest(
   }
 
   try {
-  // Initialize with null - will contain the actual response data
-  const requestSignal = new Signal.State(null);
+    // Initialize with null - will contain the actual response data
+    const requestSignal = new Signal.State(null);
 
-  // Process the config to resolve reactive values and check validity
-  const configOptions: DOMSpecOptions = {
-    ...options,
-    ignoreKeys: ['disabled', 'delay', 'responseType', ...(options.ignoreKeys || [])]
-  };
-  const { config: processedConfig, isValid } = resolveConfig(config, el, configOptions);
+    // Process the config once to set up reactive dependencies (template signals)
+    const resolvedConfig = resolveConfig(config, el, options);
 
-  // Add fetch method for manual triggering
-  (requestSignal as any).fetch = () => {
-    if (isValid) {
-      executeRequest(requestSignal, processedConfig, config.responseType);
+    // Add fetch method for manual triggering
+    (requestSignal as any).fetch = async () => {
+      const { value: finalConfig, isValid } = evaluatePropertyValue(resolvedConfig);
+      if (isValid) {
+        await executeRequest(requestSignal, finalConfig, config.responseType);
+      }
+    };
+
+    // Set up auto triggering if not disabled (default mode)
+    if (!config.disabled) {
+      setupAutoTrigger(requestSignal, resolvedConfig);
     }
-  };
 
-  // Set up auto triggering if not disabled (default mode)
-  if (!config.disabled) {
-    setupAutoTrigger(requestSignal, config, el, configOptions, config.delay, config.responseType);
-  }
-
-  (el as any)[key] = requestSignal;
+    (el as any)[key] = requestSignal;
   } catch (error) {
     console.warn(`Failed to create Request signal for property "${key}":`, error);
   }
 }
 
 /**
- * Processes a Request configuration object and determines validity.
- * Returns both the processed config and whether it's ready for execution.
- * This is the single source of truth for config processing.
+ * Processes a Request configuration object and sets up reactive dependencies.
+ * Returns the processed config with template signals ready for reactive tracking.
+ * This is run once during setup to create the reactive structure.
  *
  * @param config - The request configuration to process
  * @param contextNode - The context node for template evaluation
  * @param options - DOMSpecOptions containing ignoreKeys and other processing options
- * @returns Object with processed config and validity flag
+ * @returns Processed config with template signals
  */
-function resolveConfig(config: any, contextNode: any, options: DOMSpecOptions = {}): { 
-  config: any; 
-  isValid: boolean; 
-} {
+function resolveConfig(config: any, contextNode: any, options: DOMSpecOptions = {}): any {
   const processed: any = { ...config };
-  let isValid = true;
-  
+
   // Process each configuration property using the unified resolvePropertyValue
   Object.keys(processed).forEach(key => {
     const value = processed[key];
-    
+
     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
       // Recursively process nested objects (like headers)
-      const nested = resolveConfig(value, contextNode, options);
-      processed[key] = nested.config;
-      if (!nested.isValid) isValid = false;
+      processed[key] = resolveConfig(value, contextNode, options);
     } else {
-      // Use the unified property resolution which now includes validity checking
-      const { value: resolvedValue, isValid: valueIsValid } = resolvePropertyValue(key, value, contextNode, options);
-      processed[key] = resolvedValue;
-      
-      // Skip validity check for DDOM-specific properties
-      if (key !== 'disabled' && key !== 'delay' && key !== 'responseType' && !valueIsValid) {
-        isValid = false;
-      }
+      // Use the unified property resolution to create template signals
+      processed[key] = resolvePropertyValue(key, value, contextNode, options);
     }
   });
 
-  return { config: processed, isValid };
+  return processed;
 }
 
 /**
  * Sets up automatic request triggering based on reactive dependencies.
- * Uses resolveConfig to determine validity on each reactive change.
+ * Uses evaluatePropertyValue to determine validity on each reactive change.
  *
  * @param requestSignal - The request signal to update
- * @param originalConfig - The original configuration object
- * @param contextNode - The context node for resolution
- * @param configOptions - The processing options
- * @param delay - Optional delay in milliseconds (matches Web Animations API)
- * @param returnFormat - How to parse the response
+ * @param resolvedConfig - The resolved configuration object with template signals
  */
 function setupAutoTrigger(
   requestSignal: Signal.State<any>,
-  originalConfig: any,
-  contextNode: any,
-  configOptions: DOMSpecOptions,
-  delay?: number,
-  returnFormat?: string
+  resolvedConfig: RequestConfig,
 ): void {
   let debounceTimer: any = null;
 
@@ -208,9 +185,9 @@ function setupAutoTrigger(
 
   const cleanup = createEffect(() => {
     try {
-      // Re-resolve config to check validity on each reactive change
-      const { config: resolvedConfig, isValid } = resolveConfig(originalConfig, contextNode, configOptions);
-      
+      // Evaluate config to trigger reactive dependencies and check validity
+      const { value: finalConfig, isValid } = evaluatePropertyValue(resolvedConfig);
+
       if (!isValid) {
         // Don't execute if config is invalid
         return;
@@ -222,12 +199,12 @@ function setupAutoTrigger(
       }
 
       // Execute with delay if specified (matches Web Animations API pattern)
-      if (delay && delay > 0) {
+      if (resolvedConfig.delay && resolvedConfig.delay > 0) {
         debounceTimer = setTimeout(() => {
-          executeRequest(requestSignal, resolvedConfig, returnFormat);
-        }, delay);
+          executeRequest(requestSignal, finalConfig, resolvedConfig.responseType);
+        }, resolvedConfig.delay);
       } else {
-        executeRequest(requestSignal, resolvedConfig, returnFormat);
+        executeRequest(requestSignal, finalConfig, resolvedConfig.responseType);
       }
     } catch (error) {
       // If there's an error resolving config, don't execute
@@ -244,45 +221,43 @@ function setupAutoTrigger(
 
 /**
  * Executes the actual fetch request and updates the signal with the parsed data.
- * Uses the modular evaluatePropertyValue to extract final values from resolved config.
+ * Receives already-evaluated primitive config values.
  *
  * @param requestSignal - The request signal to update with response data
- * @param resolvedConfig - The resolved configuration from resolveConfig
- * @param returnFormat - How to parse the response (json, text, etc.)
+ * @param finalConfig - The final primitive configuration values
+ * @param responseType - How to parse the response (json, text, etc.)
  */
 async function executeRequest(
   requestSignal: Signal.State<any>,
-  resolvedConfig: any,
-  returnFormat?: string
+  finalConfig: any,
+  responseType?: string
 ): Promise<void> {
   try {
-    // Use the modular evaluatePropertyValue to extract final values
-    const finalConfig = evaluatePropertyValue(resolvedConfig);
-    
-    // URL is required
-    if (!finalConfig.url) {
-      throw new Error('Request URL is required');
+    // URL is required and must be a valid URL
+    if (!finalConfig.url || finalConfig.url === '' || finalConfig.url === 'undefined') {
+      // Don't log an error for empty/undefined URLs - just skip silently
+      return;
     }
-    
+
     // Handle relative URLs
     let url = finalConfig.url;
     if (!url.startsWith('http')) {
       const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
       url = new URL(url, base).toString();
     }
-    
+
     // Create Request instance with the resolved URL
     const requestOptions = { ...finalConfig };
     delete requestOptions.url;
     delete requestOptions.disabled;
     delete requestOptions.delay;
     delete requestOptions.responseType;
-    
+
     // Handle basic JSON serialization for object bodies
-    if (requestOptions.body && typeof requestOptions.body === 'object' && 
-        requestOptions.body.constructor === Object) {
+    if (requestOptions.body && typeof requestOptions.body === 'object' &&
+      requestOptions.body.constructor === Object) {
       requestOptions.body = JSON.stringify(requestOptions.body);
-      
+
       // Set Content-Type header if not already specified
       if (!requestOptions.headers) {
         requestOptions.headers = {};
@@ -291,18 +266,23 @@ async function executeRequest(
         requestOptions.headers['Content-Type'] = 'application/json';
       }
     }
-    
+
     const request = new Request(url, requestOptions);
-    
-    // Execute fetch
-    const response = await fetch(request);
-    
-    // Parse response data based on return format
-    let data: any = null;
+
+    // Execute fetch with clean response handling
     try {
-      if (returnFormat) {
+      const response = await fetch(request);
+      
+      // Check for basic errors
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      // Parse response data based on return format
+      let data;
+      if (responseType) {
         // Use specified format
-        switch (returnFormat) {
+        switch (responseType) {
           case 'json':
             data = await response.json();
             break;
@@ -327,24 +307,29 @@ async function executeRequest(
       } else {
         // Auto-detect based on content-type
         const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          data = await response.json();
+        if (contentType && contentType.includes('json')) {
+          try {
+            data = await response.json();
+          } catch (e) {
+            console.warn(`Failed to parse response as JSON for ${url}:`, e);
+            data = null;
+          }
         } else {
           data = await response.text();
         }
       }
-    } catch (parseError) {
-      // If parsing fails, use the response as-is
-      data = response;
+
+      // Update signal with parsed data directly
+      requestSignal.set(data);
+    } catch (error) {
+      console.warn(`Request failed for ${url}:`, error);
+      // For errors, set null
+      requestSignal.set(null);
     }
 
-    // Update signal with parsed data directly
-    requestSignal.set(data);
-
   } catch (error) {
-    // For errors, we could set null or throw - let's set null for now
+    console.warn('Request setup failed:', error);
     requestSignal.set(null);
-    console.warn('Request failed:', error);
   }
 }
 
@@ -379,7 +364,7 @@ export function processNamespacedProperty(
   options: DOMSpecOptions = {}
 ): void {
   const namespaceData = extractNamespace(value);
-  
+
   if (!namespaceData) {
     console.warn(`Failed to extract namespace from property "${key}"`);
     return;
@@ -387,7 +372,7 @@ export function processNamespacedProperty(
 
   const { namespace, config } = namespaceData;
   const handler = NAMESPACE_HANDLERS[namespace];
-  
+
   if (!handler) {
     console.warn(`No handler found for namespace "${namespace}" in property "${key}"`);
     return;

@@ -11,6 +11,20 @@ describe('Namespaced Properties - Request Namespace', () => {
     mockFetch.mockClear();
     // Reset any global state
     document.body.innerHTML = '';
+    // Use fake timers to control microtask execution
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'nextTick', 'queueMicrotask'] });
+    
+    // Set up a default mock response to prevent console errors from auto-triggered requests
+    mockFetch.mockResolvedValue({
+      ok: true,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: vi.fn().mockResolvedValue({ default: true })
+    });
+  });
+
+  afterEach(() => {
+    // Clean up fake timers after each test
+    vi.useRealTimers();
   });
 
   describe('Namespace Detection', () => {
@@ -33,7 +47,7 @@ describe('Namespaced Properties - Request Namespace', () => {
     test('should extract namespace and config correctly', () => {
       const config = { url: '/api/users', method: 'GET' };
       const namespaced = { Request: config };
-      
+
       const extracted = extractNamespace(namespaced);
       expect(extracted).toEqual({
         namespace: 'Request',
@@ -62,10 +76,10 @@ describe('Namespaced Properties - Request Namespace', () => {
 
       expect(element.$userData).toBeDefined();
       expect(Signal.isState(element.$userData)).toBe(true);
-      
+
       const state = element.$userData.get();
       expect(state).toBe(null); // Should be null initially
-      
+
       expect(typeof element.$userData.fetch).toBe('function');
     });
 
@@ -109,9 +123,12 @@ describe('Namespaced Properties - Request Namespace', () => {
       // Execute manual fetch
       await element.$userData.fetch();
 
+      // Run all pending timers and microtasks
+      vi.runAllTicks();
+
       // Verify fetch was called
       expect(mockFetch).toHaveBeenCalledTimes(1);
-      
+
       // Verify state was updated
       const state = element.$userData.get();
       expect(state).toEqual({ id: 1, name: 'John' });
@@ -132,6 +149,7 @@ describe('Namespaced Properties - Request Namespace', () => {
       });
 
       await element.$userData.fetch();
+      vi.runAllTicks();
 
       const state = element.$userData.get();
       expect(state).toBe(null); // Error handling sets signal to null
@@ -157,9 +175,10 @@ describe('Namespaced Properties - Request Namespace', () => {
       });
 
       await element.$userData.fetch();
+      vi.runAllTicks();
 
       const state = element.$userData.get();
-      expect(state).toBe(mockResponse); // Falls back to response object
+      expect(state).toBe(null); // Falls back to null on JSON parse error
     });
   });
 
@@ -175,7 +194,7 @@ describe('Namespaced Properties - Request Namespace', () => {
       // Create element with reactive property
       const element = createElement({
         tagName: 'div',
-        $userId: new Signal.State(123),
+        $userId: 123,
         $userData: {
           Request: {
             url: '/api/users/${this.$userId.get()}',
@@ -216,11 +235,12 @@ describe('Namespaced Properties - Request Namespace', () => {
       });
 
       await element.$userData.fetch();
+      vi.runAllTicks();
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
       const fetchCall = mockFetch.mock.calls[0];
       const request = fetchCall[0];
-      
+
       // Check that Content-Type header was set
       expect(request.headers.get('Content-Type')).toBe('application/json');
     });
@@ -254,7 +274,7 @@ describe('Namespaced Properties - Request Namespace', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
       const fetchCall = mockFetch.mock.calls[0];
       const request = fetchCall[0];
-      
+
       expect(request.method).toBe('POST');
       expect(request.mode).toBe('cors');
       expect(request.credentials).toBe('include');
@@ -282,6 +302,7 @@ describe('Namespaced Properties - Request Namespace', () => {
       });
 
       await element.$userData.fetch();
+      vi.runAllTicks();
 
       const state = element.$userData.get();
       expect(state).toEqual(jsonData);
@@ -307,6 +328,7 @@ describe('Namespaced Properties - Request Namespace', () => {
       });
 
       await element.$userData.fetch();
+      vi.runAllTicks();
 
       const state = element.$userData.get();
       expect(state).toBe(textData);
@@ -324,11 +346,12 @@ describe('Namespaced Properties - Request Namespace', () => {
 
       const element = createElement({
         tagName: 'div',
-        $searchQuery: new Signal.State(''),
+        $searchQuery: '',
         $searchResults: {
           Request: {
             url: '/api/search?q=${this.$searchQuery.get()}',
             delay: 100 // 100ms delay (matches Web Animations API pattern)
+            // disabled is false by default (auto-enabled)
           }
         }
       });
@@ -337,8 +360,10 @@ describe('Namespaced Properties - Request Namespace', () => {
       element.$searchQuery.set('test');
       expect(mockFetch).not.toHaveBeenCalled();
 
-      // Should fire after delay
-      await new Promise(resolve => setTimeout(resolve, 150));
+      // Advance timers by the delay amount
+      vi.advanceTimersByTime(100);
+      vi.runAllTicks();
+
       expect(mockFetch).toHaveBeenCalledTimes(1);
       
       const fetchCall = mockFetch.mock.calls[0];

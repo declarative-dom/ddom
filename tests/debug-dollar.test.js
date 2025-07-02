@@ -102,7 +102,7 @@ describe('Reactive Property Debug', () => {
           children: [{
             tagName: 'div',
             id: 'debug-test',
-            textContent: 'Hello ${$name}!'
+            textContent: 'Hello ${$name.get()}!'
           }]
         }
       }
@@ -110,16 +110,9 @@ describe('Reactive Property Debug', () => {
 
     DDOM(spec);
     
-    console.log('window.$name:', window.$name);
-    console.log('typeof window.$name:', typeof window.$name);
-    
-    if (window.$name && typeof window.$name === 'object' && 'get' in window.$name) {
-      console.log('Value from get():', window.$name.get());
-    }
-    
     const element = document.getElementById('debug-test');
-    console.log('Element textContent:', element.textContent);
     
     expect(element).toBeDefined();
+    expect(element.textContent).toBe('Hello Alice!');
   });
 });

@@ -3,11 +3,11 @@ import customElementsExample from './custom-elements.js';
 import interactiveFormExample from './interactive-form.js';
 import dynamicListExample from './dynamic-list.js';
 import computedPropertiesExample from './computed-properties.js';
+import declarativeFetchExample from './declarative-fetch.js';
 import jsesc from 'https://cdn.jsdelivr.net/npm/jsesc/+esm';
 
-
 export default {
-  examples: {
+  $examples: {
     basic: { name: 'Basic Example', config: basicExample, path: '/basic.html' },
     'custom-elements': {
       name: 'Custom Elements',
@@ -29,6 +29,11 @@ export default {
       config: computedPropertiesExample,
       path: '/computed-properties.html',
     },
+    'declarative-fetch': {
+      name: 'Declarative Fetch',
+      config: declarativeFetchExample,
+      path: '/declarative-fetch.html',
+    }
   },
 
   // Reactive current example
@@ -37,11 +42,11 @@ export default {
   // Computed properties for iframe content generation
   currentExampleConfig: function () {
     // Return the config for the current example
-    return window.examples[window.$currentExample.get()]?.config;
+    return this.$examples.get()[window.$currentExample.get()]?.config;
   },
 
   currentExampleURL: function () {
-    return window.examples[window.$currentExample.get()]?.path;
+    return this.$examples.get()[window.$currentExample.get()]?.path;
   },
 
   currentExampleJSON: function () {
@@ -61,10 +66,9 @@ export default {
       // Scoped & Reactive Properties
       $label: '',
       $example: '',
-      $active: false,
 
       attributes: {
-        'data-active': '${this.$active.get()}',
+        'data-active': '${window.$currentExample.get() === this.$example.get()}',
       },
 
       style: {
@@ -145,46 +149,15 @@ export default {
                 gap: '1em',
                 flexWrap: 'wrap',
               },
-              children: [
-                {
+              children: {
+                items: () => Object.entries(window.$examples.get()),
+                map: {
                   tagName: 'nav-button',
-                  id: 'nav-basic',
-                  $label: 'Basic Example',
-                  $example: 'basic',
-                  $active: '${window.$currentExample.get() === "basic"}',
+                  id: (item) => `nav-${item[0]}`,
+                  $label: (item) => item[1].name,
+                  $example: (item) => item[0],
                 },
-                {
-                  tagName: 'nav-button',
-                  id: 'nav-custom-elements',
-                  $label: 'Custom Elements',
-                  $example: 'custom-elements',
-                  $active:
-                    '${window.$currentExample.get() === "custom-elements"}',
-                },
-                {
-                  tagName: 'nav-button',
-                  id: 'nav-interactive-form',
-                  $label: 'Interactive Form',
-                  $example: 'interactive-form',
-                  $active:
-                    '${window.$currentExample.get() === "interactive-form"}',
-                },
-                {
-                  tagName: 'nav-button',
-                  id: 'nav-dynamic-list',
-                  $label: 'Dynamic List',
-                  $example: 'dynamic-list',
-                  $active: '${window.$currentExample.get() === "dynamic-list"}',
-                },
-                {
-                  tagName: 'nav-button',
-                  id: 'nav-computed-properties',
-                  $label: 'Computed Properties',
-                  $example: 'computed-properties',
-                  $active:
-                    '${window.$currentExample.get() === "computed-properties"}',
-                },
-              ],
+              },
             },
           ],
         },
