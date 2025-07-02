@@ -164,14 +164,15 @@ Strings beginning with `document.`, `this.` or `window.` are provisioned as prop
 
 ### ⚡ Template Literal Reactivity
 
-Strings with `${...}` are automatically converted to reactive template expressions, allowing dynamic content updates:
+Strings with `${...}` are automatically converted to reactive template expressions using explicit signal access:
 
 ```JavaScript
 {
   tagName: 'div',
-  // Standard property with template - provisioned as reactive DOM binding
-  textContent: 'Count is ${window.$counter.get()}',
-  className: 'status ${window.$counter.get() > 10 ? "high" : "low"}',
+  // Signals use explicit .get() calls in templates
+  textContent: 'Count is ${this.$counter.get()}',     // ← Explicit signal access
+  className: 'status ${this.$counter.get() > 10 ? "high" : "low"}', // ← Works with expressions
+  title: 'User: ${this.$name.get()} (${this.$age.get()})', // ← Multiple signals, all explicit
 }
 ```
 
@@ -251,7 +252,7 @@ Create dynamic lists that automatically update when data changes:
         $todoItem: {},
         $todoIndex: 0,
 
-        textContent: '${this.todoItem.get().text}'
+        textContent: '${this.$todoItem.get().text}' // ← Explicit signal access
     }],
     // Document body structure
     document: {

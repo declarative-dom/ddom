@@ -356,34 +356,38 @@ export const handleStyleProperty = createHandler(
  * @param value - The property value to resolve
  * @param contextNode - The context for template/accessor evaluation
  * @param options - Optional configuration
- * @returns The resolved value
+ * @returns Object with resolved value and validity flag
  */
 export function resolvePropertyValue(
   key: string,
   value: any,
   contextNode: any, // Accept any context - more flexible
   options: DOMSpecOptions = {}
-): any {
+): { value: any; isValid: boolean } {
   const { ignoreKeys = [] } = options;
   
-  // Skip ignored keys
+  // Skip ignored keys - always valid
   if (ignoreKeys.includes(key)) {
-    return value;
+    return { value, isValid: true };
   }
 
   // Handle property accessor strings
   if (typeof value === 'string' && isPropertyAccessor(value)) {
     const resolved = resolvePropertyAccessor(value, contextNode);
-    return resolved !== null ? resolved : value;
+    return { value: resolved !== null ? resolved : value, isValid: resolved !== null };
   }
 
   // Handle template literals
   if (typeof value === 'string' && isTemplateLiteral(value)) {
-    return computedTemplate(value, contextNode);
+    const computedSignal = computedTemplate(value, contextNode);
+    return { value: computedSignal, isValid: true };
   }
 
+  // For simple values, check if empty string (invalid)
+  const isValid = value !== '';
+  
   // Everything else returns as-is
-  return value;
+  return { value, isValid };
 }
 
 // === PROPERTY ASSIGNMENT (Side Effects) ===
@@ -424,8 +428,14 @@ export function assignPropertyValue(
   }
 
   // Handle template literals on regular properties (create reactive DOM binding)
+  // FIXED: Check if value is a computed signal from template resolution
   if (typeof value === 'object' && value !== null && Signal.isComputed(value) && !key.startsWith('$')) {
-    bindPropertyTemplate(el, key, value);
+    // For computed signals, we need to create an effect to update the property
+    createReactiveBinding(
+      value as Signal.Computed<any>,
+      (newValue) => (el[key] = newValue),
+      (newValue) => el[key] !== newValue
+    );
     return;
   }
 
@@ -458,7 +468,7 @@ export function handleDefaultProperty(
 ): void {
   if (!Object.hasOwn(el, key)) {
     // Property doesn't exist - resolve then assign
-    const resolvedValue = resolvePropertyValue(key, value, el, options);
+    const { value: resolvedValue } = resolvePropertyValue(key, value, el, options);
     assignPropertyValue(el, key, resolvedValue, options);
   }
 }
@@ -507,7 +517,7 @@ export function getDOMHandler(key: string): DDOMPropertyHandler {
 
 /**
  * Evaluates JavaScript template literals using DOM nodes as context.
- * Uses native JavaScript template literal syntax with the context node as 'this'.
+ * Uses explicit .get() calls for signal access in templates.
  *
  * @param template - The template string to evaluate as a JavaScript template literal
  * @param contextNode - The DOM node to use as the context ('this') for template evaluation
@@ -529,14 +539,20 @@ export function parseTemplateLiteral(
  * Creates a template function bound to a specific context.
  *
  * @param template - The template string to bind
- * @returns A function that evaluates the template with the given context
+ * @returns A function that evaluates the template
  */
-export const bindTemplate = (template: string) => (context: any) =>
-  new Function('return `' + template + '`').call(context);
+export const bindTemplate = (template: string) => (context: any) => {
+  try {
+    return new Function('return `' + template + '`').call(context);
+  } catch (error) {
+    console.warn(`Template binding failed: ${error}, Template: ${template}`);
+    return template;
+  }
+};
 
 /**
  * Creates a Computed Signal that automatically re-evaluates a template
- * when its dependencies change.
+ * when its dependencies change. Uses explicit .get() calls for signal access.
  *
  * @param template - The template string to make reactive
  * @param contextNode - The DOM node to use as context

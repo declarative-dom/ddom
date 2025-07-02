@@ -265,20 +265,8 @@ export interface RequestConfig {
   keepalive?: boolean;
   signal?: any;
   
-  // Minimal DDOM extensions (only two non-standard properties)
-  trigger?: 'auto' | 'manual'; // Only two modes: auto (default) or manual
-  debounce?: number; // Standard debouncing for auto requests
-}
-
-/**
- * RequestState Type Definition
- * State structure for Request namespace signals.
- * Each request creates a reactive signal with this state structure.
- */
-export interface RequestState {
-  loading: boolean;     // Request in progress
-  data: any;           // Parsed response data  
-  error: Error | null; // Request error, if any
-  response: Response | null; // Raw fetch Response
-  lastFetch: number;   // Timestamp of last request
+  // DDOM extensions for declarative control
+  trigger?: 'auto' | 'manual'; // Auto (default) or manual triggering
+  debounce?: number; // Debouncing for auto requests
+  return?: 'arrayBuffer' | 'blob' | 'bytes' | 'clone' | 'formData' | 'json' | 'text'; // Response parsing method (default: auto-detect)
 }

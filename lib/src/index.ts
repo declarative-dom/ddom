@@ -17,7 +17,7 @@ export { Signal } from 'signal-polyfill';
 export { MappedArray } from './arrays';
 export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate, isPropertyAccessor, resolvePropertyAccessor, createReactiveProperty } from './properties';
 export { isNamespacedProperty, processNamespacedProperty, NAMESPACE_HANDLERS, extractNamespace } from './namespaces';
-export type { RequestConfig, RequestState } from '../../types/src';
+export type { RequestConfig } from '../../types/src';
 
 // Default export: DDOM function with namespace properties
 function DDOM(spec: any) {

@@ -1,6 +1,7 @@
 export default {
-  $buttonText: 'Click Me!', // Becomes a scoped State Signal
-  $alertMessage: 'You clicked the ${$buttonText.get()} button!', // Becomes a scoped Computed Signal
+  $count: 0, // Another scoped State Signal
+  $buttonText: '${$count.get() < 1 ? "Click Me!" : "Click me again!"}', // Becomes a scoped State Signal
+  $alertMessage: 'You clicked the button ${$count.get() + 1} times!', // Becomes a scoped Computed Signal
   document: {
     body: {
       style: {
@@ -20,6 +21,7 @@ export default {
         },
         {
           tagName: 'button',
+          $localButtonText: 'local button text',
           textContent: '${$buttonText.get()}', // Reference the property
           style: {
             padding: '0.5em 1em',
@@ -32,8 +34,8 @@ export default {
           },
           onclick: () => {
             alert($alertMessage.get());
-			$buttonText.set('Click me again!'); // Update the button text property
-          },
+            $count.set($count.get() + 1); // Increment the count
+          }
         },
       ],
     },

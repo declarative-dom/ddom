@@ -12,7 +12,6 @@ export {
 	HTMLHeadElementSpec,
 	Operator,
 	RequestConfig,
-	RequestState,
 	SortExpr,
 	StyleExpr,
 	WindowSpec,
