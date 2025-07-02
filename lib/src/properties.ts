@@ -391,51 +391,56 @@ export function resolvePropertyValue(
 /**
  * Evaluates a resolved value to its final primitive form with validity checking.
  * This is the counterpart to assignPropertyValue - it extracts values and determines validity.
+ * Recursively evaluates nested structures and collects validity state from all evaluations.
  * 
  * @param value - The resolved value (could be a signal, object, or primitive)
- * @param options - Optional configuration for validity checking
  * @returns Object with final primitive value and validity flag
  */
-export function evaluatePropertyValue(value: any): { value: any; isValid: boolean } {  
-  const evaluatedValue = evaluatePropertyValuePrimitive(value);
+export function evaluatePropertyValue(value: any): { value: any; isValid: boolean } {
+  let isValid = true;
   
-  // Determine validity - empty strings, null, undefined are invalid for most use cases
-  const isValid = evaluatedValue !== '' && evaluatedValue !== null && evaluatedValue !== undefined && evaluatedValue !== 'undefined';
+  const evaluate = (val: any): any => {
+    // Handle signals - extract their current values
+    if (typeof val === 'object' && val !== null && Signal.isState(val)) {
+      const extracted = (val as Signal.State<any>).get();
+      if (extracted === '' || extracted === null || extracted === undefined || extracted === 'undefined') {
+        isValid = false;
+      }
+      return extracted;
+    } else if (typeof val === 'object' && val !== null && Signal.isComputed(val)) {
+      const extracted = (val as Signal.Computed<any>).get();
+      if (extracted === '' || extracted === null || extracted === undefined || extracted === 'undefined') {
+        isValid = false;
+      }
+      return extracted;
+    }
+    
+    // Handle nested objects recursively
+    if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+      const evaluated: any = {};
+      Object.entries(val).forEach(([key, nestedValue]) => {
+        evaluated[key] = evaluate(nestedValue);
+      });
+      return evaluated;
+    }
+    
+    // Handle arrays recursively
+    if (Array.isArray(val)) {
+      return val.map(item => evaluate(item));
+    }
+    
+    // Check primitive validity
+    if (val === '' || val === null || val === undefined || val === 'undefined') {
+      isValid = false;
+    }
+    
+    // Everything else returns as-is
+    return val;
+  };
+  
+  const evaluatedValue = evaluate(value);
   
   return { value: evaluatedValue, isValid };
-}
-
-/**
- * Evaluates a resolved value to its final primitive form without validity checking.
- * This is a pure evaluation function that extracts signal values recursively.
- * 
- * @param value - The resolved value (could be a signal, object, or primitive)
- * @returns The final primitive value
- */
-export function evaluatePropertyValuePrimitive(value: any): any {
-  // Handle signals - extract their current values
-  if (typeof value === 'object' && value !== null && Signal.isState(value)) {
-    return (value as Signal.State<any>).get();
-  } else if (typeof value === 'object' && value !== null && Signal.isComputed(value)) {
-    return (value as Signal.Computed<any>).get();
-  }
-  
-  // Handle nested objects recursively
-  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-    const evaluated: any = {};
-    Object.entries(value).forEach(([key, nestedValue]) => {
-      evaluated[key] = evaluatePropertyValuePrimitive(nestedValue);
-    });
-    return evaluated;
-  }
-  
-  // Handle arrays recursively
-  if (Array.isArray(value)) {
-    return value.map(item => evaluatePropertyValuePrimitive(item));
-  }
-  
-  // Everything else returns as-is
-  return value;
 }
 
 /**
