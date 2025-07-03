@@ -257,8 +257,6 @@ export default {
             {
               tagName: "button",
               textContent: "Remove",
-              id: "remove-btn-${this.$index.get()}",
-              popoverTarget: "confirm-popover-${this.$index.get()}",
               style: {
                 padding: "0.25em 0.5em",
                 backgroundColor: "#dc3545",
@@ -267,91 +265,15 @@ export default {
                 borderRadius: "3px",
                 cursor: "pointer",
                 fontSize: "0.875em",
-                transition: "background-color 0.2s",
-                ":hover": {
-                  backgroundColor: "#c82333"
-                }
-              }
-            },
-            {
-              tagName: "div",
-              id: "confirm-popover-${this.$index.get()}",
-              popover: "auto",
-              style: {
-                margin: 0,
-                padding: "1rem",
-                backgroundColor: "#fff",
-                border: "1px solid #dee2e6",
-                borderRadius: "0.5rem",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                minWidth: "200px",
-                maxWidth: "300px"
               },
-              children: [
-                {
-                  tagName: "p",
-                  textContent: 'Remove "${this.$item.get()}"?',
-                  style: {
-                    margin: "0 0 1rem 0",
-                    fontSize: "0.9rem",
-                    color: "#495057"
-                  }
-                },
-                {
-                  tagName: "div",
-                  style: {
-                    display: "flex",
-                    gap: "0.5rem",
-                    justifyContent: "flex-end"
-                  },
-                  children: [
-                    {
-                      tagName: "button",
-                      textContent: "Cancel",
-                      style: {
-                        padding: "0.5rem 1rem",
-                        backgroundColor: "#6c757d",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "0.25rem",
-                        cursor: "pointer",
-                        fontSize: "0.85rem",
-                        transition: "background-color 0.2s",
-                        ":hover": {
-                          backgroundColor: "#5a6268"
-                        }
-                      },
-                      onclick: function() {
-                        this.closest('[popover]').hidePopover();
-                      }
-                    },
-                    {
-                      tagName: "button",
-                      textContent: "Remove",
-                      style: {
-                        padding: "0.5rem 1rem",
-                        backgroundColor: "#dc3545",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "0.25rem",
-                        cursor: "pointer",
-                        fontSize: "0.85rem",
-                        fontWeight: "500",
-                        transition: "background-color 0.2s",
-                        ":hover": {
-                          backgroundColor: "#c82333"
-                        }
-                      },
-                      onclick: function() {
-                        const index = this.$index.get();
-                        window.removeItem(index);
-                        this.closest('[popover]').hidePopover();
-                      }
-                    }
-                  ]
+              onclick: function (_event) {
+                const index = this.$index.get();
+                const item = this.$item.get();
+                if (confirm(`Are you sure you want to remove "${item}"?`)) {
+                  window.removeItem(index);
                 }
-              ]
-            }
+              },
+            },
           ],
         },
       ],
