@@ -518,27 +518,27 @@ const bindReadableStream = createNamespaceHandler(
  * Cookie namespace - creates reactive cookie management
  */
 const bindCookie = createNamespaceHandler(
-  (config: any, key: string): config is { name: string; value?: string; domain?: string; path?: string; expires?: Date | string; maxAge?: number; secure?: boolean; sameSite?: string; initialValue?: string } => 
+  (config: any, key: string): config is { name: string; value?: string; domain?: string; path?: string; expires?: Date | string; maxAge?: number; secure?: boolean; sameSite?: string } => 
     validateObjectConfig(config, key, ['name']),
   (resolvedConfig: any, key: string) => {
     const { value: finalConfig, isValid } = evaluatePropertyValue(resolvedConfig);
     if (!isValid || !finalConfig.name) return new Signal.State(null);
 
-    // Determine initial value - check cookie first, then use initialValue/value
+    // Determine initial value - check cookie first, then use value property
     let initialValue = null;
     if (typeof document !== 'undefined') {
       const existingValue = getCookieValue(finalConfig.name);
       if (existingValue !== null) {
         initialValue = existingValue;
       } else {
-        initialValue = finalConfig.initialValue !== undefined ? finalConfig.initialValue : finalConfig.value;
+        initialValue = finalConfig.value;
         // Set the cookie if we have an initial value
         if (initialValue !== undefined) {
           setCookie(finalConfig.name, String(initialValue), finalConfig);
         }
       }
     } else {
-      initialValue = finalConfig.initialValue !== undefined ? finalConfig.initialValue : finalConfig.value;
+      initialValue = finalConfig.value;
     }
 
     // Create state signal with initial value
@@ -561,13 +561,13 @@ const bindCookie = createNamespaceHandler(
  * SessionStorage namespace - creates reactive sessionStorage management
  */
 const bindSessionStorage = createNamespaceHandler(
-  (config: any, key: string): config is { key: string; value?: any; initialValue?: any } => 
+  (config: any, key: string): config is { key: string; value?: any } => 
     validateObjectConfig(config, key, ['key']),
   (resolvedConfig: any, key: string) => {
     const { value: finalConfig, isValid } = evaluatePropertyValue(resolvedConfig);
     if (!isValid || !finalConfig.key) return new Signal.State(null);
 
-    // Determine initial value - check sessionStorage first, then use initialValue/value
+    // Determine initial value - check sessionStorage first, then use value property
     let initialValue = null;
     if (typeof window !== 'undefined' && window.sessionStorage) {
       const existingValue = window.sessionStorage.getItem(finalConfig.key);
@@ -578,7 +578,7 @@ const bindSessionStorage = createNamespaceHandler(
           initialValue = existingValue;
         }
       } else {
-        initialValue = finalConfig.initialValue !== undefined ? finalConfig.initialValue : finalConfig.value;
+        initialValue = finalConfig.value;
         // Set the sessionStorage if we have an initial value
         if (initialValue !== undefined) {
           const valueToStore = typeof initialValue === 'string' ? initialValue : JSON.stringify(initialValue);
@@ -586,7 +586,7 @@ const bindSessionStorage = createNamespaceHandler(
         }
       }
     } else {
-      initialValue = finalConfig.initialValue !== undefined ? finalConfig.initialValue : finalConfig.value;
+      initialValue = finalConfig.value;
     }
 
     // Create state signal with initial value
@@ -610,13 +610,13 @@ const bindSessionStorage = createNamespaceHandler(
  * LocalStorage namespace - creates reactive localStorage management
  */
 const bindLocalStorage = createNamespaceHandler(
-  (config: any, key: string): config is { key: string; value?: any; initialValue?: any } => 
+  (config: any, key: string): config is { key: string; value?: any } => 
     validateObjectConfig(config, key, ['key']),
   (resolvedConfig: any, key: string) => {
     const { value: finalConfig, isValid } = evaluatePropertyValue(resolvedConfig);
     if (!isValid || !finalConfig.key) return new Signal.State(null);
 
-    // Determine initial value - check localStorage first, then use initialValue/value
+    // Determine initial value - check localStorage first, then use value property
     let initialValue = null;
     if (typeof window !== 'undefined' && window.localStorage) {
       const existingValue = window.localStorage.getItem(finalConfig.key);
@@ -627,7 +627,7 @@ const bindLocalStorage = createNamespaceHandler(
           initialValue = existingValue;
         }
       } else {
-        initialValue = finalConfig.initialValue !== undefined ? finalConfig.initialValue : finalConfig.value;
+        initialValue = finalConfig.value;
         // Set the localStorage if we have an initial value
         if (initialValue !== undefined) {
           const valueToStore = typeof initialValue === 'string' ? initialValue : JSON.stringify(initialValue);
@@ -635,7 +635,7 @@ const bindLocalStorage = createNamespaceHandler(
         }
       }
     } else {
-      initialValue = finalConfig.initialValue !== undefined ? finalConfig.initialValue : finalConfig.value;
+      initialValue = finalConfig.value;
     }
 
     // Create state signal with initial value
@@ -659,7 +659,7 @@ const bindLocalStorage = createNamespaceHandler(
  * IndexedDB namespace - creates reactive IndexedDB management
  */
 const bindIndexedDB = createNamespaceHandler(
-  (config: any, key: string): config is { database: string; store: string; key?: any; value?: any; initialValue?: any; version?: number } => 
+  (config: any, key: string): config is { database: string; store: string; key?: any; value?: any; version?: number } => 
     validateObjectConfig(config, key, ['database', 'store']),
   (resolvedConfig: any, key: string) => {
     const dbSignal = new Signal.Computed(() => {
@@ -675,7 +675,7 @@ const bindIndexedDB = createNamespaceHandler(
         store: finalConfig.store,
         key: finalConfig.key,
         version: finalConfig.version || 1,
-        initialValue: finalConfig.initialValue !== undefined ? finalConfig.initialValue : finalConfig.value,
+        initialValue: finalConfig.value,
         
         async get() {
           try {

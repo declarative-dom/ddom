@@ -14,7 +14,7 @@ const userPreferencesApp = createElement({
   $sessionPrefs: {
     Cookie: {
       name: 'sessionPrefs',
-      initialValue: JSON.stringify({ theme: 'auto', language: 'en' }),
+      value: JSON.stringify({ theme: 'auto', language: 'en' }),
       maxAge: 3600 // 1 hour
     }
   },
@@ -23,7 +23,7 @@ const userPreferencesApp = createElement({
   $tempState: {
     SessionStorage: {
       key: 'tempAppState',
-      initialValue: {
+      value: {
         lastVisited: new Date().toISOString(),
         pageViews: 0
       }
@@ -34,7 +34,7 @@ const userPreferencesApp = createElement({
   $userSettings: {
     LocalStorage: {
       key: 'userSettings',
-      initialValue: {
+      value: {
         theme: 'light',
         notifications: true,
         autoSave: true,
@@ -49,7 +49,7 @@ const userPreferencesApp = createElement({
       database: 'UserAppDB',
       store: 'profiles',
       key: 'currentUser',
-      initialValue: {
+      value: {
         name: '',
         email: '',
         avatar: null,

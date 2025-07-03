@@ -88,7 +88,7 @@ describe('Namespaced Properties - Storage APIs', () => {
         $userCookie: {
           Cookie: {
             name: 'username',
-            initialValue: 'defaultUser'
+            value: 'defaultUser'
           }
         }
       });
@@ -109,7 +109,7 @@ describe('Namespaced Properties - Storage APIs', () => {
         $userCookie: {
           Cookie: {
             name: 'username',
-            initialValue: 'defaultUser'
+            value: 'defaultUser'
           }
         }
       });
@@ -124,7 +124,7 @@ describe('Namespaced Properties - Storage APIs', () => {
         $settingsCookie: {
           Cookie: {
             name: 'settings',
-            initialValue: '{"theme":"dark"}',
+            value: '{"theme":"dark"}',
             path: '/',
             maxAge: 3600,
             secure: true
@@ -143,7 +143,7 @@ describe('Namespaced Properties - Storage APIs', () => {
         $sessionData: {
           SessionStorage: {
             key: 'userData',
-            initialValue: { name: 'John', age: 30 }
+            value: { name: 'John', age: 30 }
           }
         }
       });
@@ -171,7 +171,7 @@ describe('Namespaced Properties - Storage APIs', () => {
         $sessionData: {
           SessionStorage: {
             key: 'userData',
-            initialValue: { name: 'John', age: 30 }
+            value: { name: 'John', age: 30 }
           }
         }
       });
@@ -188,7 +188,7 @@ describe('Namespaced Properties - Storage APIs', () => {
         $simpleData: {
           SessionStorage: {
             key: 'simpleKey',
-            initialValue: 'defaultValue'
+            value: 'defaultValue'
           }
         }
       });
@@ -205,7 +205,7 @@ describe('Namespaced Properties - Storage APIs', () => {
         $localData: {
           LocalStorage: {
             key: 'appSettings',
-            initialValue: { theme: 'light', language: 'en' }
+            value: { theme: 'light', language: 'en' }
           }
         }
       });
@@ -233,7 +233,7 @@ describe('Namespaced Properties - Storage APIs', () => {
         $localData: {
           LocalStorage: {
             key: 'appSettings',
-            initialValue: { theme: 'light', language: 'en' }
+            value: { theme: 'light', language: 'en' }
           }
         }
       });
@@ -261,7 +261,7 @@ describe('Namespaced Properties - Storage APIs', () => {
             database: 'testDB',
             store: 'users',
             key: 'user1',
-            initialValue: { name: 'John', email: 'john@example.com' }
+            value: { name: 'John', email: 'john@example.com' }
           }
         }
       });
@@ -317,7 +317,7 @@ describe('Namespaced Properties - Storage APIs', () => {
         $data: {
           SessionStorage: {
             key: 'testKey',
-            initialValue: 'initial'
+            value: 'initial'
           }
         }
       });
@@ -343,7 +343,7 @@ describe('Namespaced Properties - Storage APIs', () => {
         $data: {
           LocalStorage: {
             key: 'testKey',
-            initialValue: { value: 'initial' }
+            value: { value: 'initial' }
           }
         }
       });

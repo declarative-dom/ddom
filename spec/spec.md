@@ -330,8 +330,7 @@ dictionary ReadableStreamConfig {
 // Cookie namespace for browser cookie management
 dictionary CookieConfig {
   required DOMString name;
-  DOMString value;
-  DOMString initialValue;
+  DOMString value;             // Initial value if cookie doesn't exist
   DOMString domain;
   DOMString path;
   (Date or DOMString) expires;
@@ -343,15 +342,13 @@ dictionary CookieConfig {
 // SessionStorage namespace for session storage management
 dictionary SessionStorageConfig {
   required DOMString key;
-  any value;
-  any initialValue;
+  any value;                   // Initial value if key doesn't exist
 };
 
 // LocalStorage namespace for local storage management
 dictionary LocalStorageConfig {
   required DOMString key;
-  any value;
-  any initialValue;
+  any value;                   // Initial value if key doesn't exist
 };
 
 // IndexedDB namespace for database operations
@@ -359,8 +356,7 @@ dictionary IndexedDBConfig {
   required DOMString database;
   required DOMString store;
   any key;
-  any value;
-  any initialValue;
+  any value;                   // Initial value if record doesn't exist
   long version;
 };
 
@@ -724,7 +720,7 @@ DDOM provides declarative access to Web APIs through namespaced properties. Each
   $userPrefs: {
     Cookie: {
       name: 'userPreferences',
-      initialValue: '{"theme":"light","lang":"en"}',
+      value: '{"theme":"light","lang":"en"}',
       path: '/',
       maxAge: 86400
     }
@@ -734,7 +730,7 @@ DDOM provides declarative access to Web APIs through namespaced properties. Each
   $sessionData: {
     SessionStorage: {
       key: 'currentSession',
-      initialValue: { startTime: Date.now(), userId: null }
+      value: { startTime: Date.now(), userId: null }
     }
   },
   
@@ -742,7 +738,7 @@ DDOM provides declarative access to Web APIs through namespaced properties. Each
   $appSettings: {
     LocalStorage: {
       key: 'appConfig',
-      initialValue: { 
+      value: { 
         theme: 'light', 
         notifications: true 
       }
@@ -755,7 +751,7 @@ DDOM provides declarative access to Web APIs through namespaced properties. Each
       database: 'UserDB',
       store: 'profiles',
       key: '${this.$userId.get()}',
-      initialValue: { 
+      value: { 
         name: '', 
         email: '', 
         preferences: {} 

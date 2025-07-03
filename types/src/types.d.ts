@@ -278,8 +278,7 @@ export interface RequestConfig {
  */
 export interface CookieConfig {
   name: string;                       // Required: cookie name
-  value?: string;                     // Cookie value to set
-  initialValue?: string;              // Initial value if cookie doesn't exist
+  value?: string;                     // Cookie value - used as initial value if cookie doesn't exist
   domain?: string;                    // Cookie domain
   path?: string;                      // Cookie path (default: current path)
   expires?: Date | string;            // Expiration date
@@ -295,8 +294,7 @@ export interface CookieConfig {
  */
 export interface SessionStorageConfig {
   key: string;                        // Required: storage key
-  value?: any;                        // Value to set
-  initialValue?: any;                 // Initial value if key doesn't exist
+  value?: any;                        // Value - used as initial value if key doesn't exist
 }
 
 /**
@@ -306,8 +304,7 @@ export interface SessionStorageConfig {
  */
 export interface LocalStorageConfig {
   key: string;                        // Required: storage key
-  value?: any;                        // Value to set
-  initialValue?: any;                 // Initial value if key doesn't exist
+  value?: any;                        // Value - used as initial value if key doesn't exist
 }
 
 /**
@@ -319,7 +316,6 @@ export interface IndexedDBConfig {
   database: string;                   // Required: database name
   store: string;                      // Required: object store name
   key?: any;                          // Key for the record
-  value?: any;                        // Value to set
-  initialValue?: any;                 // Initial value if record doesn't exist
+  value?: any;                        // Value - used as initial value if record doesn't exist
   version?: number;                   // Database version (default: 1)
 }
