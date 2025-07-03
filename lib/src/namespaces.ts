@@ -138,7 +138,7 @@ function bindRequest(
 
     // Set up auto triggering if not disabled (default mode)
     if (!config.disabled) {
-      setupAutoTrigger(requestSignal, resolvedConfig);
+      createRequestEffect(requestSignal, resolvedConfig);
     }
 
     (el as any)[key] = requestSignal;
@@ -181,7 +181,7 @@ function resolveConfig(config: any, contextNode: any, options: DOMSpecOptions = 
  * @param requestSignal - The request signal to update
  * @param resolvedConfig - The resolved configuration object with template signals
  */
-function setupAutoTrigger(
+function createRequestEffect(
   requestSignal: Signal.State<any>,
   resolvedConfig: RequestConfig,
 ): void {
@@ -515,10 +515,10 @@ const bindReadableStream = createNamespaceHandler(
 );
 
 /**
- * Cookie namespace - creates reactive cookie management
+ * Cookie namespace - creates reactive cookie management with automatic serialization
  */
 const bindCookie = createNamespaceHandler(
-  (config: any, key: string): config is { name: string; value?: string; domain?: string; path?: string; expires?: Date | string; maxAge?: number; secure?: boolean; sameSite?: string } => 
+  (config: any, key: string): config is { name: string; value?: any; domain?: string; path?: string; expires?: Date | string; maxAge?: number; secure?: boolean; sameSite?: string } => 
     validateObjectConfig(config, key, ['name']),
   (resolvedConfig: any, key: string) => {
     const { value: finalConfig, isValid } = evaluatePropertyValue(resolvedConfig);
@@ -529,12 +529,16 @@ const bindCookie = createNamespaceHandler(
     if (typeof document !== 'undefined') {
       const existingValue = getCookieValue(finalConfig.name);
       if (existingValue !== null) {
-        initialValue = existingValue;
+        // Use automatic deserialization
+        initialValue = StorageSerialization.deserialize(existingValue);
       } else {
         initialValue = finalConfig.value;
         // Set the cookie if we have an initial value
         if (initialValue !== undefined) {
-          setCookie(finalConfig.name, String(initialValue), finalConfig);
+          const serializedValue = StorageSerialization.serialize(initialValue);
+          if (serializedValue !== null) {
+            setCookie(finalConfig.name, serializedValue, finalConfig);
+          }
         }
       }
     } else {
@@ -549,7 +553,10 @@ const bindCookie = createNamespaceHandler(
       if (typeof document === 'undefined' || !finalConfig.name) return;
       const currentValue = cookieSignal.get();
       if (currentValue !== null) {
-        setCookie(finalConfig.name, String(currentValue), finalConfig);
+        const serializedValue = StorageSerialization.serialize(currentValue);
+        if (serializedValue !== null) {
+          setCookie(finalConfig.name, serializedValue, finalConfig);
+        }
       }
     });
 
