@@ -558,7 +558,7 @@ const bindCookie = createNamespaceHandler(
 );
 
 /**
- * SessionStorage namespace - creates reactive sessionStorage management
+ * SessionStorage namespace - creates reactive sessionStorage management with automatic serialization
  */
 const bindSessionStorage = createNamespaceHandler(
   (config: any, key: string): config is { key: string; value?: any } => 
@@ -572,17 +572,16 @@ const bindSessionStorage = createNamespaceHandler(
     if (typeof window !== 'undefined' && window.sessionStorage) {
       const existingValue = window.sessionStorage.getItem(finalConfig.key);
       if (existingValue !== null) {
-        try {
-          initialValue = JSON.parse(existingValue);
-        } catch {
-          initialValue = existingValue;
-        }
+        // Use automatic deserialization
+        initialValue = StorageSerialization.deserialize(existingValue);
       } else {
         initialValue = finalConfig.value;
         // Set the sessionStorage if we have an initial value
         if (initialValue !== undefined) {
-          const valueToStore = typeof initialValue === 'string' ? initialValue : JSON.stringify(initialValue);
-          window.sessionStorage.setItem(finalConfig.key, valueToStore);
+          const serializedValue = StorageSerialization.serialize(initialValue);
+          if (serializedValue !== null) {
+            window.sessionStorage.setItem(finalConfig.key, serializedValue);
+          }
         }
       }
     } else {
@@ -597,8 +596,10 @@ const bindSessionStorage = createNamespaceHandler(
       if (typeof window === 'undefined' || !window.sessionStorage || !finalConfig.key) return;
       const currentValue = storageSignal.get();
       if (currentValue !== null) {
-        const valueToStore = typeof currentValue === 'string' ? currentValue : JSON.stringify(currentValue);
-        window.sessionStorage.setItem(finalConfig.key, valueToStore);
+        const serializedValue = StorageSerialization.serialize(currentValue);
+        if (serializedValue !== null) {
+          window.sessionStorage.setItem(finalConfig.key, serializedValue);
+        }
       }
     });
 
@@ -607,7 +608,7 @@ const bindSessionStorage = createNamespaceHandler(
 );
 
 /**
- * LocalStorage namespace - creates reactive localStorage management
+ * LocalStorage namespace - creates reactive localStorage management with automatic serialization
  */
 const bindLocalStorage = createNamespaceHandler(
   (config: any, key: string): config is { key: string; value?: any } => 
@@ -621,17 +622,16 @@ const bindLocalStorage = createNamespaceHandler(
     if (typeof window !== 'undefined' && window.localStorage) {
       const existingValue = window.localStorage.getItem(finalConfig.key);
       if (existingValue !== null) {
-        try {
-          initialValue = JSON.parse(existingValue);
-        } catch {
-          initialValue = existingValue;
-        }
+        // Use automatic deserialization
+        initialValue = StorageSerialization.deserialize(existingValue);
       } else {
         initialValue = finalConfig.value;
         // Set the localStorage if we have an initial value
         if (initialValue !== undefined) {
-          const valueToStore = typeof initialValue === 'string' ? initialValue : JSON.stringify(initialValue);
-          window.localStorage.setItem(finalConfig.key, valueToStore);
+          const serializedValue = StorageSerialization.serialize(initialValue);
+          if (serializedValue !== null) {
+            window.localStorage.setItem(finalConfig.key, serializedValue);
+          }
         }
       }
     } else {
@@ -646,8 +646,10 @@ const bindLocalStorage = createNamespaceHandler(
       if (typeof window === 'undefined' || !window.localStorage || !finalConfig.key) return;
       const currentValue = storageSignal.get();
       if (currentValue !== null) {
-        const valueToStore = typeof currentValue === 'string' ? currentValue : JSON.stringify(currentValue);
-        window.localStorage.setItem(finalConfig.key, valueToStore);
+        const serializedValue = StorageSerialization.serialize(currentValue);
+        if (serializedValue !== null) {
+          window.localStorage.setItem(finalConfig.key, serializedValue);
+        }
       }
     });
 
@@ -732,6 +734,69 @@ const bindIndexedDB = createNamespaceHandler(
     return dbSignal;
   }
 );
+
+// === STORAGE SERIALIZATION UTILITIES ===
+
+/**
+ * Modular serialization utilities for storage APIs.
+ * Handles automatic serialization/deserialization of values for storage that only supports strings.
+ */
+export const StorageSerialization = {
+  /**
+   * Serialize a value for storage.
+   * Automatically converts objects and arrays to JSON strings.
+   * Leaves strings as-is. Returns null for null/undefined.
+   */
+  serialize(value: any): string | null {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    
+    if (typeof value === 'string') {
+      return value;
+    }
+    
+    // For all other types (objects, arrays, numbers, booleans), convert to JSON
+    try {
+      return JSON.stringify(value);
+    } catch (error) {
+      console.warn('Failed to serialize value for storage:', error);
+      return String(value);
+    }
+  },
+
+  /**
+   * Deserialize a value from storage.
+   * Automatically parses JSON strings back to objects/arrays.
+   * Returns strings as-is if they're not valid JSON.
+   */
+  deserialize(value: string | null): any {
+    if (value === null) {
+      return null;
+    }
+    
+    // Try to parse as JSON first
+    try {
+      return JSON.parse(value);
+    } catch {
+      // If JSON parsing fails, return as string
+      return value;
+    }
+  },
+
+  /**
+   * Check if a value should be automatically serialized.
+   * Returns true for objects and arrays, false for primitives and strings.
+   */
+  needsSerialization(value: any): boolean {
+    return value !== null && 
+           value !== undefined && 
+           typeof value === 'object' && 
+           !(value instanceof Date) && 
+           !(value instanceof File) && 
+           !(value instanceof Blob);
+  }
+};
 
 // === STORAGE UTILITY FUNCTIONS ===
 

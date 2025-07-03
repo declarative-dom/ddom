@@ -137,7 +137,7 @@ describe('Namespaced Properties - Storage APIs', () => {
   });
 
   describe('SessionStorage Namespace', () => {
-    test('should create a sessionStorage signal with initial value', () => {
+    test('should create a sessionStorage signal with initial value and automatic serialization', () => {
       const element = createElement({
         tagName: 'div',
         $sessionData: {
@@ -154,15 +154,15 @@ describe('Namespaced Properties - Storage APIs', () => {
       const value = element.$sessionData.get();
       expect(value).toEqual({ name: 'John', age: 30 });
       
-      // Verify it was stored in sessionStorage
+      // Verify it was stored in sessionStorage as serialized JSON
       expect(window.sessionStorage.setItem).toHaveBeenCalledWith(
         'userData', 
         JSON.stringify({ name: 'John', age: 30 })
       );
     });
 
-    test('should override initial value with existing sessionStorage data', () => {
-      // Set up existing data
+    test('should override initial value with existing sessionStorage data and auto-deserialize', () => {
+      // Set up existing data as JSON string (how it's stored)
       const existingData = { name: 'Jane', age: 25 };
       window.sessionStorage.setItem('userData', JSON.stringify(existingData));
       
@@ -176,11 +176,13 @@ describe('Namespaced Properties - Storage APIs', () => {
         }
       });
 
+      // Should automatically deserialize to object
       const value = element.$sessionData.get();
       expect(value).toEqual(existingData);
     });
 
-    test('should handle string values without JSON parsing', () => {
+    test('should handle string values without JSON parsing errors', () => {
+      // Store a plain string (not JSON)
       window.sessionStorage.setItem('simpleKey', 'simpleValue');
       
       const element = createElement({
@@ -193,13 +195,64 @@ describe('Namespaced Properties - Storage APIs', () => {
         }
       });
 
+      // Should return the string as-is
       const value = element.$simpleData.get();
       expect(value).toBe('simpleValue');
+    });
+
+    test('should automatically serialize objects when signal changes', async () => {
+      const element = createElement({
+        tagName: 'div',
+        $data: {
+          SessionStorage: {
+            key: 'testKey',
+            value: { initial: 'value' }
+          }
+        }
+      });
+
+      // Change to a new object
+      const newData = { updated: 'value', count: 42 };
+      element.$data.set(newData);
+      
+      // Wait for effects to run
+      await new Promise(resolve => setTimeout(resolve, 0));
+      
+      // Should automatically serialize the object
+      const calls = window.sessionStorage.setItem.mock.calls;
+      expect(calls.length).toBeGreaterThan(0);
+      const updatedCall = calls.find(call => call[1] === JSON.stringify(newData));
+      expect(updatedCall).toBeDefined();
+      expect(updatedCall[0]).toBe('testKey');
+    });
+
+    test('should handle strings without extra serialization', async () => {
+      const element = createElement({
+        tagName: 'div',
+        $data: {
+          SessionStorage: {
+            key: 'stringKey',
+            value: 'initial string'
+          }
+        }
+      });
+
+      // Change to a new string
+      element.$data.set('updated string');
+      
+      // Wait for effects to run
+      await new Promise(resolve => setTimeout(resolve, 0));
+      
+      // Should store string as-is (not JSON-stringified)
+      const calls = window.sessionStorage.setItem.mock.calls;
+      const updatedCall = calls.find(call => call[1] === 'updated string');
+      expect(updatedCall).toBeDefined();
+      expect(updatedCall[0]).toBe('stringKey');
     });
   });
 
   describe('LocalStorage Namespace', () => {
-    test('should create a localStorage signal with initial value', () => {
+    test('should create a localStorage signal with initial value and automatic serialization', () => {
       const element = createElement({
         tagName: 'div',
         $localData: {
@@ -216,15 +269,15 @@ describe('Namespaced Properties - Storage APIs', () => {
       const value = element.$localData.get();
       expect(value).toEqual({ theme: 'light', language: 'en' });
       
-      // Verify it was stored in localStorage
+      // Verify it was stored in localStorage as serialized JSON
       expect(window.localStorage.setItem).toHaveBeenCalledWith(
         'appSettings', 
         JSON.stringify({ theme: 'light', language: 'en' })
       );
     });
 
-    test('should override initial value with existing localStorage data', () => {
-      // Set up existing data
+    test('should override initial value with existing localStorage data and auto-deserialize', () => {
+      // Set up existing data as JSON string (how it's stored)
       const existingSettings = { theme: 'dark', language: 'fr' };
       window.localStorage.setItem('appSettings', JSON.stringify(existingSettings));
       
@@ -238,8 +291,35 @@ describe('Namespaced Properties - Storage APIs', () => {
         }
       });
 
+      // Should automatically deserialize to object
       const value = element.$localData.get();
       expect(value).toEqual(existingSettings);
+    });
+
+    test('should automatically serialize objects when signal changes', async () => {
+      const element = createElement({
+        tagName: 'div',
+        $data: {
+          LocalStorage: {
+            key: 'testKey',
+            value: { initial: 'value' }
+          }
+        }
+      });
+
+      // Change to a new object
+      const newData = { updated: 'value', theme: 'dark' };
+      element.$data.set(newData);
+      
+      // Wait for effects to run
+      await new Promise(resolve => setTimeout(resolve, 0));
+      
+      // Should automatically serialize the object
+      const calls = window.localStorage.setItem.mock.calls;
+      expect(calls.length).toBeGreaterThan(0);
+      const updatedCall = calls.find(call => call[1] === JSON.stringify(newData));
+      expect(updatedCall).toBeDefined();
+      expect(updatedCall[0]).toBe('testKey');
     });
   });
 
@@ -311,7 +391,7 @@ describe('Namespaced Properties - Storage APIs', () => {
   });
 
   describe('Storage Updates', () => {
-    test('should update sessionStorage when signal changes', async () => {
+    test('should update sessionStorage when signal changes with automatic serialization', async () => {
       const element = createElement({
         tagName: 'div',
         $data: {
@@ -328,16 +408,15 @@ describe('Namespaced Properties - Storage APIs', () => {
       // Wait for effects to run
       await new Promise(resolve => setTimeout(resolve, 0));
       
-      // Should trigger storage update - look for the most recent call
+      // Should trigger storage update with string as-is
       const calls = window.sessionStorage.setItem.mock.calls;
       expect(calls.length).toBeGreaterThan(0);
-      // Find the call with 'updated' value
       const updatedCall = calls.find(call => call[1] === 'updated');
       expect(updatedCall).toBeDefined();
       expect(updatedCall[0]).toBe('testKey');
     });
 
-    test('should update localStorage when signal changes', async () => {
+    test('should update localStorage when signal changes with automatic serialization', async () => {
       const element = createElement({
         tagName: 'div',
         $data: {
@@ -355,10 +434,9 @@ describe('Namespaced Properties - Storage APIs', () => {
       // Wait for effects to run
       await new Promise(resolve => setTimeout(resolve, 0));
       
-      // Should trigger storage update - look for the most recent call
+      // Should trigger storage update with automatic serialization
       const calls = window.localStorage.setItem.mock.calls;
       expect(calls.length).toBeGreaterThan(0);
-      // Find the call with the updated value
       const updatedCall = calls.find(call => call[1] === JSON.stringify(newData));
       expect(updatedCall).toBeDefined();
       expect(updatedCall[0]).toBe('testKey');

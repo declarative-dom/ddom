@@ -768,12 +768,70 @@ DDOM provides declarative access to Web APIs through namespaced properties. Each
 - `Blob` - Binary data creation with MIME type handling
 - `ArrayBuffer` - Buffer management with automatic encoding
 - `ReadableStream` - Stream creation with data sources
-- `Cookie` - Browser cookie management with reactive updates
-- `SessionStorage` - Session storage key-value management with reactivity
-- `LocalStorage` - Local storage key-value management with reactivity
+- `Cookie` - Browser cookie management with reactive updates (string values only)
+- `SessionStorage` - Session storage key-value management with automatic serialization
+- `LocalStorage` - Local storage key-value management with automatic serialization
 - `IndexedDB` - IndexedDB database operations with async support
 
 All namespaces support template literals and property accessors for reactive configuration, and automatically create computed signals that update when dependencies change.
+
+#### 3.6.1 Storage API Automatic Serialization
+
+The DDOM runtime provides automatic serialization for storage APIs that only support string values (`SessionStorage` and `LocalStorage`). This eliminates the need for manual JSON stringification and parsing in application code.
+
+**Automatic Serialization Behavior:**
+
+1. **Objects and Arrays**: Automatically serialized to JSON strings when stored
+2. **Strings**: Stored as-is without additional processing
+3. **Primitives** (numbers, booleans): Converted to JSON representation for consistency
+4. **Retrieval**: Attempts JSON parsing first, returns as string if parsing fails
+
+**Storage Priority:**
+- Existing storage values take precedence over the `value` property
+- The `value` property serves as the initial/default value when no storage exists
+
+**Example with Automatic Serialization:**
+```javascript
+{
+  // Object is automatically serialized to JSON
+  $userSettings: {
+    LocalStorage: {
+      key: 'appSettings',
+      value: { theme: 'dark', notifications: true }  // Auto-serialized
+    }
+  },
+  
+  // String values stored as-is
+  $userToken: {
+    SessionStorage: {
+      key: 'authToken', 
+      value: 'abc123'  // Stored as string
+    }
+  },
+  
+  onclick: () => {
+    // Get returns deserialized object
+    const settings = element.$userSettings.get();  // { theme: 'dark', notifications: true }
+    
+    // Set automatically serializes
+    element.$userSettings.set({ ...settings, theme: 'light' });  // Auto-serialized to JSON
+  }
+}
+```
+
+**Cookie Storage Note:**
+Cookies only support string values and do not use automatic serialization. Applications must manually handle JSON serialization for object storage in cookies:
+
+```javascript
+{
+  $cookieData: {
+    Cookie: {
+      name: 'userPrefs',
+      value: JSON.stringify({ theme: 'light' })  // Manual serialization required
+    }
+  }
+}
+```
 
 ### 4. Custom Elements
 
