@@ -71,7 +71,7 @@ export function applyPropertyBinding(
       const signal = processNamespacedProperty(spec, el, key, value, options);
       if (key === 'children' && signal) {
         // Use our enhanced array adoption for reactive children
-        adoptReactiveArray(signal, el as Element, options);
+        bindReactiveArray(signal, el as Element, options);
       }
     } catch (error) {
       console.warn(`Failed to process namespace property ${key}:`, error);
@@ -353,7 +353,7 @@ function setAttributeValue(element: Element, name: string, value: any): void {
  *   { tagName: 'li', textContent: 'Item 1' },
  *   { tagName: 'li', textContent: 'Item 2' }
  * ]);
- * adoptReactiveArray(itemsSignal, listElement);
+ * bindReactiveArray(itemsSignal, listElement);
  * ```
  * 
  * @example
@@ -362,10 +362,10 @@ function setAttributeValue(element: Element, name: string, value: any): void {
  * const itemsSignal = createArraySignal([
  *   { tagName: 'li', textContent: '${item.name}', $selected: false }
  * ], { mutableProps: ['textContent', '$selected'] });
- * adoptReactiveArray(itemsSignal, listElement, { css: true });
+ * bindReactiveArray(itemsSignal, listElement, { css: true });
  * ```
  */
-export function adoptReactiveArray<T>(
+export function bindReactiveArray<T>(
   arraySignal: any, // Enhanced signal with getMutableProps method
   parentElement: Element,
   options: DOMSpecOptions = {}

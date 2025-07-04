@@ -1,7 +1,7 @@
 import { adoptDocument, adoptNode, adoptWindow, appendChild, createElement } from './dom/element';
 import { adoptStyleSheet, clearStyleSheet } from './dom/style-sheets';
 import { define } from './dom/custom-elements';
-import { adoptReactiveArray } from './dom/binding';
+import { bindReactiveArray } from './dom/binding';
 import { createEffect, ComponentSignalWatcher } from './core/signals';
 import { Signal } from 'signal-polyfill';
 import { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral } from './core/properties';
@@ -12,7 +12,7 @@ export { adoptDocument, adoptNode, adoptWindow, createElement } from './dom/elem
 export type { DOMSpecOptions, ReactiveProperties } from './dom/element';
 export { adoptStyleSheet, clearStyleSheet } from './dom/style-sheets';
 export { define } from './dom/custom-elements';
-export { adoptReactiveArray } from './dom/binding';
+export { bindReactiveArray } from './dom/binding';
 export { createEffect, ComponentSignalWatcher } from './core/signals';
 export { Signal } from 'signal-polyfill';
 export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, isPropertyAccessor, resolvePropertyAccessor } from './core/properties';
@@ -28,7 +28,7 @@ function DDOM(spec: any) {
 Object.assign(DDOM, {
 	adoptDocument,
 	adoptNode,
-	adoptReactiveArray,
+	bindReactiveArray,
 	adoptStyleSheet,
 	adoptWindow,
 	appendChild,

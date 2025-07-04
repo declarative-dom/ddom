@@ -38,7 +38,7 @@ import {
 import { isNamespacedProperty, processNamespacedProperty } from '../namespaces';
 import { createEffect, ComponentSignalWatcher, Signal } from '../core/signals';
 import { resolvePropertyValue, evaluatePropertyValue } from '../core/properties';
-import { applyPropertyBinding, adoptReactiveArray } from './binding';
+import { applyPropertyBinding, bindReactiveArray } from './binding';
 import { insertRules } from './style-sheets';
 
 /**
@@ -179,7 +179,7 @@ export function adoptNode(
       try {
         const resolved = resolvePropertyValue('children', children, el, options);
         if (resolved) {
-          adoptReactiveArray(resolved, el as Element, options);
+          bindReactiveArray(resolved, el as Element, options);
         }
       } catch (error) {
         console.warn(`Failed to process namespace property for children:`, error);
