@@ -25,7 +25,7 @@
 import { DOMSpec, DOMNode, HTMLElementSpec } from '../types';
 import { DOMSpecOptions } from './element';
 import { createEffect, Signal, ComponentSignalWatcher } from '../core/signals';
-import { resolvePropertyValue, evaluatePropertyValue } from '../core/properties';
+import { resolvePropertyValue, evaluatePropertyValue, shouldBeSignal } from '../core/properties';
 import { isNamespacedProperty, processNamespacedProperty } from '../namespaces';
 
 /**
@@ -86,6 +86,31 @@ export function applyPropertyBinding(
 
   // Handle special DOM properties with dedicated handlers
   switch (key) {
+    case 'document':
+      // Special handling for document property - adopt into existing document instead of replacing
+      if (value && typeof value === 'object' && el === window) {
+        // Apply the document spec directly to the document object
+        Object.entries(value).forEach(([docKey, docValue]) => {
+          applyPropertyBinding(value, document, docKey, docValue, options);
+        });
+        return;
+      }
+      break;
+
+    case 'head':
+    case 'body':
+      // Special handling for head and body - adopt into existing elements instead of replacing
+      if (value && typeof value === 'object' && el === document) {
+        const targetElement = el[key as 'head' | 'body'];
+        if (targetElement) {
+          Object.entries(value).forEach(([subKey, subValue]) => {
+            applyPropertyBinding(value, targetElement, subKey, subValue, options);
+          });
+        }
+        return;
+      }
+      break;
+
     case 'attributes':
       if (value && typeof value === 'object' && el instanceof Element) {
         applyAttributesBinding(el, value);
@@ -129,6 +154,14 @@ function applyStandardPropertyBinding(
   value: any,
   options: DOMSpecOptions
 ): void {
+  // Check if this should be a signal first (before resolving)
+  if (shouldBeSignal(key, value)) {
+    // Create a Signal.State for reactive properties
+    const signal = new Signal.State(value);
+    (el as any)[key] = signal;
+    return;
+  }
+
   // Resolve the property value using the pure properties module
   const resolved = resolvePropertyValue(key, value, el, options);
 
