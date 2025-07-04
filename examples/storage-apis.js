@@ -88,67 +88,63 @@ export default {
 
   // Cookie for session authentication/security data
   $authCookie: {
-    Cookie: {
-      name: 'sessionAuth',
-      value: {
-        sessionId: 'abc123def456',
-        expires: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
-        csrfToken: 'xyz789'
-      },
-      maxAge: 3600, // 1 hour
-      secure: true,
-      sameSite: 'strict'
-    }
+    prototype: 'Cookie',
+    name: 'sessionAuth',
+    value: {
+      sessionId: 'abc123def456',
+      expires: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
+      csrfToken: 'xyz789'
+    },
+    maxAge: 3600, // 1 hour
+    secure: true,
+    sameSite: 'strict'
   },
   
   // SessionStorage for temporary UI state (lost on tab close)
   $uiState: {
-    SessionStorage: {
-      key: 'currentUIState',
-      value: {
-        selectedTab: 'storage',
-        sidebarOpen: true,
-        lastAction: 'page_loaded',
-        actionCount: 0
-      }
+    prototype: 'SessionStorage',
+    key: 'currentUIState',
+    value: {
+      selectedTab: 'storage',
+      sidebarOpen: true,
+      lastAction: 'page_loaded',
+      actionCount: 0
     }
   },
   
   // LocalStorage for persistent user preferences
   $userPreferences: {
-    LocalStorage: {
-      key: 'userPreferences',
-      value: {
-        theme: 'auto',
-        language: 'en',
-        notifications: true,
-        autoSave: true,
-        fontSize: 14
-      }
+    prototype: 'LocalStorage',
+    key: 'userPreferences',
+    value: {
+      theme: 'auto',
+      language: 'en',
+      notifications: true,
+      autoSave: true,
+      fontSize: 14
     }
   },
   
   // IndexedDB for complex application data - returns actual IDBObjectStore
   $appDataStore: {
-    IndexedDB: {
-      database: 'AppDataDB',
-      store: 'documents',
-      version: 1,
-      keyPath: 'id',
-      autoIncrement: true,
-      indexes: [
-        {
-          name: 'by-title',
-          keyPath: 'title',
-          unique: false
-        },
-        {
-          name: 'by-created',
-          keyPath: 'created',
-          unique: false
-        }
-      ]
-    }
+    prototype: 'IndexedDB',
+    database: 'AppDataDB',
+    store: 'documents',
+    version: 1,
+    keyPath: 'id',
+    autoIncrement: true,
+    indexes: [
+      {
+        name: 'by-title',
+        keyPath: 'title',
+        unique: false
+      },
+      {
+        name: 'by-created',
+        keyPath: 'created',
+        unique: false
+      }
+    ]
   },
 
   document: {

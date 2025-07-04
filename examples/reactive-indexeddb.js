@@ -20,79 +20,75 @@ export default {
 
   // Database setup - SETUP MODE (no operation/filter/query) → returns IDBObjectStore
   $allProducts: {
-    IndexedDB: {
-      database: "ProductCatalogDB",
-      store: "products",
-      version: 1,
-      keyPath: "id",
-      autoIncrement: true,
-      indexes: [
-        { name: "by-category", keyPath: "category", unique: false },
-        { name: "by-name", keyPath: "name", unique: false },
-        { name: "by-rating", keyPath: "rating", unique: false },
-        { name: "by-price", keyPath: "price", unique: false },
-      ],
-      value: [
-        { name: 'Laptop Pro', category: 'electronics', price: 1299, rating: 4.5, description: 'High-performance laptop for professionals' },
-        { name: 'Wireless Headphones', category: 'electronics', price: 199, rating: 4.2, description: 'Premium noise-canceling headphones' },
-        { name: 'Coffee Maker', category: 'kitchen', price: 89, rating: 4.0, description: 'Automatic drip coffee maker' },
-        { name: 'Running Shoes', category: 'sports', price: 129, rating: 4.7, description: 'Lightweight running shoes for athletes' },
-        { name: 'Smartphone', category: 'electronics', price: 799, rating: 4.3, description: 'Latest smartphone with advanced features' },
-        { name: 'Yoga Mat', category: 'sports', price: 39, rating: 4.1, description: 'Non-slip yoga mat for home workouts' },
-        { name: 'Stand Mixer', category: 'kitchen', price: 249, rating: 4.8, description: 'Professional-grade stand mixer' },
-        { name: 'Gaming Monitor', category: 'electronics', price: 349, rating: 4.4, description: '27-inch gaming monitor with high refresh rate' }
-      ]
-    }
+    prototype: 'IndexedDB',
+    database: "ProductCatalogDB",
+    store: "products",
+    version: 1,
+    keyPath: "id",
+    autoIncrement: true,
+    indexes: [
+      { name: "by-category", keyPath: "category", unique: false },
+      { name: "by-name", keyPath: "name", unique: false },
+      { name: "by-rating", keyPath: "rating", unique: false },
+      { name: "by-price", keyPath: "price", unique: false },
+    ],
+    value: [
+      { name: 'Laptop Pro', category: 'electronics', price: 1299, rating: 4.5, description: 'High-performance laptop for professionals' },
+      { name: 'Wireless Headphones', category: 'electronics', price: 199, rating: 4.2, description: 'Premium noise-canceling headphones' },
+      { name: 'Coffee Maker', category: 'kitchen', price: 89, rating: 4.0, description: 'Automatic drip coffee maker' },
+      { name: 'Running Shoes', category: 'sports', price: 129, rating: 4.7, description: 'Lightweight running shoes for athletes' },
+      { name: 'Smartphone', category: 'electronics', price: 799, rating: 4.3, description: 'Latest smartphone with advanced features' },
+      { name: 'Yoga Mat', category: 'sports', price: 39, rating: 4.1, description: 'Non-slip yoga mat for home workouts' },
+      { name: 'Stand Mixer', category: 'kitchen', price: 249, rating: 4.8, description: 'Professional-grade stand mixer' },
+      { name: 'Gaming Monitor', category: 'electronics', price: 349, rating: 4.4, description: '27-inch gaming monitor with high refresh rate' }
+    ]
   },
 
   // Reactive search query - QUERY MODE (has operation/filter) → returns IndexedDBQuerySignal
   $searchResults: {
-    IndexedDB: {
-      bind: "this.$allProducts",
-      operation: "getAll",
-      debounce: 300, // Wait 300ms after last change (just like Request namespace)
-      filter: [
-        {
-          leftOperand: 'item.name.toLowerCase() + " " + item.description.toLowerCase()',
-          operator: "includes",
-          rightOperand: 'window.$searchQuery.get().toLowerCase()'
-        },
-        {
-          leftOperand: 'window.$categoryFilter.get() === "all" ? true : item.category === window.$categoryFilter.get()',
-          operator: "===", 
-          rightOperand: true
-        },
-        {
-          leftOperand: "rating",
-          operator: ">=",
-          rightOperand: 'window.$minRating.get()'
-        }
-      ]
-    }
+    prototype: 'IndexedDB',
+    bind: "this.$allProducts",
+    operation: "getAll",
+    debounce: 300, // Wait 300ms after last change (just like Request namespace)
+    filter: [
+      {
+        leftOperand: 'item.name.toLowerCase() + " " + item.description.toLowerCase()',
+        operator: "includes",
+        rightOperand: 'window.$searchQuery.get().toLowerCase()'
+      },
+      {
+        leftOperand: 'window.$categoryFilter.get() === "all" ? true : item.category === window.$categoryFilter.get()',
+        operator: "===", 
+        rightOperand: true
+      },
+      {
+        leftOperand: "rating",
+        operator: ">=",
+        rightOperand: 'window.$minRating.get()'
+      }
+    ]
   },
 
   // Reactive category search using index
   $categoryProducts: {
-    IndexedDB: {
-      bind: "this.$allProducts",
-      operation: "getAll",
-      index: "by-category",
-      query: function () {
-        const category = window.$categoryFilter.get();
-        return category === "all" ? undefined : IDBKeyRange.only(category);
-      },
+    prototype: 'IndexedDB',
+    bind: "this.$allProducts",
+    operation: "getAll",
+    index: "by-category",
+    query: function () {
+      const category = window.$categoryFilter.get();
+      return category === "all" ? undefined : IDBKeyRange.only(category);
     },
   },
 
   // High-rated products (rating >= 4.5)
   $topRatedProducts: {
-    IndexedDB: {
-      bind: "this.$allProducts",
-      operation: "getAll",
-      index: "by-rating",
-      query: IDBKeyRange.lowerBound(4.5),
-      manual: false, // Auto-update when database changes
-    },
+    prototype: 'IndexedDB',
+    bind: "this.$allProducts",
+    operation: "getAll",
+    index: "by-rating",
+    query: IDBKeyRange.lowerBound(4.5),
+    manual: false, // Auto-update when database changes
   },
 
   // Product count by category
