@@ -87,11 +87,25 @@ export function restoreFromStorage<T = any>(storedValue: string | null, fallback
     return fallbackValue;
   }
   
-  // Try to parse as JSON first
-  const deserialized = safeDeserialize(storedValue, null);
+  // For strings, first check if it looks like JSON (starts with { [ " or is a number/boolean)
+  const trimmed = storedValue.trim();
+  const isJson = trimmed.startsWith('{') || trimmed.startsWith('[') || 
+                 trimmed.startsWith('"') || trimmed === 'true' || 
+                 trimmed === 'false' || trimmed === 'null' || 
+                 !isNaN(Number(trimmed));
   
-  if (deserialized !== null) {
-    return deserialized;
+  if (isJson) {
+    // Try to parse as JSON
+    const deserialized = safeDeserialize(storedValue, null);
+    if (deserialized !== null) {
+      return deserialized;
+    }
+  }
+  
+  // If it's not JSON or JSON parsing failed, handle as plain string
+  // For string values, return as-is
+  if (typeof fallbackValue === 'string' || fallbackValue === null || fallbackValue === undefined) {
+    return storedValue as T;
   }
   
   // If JSON parsing failed, try type-specific restoration
@@ -109,8 +123,8 @@ export function restoreFromStorage<T = any>(storedValue: string | null, fallback
     return safeDeserialize(storedValue, fallbackValue);
   }
   
-  // For strings and objects, return the deserialized value or fallback
-  return deserialized ?? fallbackValue;
+  // For objects and others, return as string since JSON parsing failed
+  return storedValue as T;
 }
 
 /**

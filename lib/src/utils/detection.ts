@@ -69,7 +69,10 @@ export const SUPPORTED_PROTOTYPES = [
   
   // Web API types
   'Request', 'FormData', 'URLSearchParams', 'Blob', 
-  'ArrayBuffer', 'ReadableStream', 'LocalStorage', 'IndexedDB', 'WebSocket'
+  'ArrayBuffer', 'ReadableStream', 
+  
+  // Storage API types
+  'Cookie', 'SessionStorage', 'LocalStorage', 'IndexedDB', 'WebSocket'
 ] as const;
 
 export type PrototypeName = typeof SUPPORTED_PROTOTYPES[number];

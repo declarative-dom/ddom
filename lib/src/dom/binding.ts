@@ -25,8 +25,8 @@
 import { DOMSpec, DOMNode, HTMLElementSpec } from '../types';
 import { DOMSpecOptions } from './element';
 import { createEffect, Signal, ComponentSignalWatcher } from '../core/signals';
-import { resolvePropertyValue, evaluatePropertyValue, isNamespacedProperty } from '../core/properties';
-import { isNamespacedProperty as checkNamespace, processNamespacedProperty } from '../namespaces';
+import { resolvePropertyValue, evaluatePropertyValue } from '../core/properties';
+import { isNamespacedProperty, processNamespacedProperty } from '../namespaces';
 
 /**
  * Applies property resolution and binding to a DOM element (the impure DOM magic!).
@@ -66,12 +66,17 @@ export function applyPropertyBinding(
   }
 
   // Handle special namespace properties (like Array children)
-  if (checkNamespace(value)) {
+  if (isNamespacedProperty(value)) {
     try {
       const signal = processNamespacedProperty(spec, el, key, value, options);
-      if (key === 'children' && signal) {
-        // Use our enhanced array adoption for reactive children
-        bindReactiveArray(signal, el as Element, options);
+      if (signal) {
+        // Assign the signal to the element
+        (el as any)[key] = signal;
+        
+        if (key === 'children') {
+          // Use our enhanced array adoption for reactive children
+          bindReactiveArray(signal, el as Element, options);
+        }
       }
     } catch (error) {
       console.warn(`Failed to process namespace property ${key}:`, error);

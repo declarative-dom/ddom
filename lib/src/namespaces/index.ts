@@ -21,6 +21,8 @@ import { createURLSearchParamsNamespace } from './url-search-params';
 import { createBlobNamespace } from './blob';
 import { createArrayBufferNamespace } from './array-buffer';
 import { createReadableStreamNamespace } from './readable-stream';
+import { createCookieNamespace } from './cookie';
+import { createSessionStorageNamespace } from './session-storage';
 import { createLocalStorageNamespace } from './local-storage';
 // import { createIndexedDBNamespace } from './indexed-db';
 // import { createWebSocketNamespace } from './web-socket';
@@ -81,10 +83,46 @@ const NAMESPACE_HANDLERS: Record<string, NamespaceHandler> = {
   'Blob': createBlobNamespace,
   'ArrayBuffer': createArrayBufferNamespace,
   'ReadableStream': createReadableStreamNamespace,
+  
+  // Storage API types
+  'Cookie': createCookieNamespace,
+  'SessionStorage': createSessionStorageNamespace,
   'LocalStorage': createLocalStorageNamespace,
   // 'IndexedDB': createIndexedDBNamespace,
   // 'WebSocket': createWebSocketNamespace,
 };
+
+/**
+ * Extract namespace information from a prototype-based configuration
+ * Legacy function for backward compatibility with old tests
+ */
+export function extractNamespace(config: any): { namespace: string; config: any } | null {
+  if (!config || typeof config !== 'object') {
+    return null;
+  }
+  
+  if (config.prototype && typeof config.prototype === 'string') {
+    // New prototype-based syntax
+    return {
+      namespace: config.prototype,
+      config: config
+    };
+  }
+  
+  // Legacy syntax - look for a single namespace key
+  const keys = Object.keys(config);
+  if (keys.length === 1 && SUPPORTED_PROTOTYPES.includes(keys[0] as any)) {
+    return {
+      namespace: keys[0],
+      config: config[keys[0]]
+    };
+  }
+  
+  return null;
+}
+
+// Export the handlers registry
+export { NAMESPACE_HANDLERS };
 
 /**
  * Processes a namespaced property using the appropriate handler
@@ -145,4 +183,4 @@ export type DOMNode = HTMLElement | HTMLBodyElement | HTMLHeadElement | Document
 export type DOMSpec = any;
 
 // Re-export utilities for namespace files to use
-export { isNamespacedProperty, validateNamespaceConfig } from '../utils';
+export { isNamespacedProperty, validateNamespaceConfig, SUPPORTED_PROTOTYPES } from '../utils';

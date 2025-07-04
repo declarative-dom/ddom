@@ -5,7 +5,7 @@ import { bindReactiveArray } from './dom/binding';
 import { createEffect, ComponentSignalWatcher } from './core/signals';
 import { Signal } from 'signal-polyfill';
 import { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral } from './core/properties';
-import { isNamespacedProperty, processNamespacedProperty } from './namespaces';
+import { isNamespacedProperty, processNamespacedProperty, extractNamespace, NAMESPACE_HANDLERS } from './namespaces';
 
 // Named exports for compatibility
 export { adoptDocument, adoptNode, adoptWindow, createElement } from './dom/element';
@@ -16,7 +16,7 @@ export { bindReactiveArray } from './dom/binding';
 export { createEffect, ComponentSignalWatcher } from './core/signals';
 export { Signal } from 'signal-polyfill';
 export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, isPropertyAccessor, resolvePropertyAccessor } from './core/properties';
-export { isNamespacedProperty, processNamespacedProperty } from './namespaces';
+export { isNamespacedProperty, processNamespacedProperty, extractNamespace, NAMESPACE_HANDLERS } from './namespaces';
 export type { RequestConfig } from './types';
 
 // Default export: DDOM function with namespace properties
@@ -46,6 +46,8 @@ Object.assign(DDOM, {
 	isTemplateLiteral,
 	isNamespacedProperty,
 	processNamespacedProperty,
+	extractNamespace,
+	NAMESPACE_HANDLERS,
 });
 
 export default DDOM;

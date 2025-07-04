@@ -18,7 +18,7 @@
  */
 
 import { Signal } from './signals';
-import { isNamespacedProperty } from '../namespaces';
+import { isNamespacedProperty } from '../utils/detection';
 import { DOMNode, DOMSpec } from '../types';
 
 // === PROPERTY DETECTION AND CLASSIFICATION ===
