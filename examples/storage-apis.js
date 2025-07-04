@@ -2,9 +2,90 @@
  * Storage APIs Example
  * Demonstrates the use of Cookie, SessionStorage, LocalStorage, and IndexedDB namespaces
  * with automatic serialization for objects and arrays
+ * 
+ * IndexedDB Design Pattern:
+ * - IndexedDB returns an actual IDBObjectStore instead of a signal (no anti-patterns)
+ * - Manual reactivity is used - you update your reactive state when database operations complete
+ * - This follows proper database patterns where the database is the source of truth
+ * - Use signals for UI state, use IndexedDB for persistent data storage
  */
 
 export default {
+  // Document input state
+  $newDocTitle: "",
+  $newDocContent: "",
+  
+  // Documents array for reactive display (manual reactivity pattern)
+  $documents: [],
+
+  // Methods for document management
+  addDocument: async function() {
+    const title = this.$newDocTitle.get().trim();
+    const content = this.$newDocContent.get().trim();
+    
+    if (title && content) {
+      const newDoc = {
+        title: title,
+        content: content,
+        created: new Date().toISOString()
+      };
+      
+      try {
+        // Use the IDBObjectStore directly for database operations
+        const store = this.$appDataStore.getStore();
+        const id = await new Promise((resolve, reject) => {
+          const request = store.add(newDoc);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        
+        // Manual reactivity: update the documents array
+        const currentDocs = this.$documents.get();
+        this.$documents.set([...currentDocs, { ...newDoc, id }]);
+        
+        // Clear inputs
+        this.$newDocTitle.set("");
+        this.$newDocContent.set("");
+      } catch (error) {
+        console.error('Failed to add document:', error);
+      }
+    }
+  },
+
+  removeDocument: async function(docId) {
+    try {
+      // Use the IDBObjectStore directly for database operations
+      const store = this.$appDataStore.getStore();
+      await new Promise((resolve, reject) => {
+        const request = store.delete(docId);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      
+      // Manual reactivity: update the documents array
+      const currentDocs = this.$documents.get();
+      this.$documents.set(currentDocs.filter(doc => doc.id !== docId));
+    } catch (error) {
+      console.error('Failed to remove document:', error);
+    }
+  },
+
+  // Load all documents from database (called on init)
+  loadDocuments: async function() {
+    try {
+      const store = this.$appDataStore.getStore('readonly');
+      const docs = await new Promise((resolve, reject) => {
+        const request = store.getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      this.$documents.set(docs);
+    } catch (error) {
+      console.error('Failed to load documents:', error);
+      this.$documents.set([]);
+    }
+  },
+
   // Cookie for session authentication/security data
   $authCookie: {
     Cookie: {
@@ -47,21 +128,26 @@ export default {
     }
   },
   
-  // IndexedDB for complex application data
-  $appData: {
+  // IndexedDB for complex application data - returns actual IDBObjectStore
+  $appDataStore: {
     IndexedDB: {
       database: 'AppDataDB',
       store: 'documents',
-      key: 'userDocuments',
-      value: {
-        documents: [
-          { id: 1, title: 'Welcome Guide', content: 'Getting started...', created: new Date().toISOString() },
-          { id: 2, title: 'Settings Help', content: 'How to configure...', created: new Date().toISOString() }
-        ],
-        tags: ['tutorial', 'help', 'settings'],
-        lastSync: new Date().toISOString()
-      },
-      version: 1
+      version: 1,
+      keyPath: 'id',
+      autoIncrement: true,
+      indexes: [
+        {
+          name: 'by-title',
+          keyPath: 'title',
+          unique: false
+        },
+        {
+          name: 'by-created',
+          keyPath: 'created',
+          unique: false
+        }
+      ]
     }
   },
 
@@ -305,6 +391,117 @@ export default {
               ]
             },
 
+            // Document Management Section
+            {
+              tagName: 'section',
+              style: {
+                backgroundColor: 'white',
+                padding: '2rem',
+                borderRadius: '0.5rem',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                marginBottom: '2rem'
+              },
+              children: [
+                {
+                  tagName: 'h2',
+                  textContent: '📝 Add New Document',
+                  style: {
+                    marginTop: 0,
+                    marginBottom: '1.5rem',
+                    color: '#495057'
+                  }
+                },
+                {
+                  tagName: 'div',
+                  style: {
+                    display: 'grid',
+                    gap: '1rem',
+                    marginBottom: '1rem'
+                  },
+                  children: [
+                    {
+                      tagName: 'input',
+                      attributes: {
+                        type: 'text',
+                        placeholder: 'Document title...'
+                      },
+                      value: '${this.$newDocTitle.get()}',
+                      style: {
+                        padding: '0.75rem',
+                        border: '2px solid #dee2e6',
+                        borderRadius: '0.375rem',
+                        fontSize: '1rem',
+                        outline: 'none',
+                        transition: 'border-color 0.2s',
+                        ':focus': {
+                          borderColor: '#6f42c1',
+                          boxShadow: '0 0 0 3px rgba(111, 66, 193, 0.25)'
+                        }
+                      },
+                      oninput: function(event) {
+                        this.$newDocTitle.set(event.target.value);
+                      }
+                    },
+                    {
+                      tagName: 'textarea',
+                      attributes: {
+                        placeholder: 'Document content...',
+                        rows: '4'
+                      },
+                      value: '${this.$newDocContent.get()}',
+                      style: {
+                        padding: '0.75rem',
+                        border: '2px solid #dee2e6',
+                        borderRadius: '0.375rem',
+                        fontSize: '1rem',
+                        outline: 'none',
+                        resize: 'vertical',
+                        fontFamily: 'inherit',
+                        transition: 'border-color 0.2s',
+                        ':focus': {
+                          borderColor: '#6f42c1',
+                          boxShadow: '0 0 0 3px rgba(111, 66, 193, 0.25)'
+                        }
+                      },
+                      oninput: function(event) {
+                        this.$newDocContent.set(event.target.value);
+                      }
+                    }
+                  ]
+                },
+                {
+                  tagName: 'button',
+                  textContent: 'Add Document',
+                  style: {
+                    padding: '0.75rem 1.5rem',
+                    backgroundColor: '#6f42c1',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.375rem',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: '500',
+                    transition: 'background-color 0.2s',
+                    ':hover': {
+                      backgroundColor: '#5a3a9a'
+                    },
+                    ':disabled': {
+                      backgroundColor: '#6c757d',
+                      cursor: 'not-allowed'
+                    }
+                  },
+                  attributes: {
+                    disabled: function() {
+                      return !this.$newDocTitle.get().trim() || !this.$newDocContent.get().trim();
+                    }
+                  },
+                  onclick: function() {
+                    window.addDocument();
+                  }
+                }
+              ]
+            },
+
             // Storage Display Section
             {
               tagName: 'section',
@@ -486,7 +683,7 @@ export default {
                         },
                         {
                           tagName: 'p',
-                          textContent: 'Complex application data & documents',
+                          textContent: 'Document database with full CRUD operations',
                           style: {
                             fontSize: '0.9rem',
                             color: '#6c757d',
@@ -494,17 +691,66 @@ export default {
                           }
                         },
                         {
-                          tagName: 'pre',
-                          textContent: '${JSON.stringify(this.$appData.get(), null, 2)}',
+                          tagName: 'div',
                           style: {
-                            backgroundColor: '#f8f9fa',
-                            padding: '1rem',
-                            borderRadius: '0.25rem',
-                            fontSize: '0.85rem',
-                            overflow: 'auto',
-                            margin: 0,
-                            border: '1px solid #e9ecef'
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '1rem'
+                          },
+                          children: [                        {
+                          tagName: 'span',
+                          textContent: 'Documents stored: ${this.$documents.get()?.length || 0}',
+                          style: {
+                            fontSize: '0.9rem',
+                            color: '#495057',
+                            fontWeight: '500'
                           }
+                        },
+                        {
+                          tagName: 'button',
+                          textContent: 'Clear All',
+                          style: {
+                            padding: '0.25rem 0.5rem',
+                            backgroundColor: '#dc3545',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '0.25rem',
+                            cursor: 'pointer',
+                            fontSize: '0.8rem'
+                          },
+                          onclick: async function() {
+                            if (confirm('Clear all documents?')) {
+                              try {
+                                const store = this.$appDataStore.getStore();
+                                await new Promise((resolve, reject) => {
+                                  const request = store.clear();
+                                  request.onsuccess = () => resolve(request.result);
+                                  request.onerror = () => reject(request.error);
+                                });
+                                this.$documents.set([]);
+                              } catch (error) {
+                                console.error('Failed to clear documents:', error);
+                              }
+                            }
+                          }
+                        }
+                          ]
+                        },
+                        {
+                          tagName: 'div',
+                          style: {
+                            maxHeight: '200px',
+                            overflowY: 'auto',
+                            border: '1px solid #e9ecef',
+                            borderRadius: '0.25rem',
+                            backgroundColor: '#f8f9fa'
+                          },
+                          children: [
+                            {
+                              tagName: 'document-list'
+                            }
+                          ]
                         }
                       ]
                     }
@@ -537,5 +783,110 @@ export default {
         }
       ]
     }
-  }
+  },
+
+  customElements: [
+    {
+      tagName: 'document-list',
+      children: {
+        items: 'window.$documents',
+        map: {
+          tagName: 'document-item',
+          $doc: (doc, _) => doc,
+        }
+      }
+    },
+
+    {
+      tagName: 'document-item',
+      $doc: {},
+
+      children: [
+        {
+          tagName: 'div',
+          style: {
+            padding: '0.5rem',
+            borderBottom: '1px solid #e9ecef',
+            ':last-child': {
+              borderBottom: 'none'
+            }
+          },
+          children: [
+            {
+              tagName: 'div',
+              style: {
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'start',
+                gap: '0.5rem'
+              },
+              children: [
+                {
+                  tagName: 'div',
+                  style: {
+                    flex: '1'
+                  },
+                  children: [
+                    {
+                      tagName: 'h4',
+                      textContent: '${this.$doc.get().title}',
+                      style: {
+                        margin: '0 0 0.25rem 0',
+                        fontSize: '0.9rem',
+                        color: '#495057'
+                      }
+                    },
+                    {
+                      tagName: 'p',
+                      textContent: '${this.$doc.get().content.substring(0, 100)}${this.$doc.get().content.length > 100 ? "..." : ""}',
+                      style: {
+                        margin: '0 0 0.25rem 0',
+                        fontSize: '0.8rem',
+                        color: '#6c757d'
+                      }
+                    },
+                    {
+                      tagName: 'small',
+                      textContent: 'Created: ${new Date(this.$doc.get().created).toLocaleDateString()}',
+                      style: {
+                        fontSize: '0.75rem',
+                        color: '#adb5bd'
+                      }
+                    }
+                  ]
+                },
+                {
+                  tagName: 'button',
+                  textContent: '×',
+                  style: {
+                    width: '20px',
+                    height: '20px',
+                    padding: 0,
+                    backgroundColor: '#dc3545',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '50%',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    ':hover': {
+                      backgroundColor: '#c82333'
+                    }
+                  },
+                  onclick: async function() {
+                    const docId = this.$doc.get().id;
+                    if (confirm('Delete this document?')) {
+                      await window.removeDocument(docId);
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
 };

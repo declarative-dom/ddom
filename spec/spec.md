@@ -21,12 +21,13 @@ This specification defines Declarative DOM, a syntax for representing DOM struct
 
 #### 1.2 Design Principles
 
-1. **Syntax Alignment**: Object properties closely mirror native DOM element properties
-2. **Type Safety**: Full TypeScript support with accurate type definitions
-3. **Declarative**: No imperative construction logic required
-4. **Extensible**: Custom elements are first-class citizens
-5. **Reactive**: Support for reactive properties and template literals
-6. **Implementation-Agnostic**: Syntax is tightly defined, allowing multiple implementations
+1. **Rule of Least Power**: Following Tim Berners-Lee's principle, DDOM chooses the least powerful solution capable of solving each problem—favoring declarative templates over functions, configuration over code
+2. **Syntax Alignment**: Object properties closely mirror native DOM element properties
+3. **Type Safety**: Full TypeScript support with accurate type definitions
+4. **Declarative**: No imperative construction logic required; purely declarative templates
+5. **Extensible**: Custom elements are first-class citizens
+6. **Reactive**: Support for reactive properties and template literals
+7. **Implementation-Agnostic**: Syntax is tightly defined, allowing multiple implementations
 
 #### 1.3 Scope
 
@@ -40,7 +41,8 @@ This specification covers:
 - Property accessor resolution
 - Dollar-prefixed reactive properties and signal generation
 - Template literal processing and reactive binding
-- MappedArrayExpr for dynamic list rendering
+- Prototype-based namespace system for Web APIs and Array types
+- Declarative array mapping, filtering, and sorting (Rule of Least Power compliance)
 
 ### 2. Core Syntax
 
@@ -87,7 +89,7 @@ dictionary HTMLElementSpec : WritableOverrides {
   
   // Declarative extensions
   record<DOMString, DOMString> attributes;
-  (sequence<ElementSpec> or MappedArrayExpr) children;
+  (sequence<ElementSpec> or ArrayNamespaceConfig) children;
   StyleExpr style;
   ElementSpec? parentNode;
   
@@ -221,41 +223,55 @@ dictionary StyleExpr {
 #### 2.4 Reactive and Dynamic Array Types
 
 ```webidl
-// MappedArrayExpr for dynamic list rendering
-dictionary MappedArrayExpr {
-  // Source array - can be static array, Signal, property accessor, or function
-  (sequence<any> or DOMString or Function) items;
+// Prototype-based namespace configuration for arrays and Web APIs
+dictionary NamespaceConfig {
+  // Required: identifies the prototype/namespace type
+  ("Array" or "Set" or "Map" or "Int8Array" or "Uint8Array" or "Int16Array" or "Uint16Array" or 
+   "Int32Array" or "Uint32Array" or "Float32Array" or "Float64Array" or 
+   "Request" or "FormData" or "URLSearchParams" or "Blob" or "ArrayBuffer" or 
+   "ReadableStream" or "IndexedDB") prototype;
+};
+
+// Array namespace configuration (follows Rule of Least Power)
+dictionary ArrayNamespaceConfig : NamespaceConfig {
+  required DOMString prototype; // Must be an Array-like type
   
-  // Optional filtering expressions
-  sequence<FilterExpr> filter;
+  // Source array - can be static array, Signal, or property accessor  
+  (sequence<any> or DOMString) items;
   
-  // Optional sorting expressions  
-  sequence<SortExpr> sort;
+  // Optional filtering expressions (declarative only)
+  sequence<FilterCriteria> filter;
   
-  // Mapping transformation - can be function, template string, or object template
-  (Function or DOMString or ElementSpec) map;
+  // Optional sorting expressions (declarative only)
+  sequence<SortCriteria> sort;
+  
+  // Mapping transformation - object template or string template only (no functions)
+  (DOMString or ElementSpec) map;
   
   // Optional items to prepend/append to the mapped array
   sequence<ElementSpec> prepend;
   sequence<ElementSpec> append;
+  
+  // Optional debounce delay
+  long debounce;
 };
 
-// Filter expression for array filtering
-dictionary FilterExpr {
-  // Left operand - property name, function, or static value
-  (DOMString or Function or any) leftOperand;
+// Filter expression for array filtering (declarative only - follows Rule of Least Power)
+dictionary FilterCriteria {
+  // Left operand - property name or static value (no functions)
+  (DOMString or any) leftOperand;
   
   // Comparison operator
   (">" or "<" or ">=" or "<=" or "==" or "!=" or "===" or "!==" or "&&" or "||" or "!" or "?" or "includes" or "startsWith" or "endsWith") operator;
   
-  // Right operand - function or static value
-  (Function or any) rightOperand;
+  // Right operand - static value only (no functions)
+  any rightOperand;
 };
 
-// Sort expression for array sorting
-dictionary SortExpr {
-  // Property name or sort function
-  (DOMString or Function) sortBy;
+// Sort expression for array sorting (declarative only - follows Rule of Least Power)
+dictionary SortCriteria {
+  // Property name for sorting (no functions)
+  DOMString sortBy;
   
   // Sort direction
   ("asc" or "desc") direction;
@@ -290,8 +306,8 @@ dictionary RequestConfig {
   any signal;
   
   // DDOM extensions
-  boolean disabled;
-  long delay;
+  boolean manual;
+  long debounce;
   ("arrayBuffer" or "blob" or "formData" or "json" or "text") responseType;
 };
 
@@ -633,9 +649,9 @@ Certain DOM properties are protected from reactivity to maintain element identit
 
 Protected properties: `id`, `tagName`
 
-#### 3.11 Dynamic Mapped Arrays
+#### 3.11 Dynamic Array Namespaces
 
-Children can be defined using MappedArrayExpr for dynamic list rendering:
+Children can be defined using prototype-based array namespaces for dynamic list rendering, following the Rule of Least Power with declarative templates only:
 
 ```javascript
 {
@@ -646,12 +662,14 @@ Children can be defined using MappedArrayExpr for dynamic list rendering:
   ],
   
   children: {
+    prototype: 'Array',
     items: 'this.$todos',
     filter: [{ leftOperand: 'completed', operator: '===', rightOperand: false }],
     sort: [{ sortBy: 'text', direction: 'asc' }],
     map: {
       tagName: 'todo-item',
-      $todoData: (item, index) => item,
+      $todoData: '${item}',       // Declarative template (no functions)
+      $todoIndex: '${index}',     // Declarative template (no functions)
       textContent: '${this.$todoData.get().text}'
     }
   }
@@ -660,102 +678,93 @@ Children can be defined using MappedArrayExpr for dynamic list rendering:
 
 #### 3.12 Web API Namespaces
 
-DDOM provides declarative access to Web APIs through namespaced properties. Each namespace creates reactive signals that wrap standard Web API constructors:
+DDOM provides declarative access to Web APIs through prototype-based namespace properties. Each namespace creates reactive signals that wrap standard Web API constructors:
 
 ```javascript
 {
   // Request namespace - reactive HTTP requests
   $apiData: {
-    Request: {
-      url: '/api/users/${this.$userId.get()}',
-      method: 'GET',
-      headers: {
+    prototype: 'Request',
+    url: '/api/users/${this.$userId.get()}',
+    method: 'GET',
+    headers: {
         'Authorization': 'Bearer ${this.$token.get()}'
       },
-      delay: 300 // Debounce rapid requests
+      debounce: 300 // Debounce rapid requests
     }
   },
   
   // FormData namespace - reactive form construction
   $uploadData: {
-    FormData: {
-      file: '${this.$selectedFile.get()}',
-      description: '${this.$description.get()}',
-      timestamp: '${Date.now()}'
-    }
+    prototype: 'FormData',
+    file: '${this.$selectedFile.get()}',
+    description: '${this.$description.get()}',
+    timestamp: '${Date.now()}'
   },
   
   // URLSearchParams namespace - reactive URL parameters
   $queryParams: {
-    URLSearchParams: {
-      q: '${this.$searchQuery.get()}',
-      page: '${this.$currentPage.get()}',
-      limit: 20
-    }
+    prototype: 'URLSearchParams',
+    q: '${this.$searchQuery.get()}',
+    page: '${this.$currentPage.get()}',
+    limit: 20
   },
   
   // Blob namespace - reactive binary data
   $csvFile: {
-    Blob: {
-      content: '${this.$csvData.get()}',
-      type: 'text/csv'
-    }
+    prototype: 'Blob',
+    content: '${this.$csvData.get()}',
+    type: 'text/csv'
   },
   
   // ArrayBuffer namespace - reactive buffers
   $binaryData: {
-    ArrayBuffer: {
-      data: '${this.$textInput.get()}' // UTF-8 encoded
-    }
+    prototype: 'ArrayBuffer',
+    data: '${this.$textInput.get()}' // UTF-8 encoded
   },
   
   // ReadableStream namespace - reactive streams
   $dataStream: {
-    ReadableStream: {
-      data: '${this.$streamContent.get()}'
-    }
+    prototype: 'ReadableStream',
+    data: '${this.$streamContent.get()}'
   },
   
   // Cookie namespace - reactive cookie management
   $userPrefs: {
-    Cookie: {
-      name: 'userPreferences',
-      value: '{"theme":"light","lang":"en"}',
-      path: '/',
-      maxAge: 86400
-    }
+    prototype: 'Cookie',
+    name: 'userPreferences',
+    value: '{"theme":"light","lang":"en"}',
+    path: '/',
+    maxAge: 86400
   },
   
   // SessionStorage namespace - reactive session data
   $sessionData: {
-    SessionStorage: {
-      key: 'currentSession',
-      value: { startTime: Date.now(), userId: null }
-    }
+    prototype: 'SessionStorage',
+    key: 'currentSession',
+    value: { startTime: Date.now(), userId: null }
   },
   
   // LocalStorage namespace - reactive persistent settings
   $appSettings: {
-    LocalStorage: {
-      key: 'appConfig',
-      value: { 
-        theme: 'light', 
-        notifications: true 
-      }
+    prototype: 'LocalStorage',
+    key: 'appConfig',
+    value: { 
+      theme: 'light', 
+      notifications: true 
     }
   },
   
   // IndexedDB namespace - reactive database operations
   $userData: {
-    IndexedDB: {
-      database: 'UserDB',
-      store: 'profiles',
-      key: '${this.$userId.get()}',
-      value: { 
-        name: '', 
-        email: '', 
-        preferences: {} 
-      }
+    prototype: 'IndexedDB',
+    database: 'UserDB',
+    store: 'profiles',
+    key: '${this.$userId.get()}',
+    value: { 
+      name: '', 
+      email: '', 
+      preferences: {} 
     }
   }
 }
@@ -925,4 +934,4 @@ An implementation conforms to this specification if it:
 - Implements dollar-prefixed property reactivity with TC39 Signals
 - Supports template literal processing for reactive binding
 - Provides component-scoped signal isolation
-- Handles MappedArrayExpr for dynamic list rendering
+- Handles prototype-based namespaces for dynamic list rendering and Web API integration

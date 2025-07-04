@@ -3,10 +3,9 @@
 
 export default {
   $items: {
-    LocalStorage: {
-      key: "todo-list",
-      value: ["Apple", "Banana", "Cherry"],
-    },
+    prototype: "LocalStorage",
+    key: "todo-list",
+    value: ["Apple", "Banana", "Cherry"],
   },
 
   $newItemText: "",
@@ -182,13 +181,13 @@ export default {
       tagName: "dynamic-list-items",
 
       children: {
-        // Use string address for signal resolution
+        prototype: "Array",
         items: "window.$items",
         map: {
           tagName: "dynamic-list-item",
           // These are also transparent signal proxies now
-          $item: (item, _) => item,
-          $index: (_, index) => index,
+          $item: 'item',
+          $index: 'index',
         },
       },
       style: {
@@ -265,6 +264,10 @@ export default {
                 borderRadius: "3px",
                 cursor: "pointer",
                 fontSize: "0.875em",
+                transition: "background-color 0.2s",
+                ":hover": {
+                  backgroundColor: "#c82333",
+                },
               },
               onclick: function (_event) {
                 const index = this.$index.get();

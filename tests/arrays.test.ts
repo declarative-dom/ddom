@@ -4,9 +4,9 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { MappedArray, isMappedArrayExpr } from '../lib/src/arrays';
+import { MappedArray, isArrayConfig } from '../lib/src/arrays';
 import { Signal } from '../lib/src/signals';
-import { MappedArrayExpr } from '../types/src';
+import { ArrayConfig } from '../types/src';
 
 // Mock DOM environment for tests
 Object.defineProperty(globalThis, 'document', {
@@ -44,13 +44,13 @@ describe('MappedArray', () => {
   });
 
   describe('Type Guards', () => {
-    it('should correctly identify MappedArrayExpr objects', () => {
-      expect(isMappedArrayExpr({ items: [] })).toBe(true);
-      expect(isMappedArrayExpr({ items: 'window.data' })).toBe(true);
-      expect(isMappedArrayExpr({ notItems: [] })).toBe(false);
-      expect(isMappedArrayExpr(null)).toBe(false);
-      expect(isMappedArrayExpr(undefined)).toBe(false);
-      expect(isMappedArrayExpr('string')).toBe(false);
+    it('should correctly identify ArrayConfig objects', () => {
+      expect(isArrayConfig({ items: [] })).toBe(true);
+      expect(isArrayConfig({ items: 'window.data' })).toBe(true);
+      expect(isArrayConfig({ notItems: [] })).toBe(false);
+      expect(isArrayConfig(null)).toBe(false);
+      expect(isArrayConfig(undefined)).toBe(false);
+      expect(isArrayConfig('string')).toBe(false);
     });
   });
 

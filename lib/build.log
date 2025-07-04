@@ -1,0 +1,14 @@
+
+src/index.ts → dist...
+(!) Circular dependencies
+src/elements.ts -> src/namespaces/index.ts -> src/namespaces/array/index.ts -> src/properties.ts -> src/customElements.ts -> src/elements.ts
+src/elements.ts -> src/namespaces/index.ts -> src/namespaces/array/index.ts -> src/properties.ts -> src/elements.ts
+src/namespaces/index.ts -> src/namespaces/array/index.ts -> src/properties.ts -> src/namespaces/index.ts
+...and 8 more
+(!) [plugin typescript] src/types/namespaces.ts (195:14): @rollup/plugin-typescript TS2304: Cannot find name 'CookieSameSite'.
+/home/batonac/Development/declarative-dom/lib/src/types/namespaces.ts:195:14
+
+[7m195[0m   sameSite?: CookieSameSite;
+[7m   [0m [91m             ~~~~~~~~~~~~~~[0m
+
+created dist in 1.2s

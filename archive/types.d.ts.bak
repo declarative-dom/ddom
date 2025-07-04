@@ -1,0 +1,594 @@
+/**
+ * Declarative DOM is a type system and specification for defining structured DOM data
+ * in a JS-native format. It is intended to reflect the shape of the real DOM 
+ * (HTMLElement, Window, etc.) as closely as possible, with only the minimal
+ * necessary changes to support declarative definition.
+ */
+
+/**
+ * FilterOper Type Definition
+ * Defines operators specifically for use in filter expressions that return boolean values.
+ * Includes comparison, logical, and conditional operators suitable for filtering operations.
+ */
+const FILTER_OPERATORS = [
+	'>', '<', '>=', '<=', 
+	'==', '!=', '===', '!==', 
+	'&&', '||', '!', '?',
+	'includes', 'startsWith', 'endsWith',
+] as const;
+
+export type FilterOper = typeof FILTER_OPERATORS[number];
+
+/**
+ * Operator Type Definition
+ * Defines all supported operators for use in expressions and computations.
+ * Includes comparison, logical, arithmetic, bitwise, and conditional operators.
+ * Note: For filtering operations, use FilterOper instead.
+ */
+const OPERATORS = [
+	'>', '<', '>=', '<=', 
+	'==', '!=', '===', '!==', 
+	'&&', '||', 
+	'+', '-', '*', '/', '%', 
+	'^', '&', '|', '!', '~', 
+	'<<', '>>', '>>>', 
+	'?', 'includes', 'startsWith', 'endsWith',
+] as const;
+
+export type Operator = typeof OPERATORS[number];
+
+/**
+ * FilterCriteria Type Definition
+ * This type is used to define filters that can be applied to arrays of items.
+ * It allows for complex filtering operations using operators and can handle both static and dynamic values.
+ * @template T - The type of items in the array.
+ * @property leftOperand - The left operand of the filter condition, which can be a string (property name), a function, or a dynamic value.
+ * @property operator - The filter operator to use for comparison - only boolean-returning operators are allowed.
+ * @property rightOperand - The right operand of the filter condition, which can be a static value, a function, or a dynamic value.
+ * */
+export type FilterCriteria<T = any> = {
+	leftOperand: string | ((item: T, index: number) => any);
+	operator: FilterOper;
+	rightOperand: any | ((item: T, index: number) => any);
+};
+
+/**
+ * SortCriteria Type Definition
+ * This type is used to define sorting operations for arrays of items.
+ * It allows for both static and dynamic sorting based on properties or functions.
+ * @template T - The type of items in the array.
+ * @property sortBy - The property name or function to sort by.
+ * @property direction - The direction of sorting, either 'asc' for ascending or 'desc' for descending.
+ */
+export type SortCriteria<T = any> = {
+	sortBy: string | ((item: T) => any);
+	direction?: 'asc' | 'desc';
+};
+
+/**
+ * ArrayConfig Type Definition
+ * Provides a declarative way to define arrays with built-in filtering, sorting, grouping, and mapping capabilities.
+ * This type enables complex data transformations without imperative code.
+ * @template T - The type of items in the source array.
+ * @template R - The type of items after mapping transformation.
+ * @property items - The source array of items to be processed. Can be:
+ *   - A static array
+ *   - A function that returns an array
+ *   - A Signal.State or Signal.Computed containing an array
+ *   - A string address like "window.todos" or "this.parentNode.items" that resolves to a signal
+ * @property map - Transformation to apply to each item. Can be:
+ *   - An object template with function properties for dynamic values
+ *   - A string template for simple interpolation
+ *   - A static value for direct mapping
+ * @property filter - Optional array of filters to apply to items before mapping.
+ * @property sort - Optional array of sort operations to apply before mapping.
+ * @property groupBy - Optional function to group items by a key before mapping.
+ * @property prepend - Optional array of items to add at the beginning of the result.
+ * @property append - Optional array of items to add at the end of the result.
+ */
+export type ArrayConfig<T = any, R = any> = {
+	items: T[] | ((contextNode?: Node) => T[]) | Signal.State<T[]> | Signal.Computed<T[]> | string;
+	map?: string | R;
+	filter?: FilterCriteria<T>[];
+	sort?: SortCriteria<T>[];
+	groupBy?: (item: T, index: number) => string | number;
+	prepend?: R[];
+	append?: R[];
+};
+
+/**
+ * StyleExpr Type Definition
+ * Extends standard CSS properties to support nested selectors and pseudo-selectors.
+ * This type enables CSS nesting syntax within style objects for more powerful styling.
+ * Supports all standard CSSStyleDeclaration properties plus selector-based nesting.
+ * @example
+ * {
+ *   backgroundColor: 'blue',
+ *   ':hover': { backgroundColor: 'red' },
+ *   '.child': { color: 'white' }
+ * }
+ */
+export type StyleExpr = {
+	[K in keyof CSSStyleDeclaration]?: CSSStyleDeclaration[K];
+} & {
+	[selector: string]: StyleExpr;
+};
+
+/**
+ * WritableOverrides Type Definition
+ * Defines properties that override normally read-only DOM properties to enable declarative definition.
+ * These properties are essential for creating DOM structures declaratively while maintaining
+ * alignment with native DOM APIs.
+ * @property tagName - The HTML tag name for the element (normally read-only).
+ * @property attributes - Key-value pairs for HTML attributes.
+ * @property children - Array of child elements or a declarative array definition.
+ * @property document - Partial document definition for global modifications.
+ * @property customElements - Array of custom element definitions.
+ * @property style - CSS properties with support for nesting.
+ */
+type WritableOverrides = {
+	tagName?: string;
+	attributes?: Record<string, string>;
+	children?: HTMLElementSpec[] | ArrayConfig<any[], CustomElementSpec>;
+	document?: Partial<DocumentSpec>
+	customElements?: CustomElementSpec[];
+	style?: StyleExpr;
+};
+
+/**
+ * CustomElementSpec Type Definition
+ * Defines a custom HTML element (Web Component) with declarative structure and behavior.
+ * Supports all standard Web Component lifecycle methods and reactive properties.
+ * Custom elements must have a hyphenated tagName to comply with Web Components standards.
+ * 
+ * Reactivity Model:
+ * - Template literals with ${...} automatically get computed signals + effects
+ * - Non-function, non-templated properties get transparent signal proxies
+ * - Protected properties (id, tagName) are set once and never reactive
+ * 
+ * @property tagName - Required hyphenated tag name for the custom element.
+ * @property constructor - Optional constructor function called when element is created.
+ * @property adoptedCallback - Called when element is moved to a new document.
+ * @property attributeChangedCallback - Called when observed attributes change.
+ * @property connectedCallback - Called when element is connected to the DOM.
+ * @property connectedMoveCallback - Called when element is moved within the DOM.
+ * @property disconnectedCallback - Called when element is removed from the DOM.
+ * @property formAssociatedCallback - Called when element is associated with a form.
+ * @property formDisabledCallback - Called when form is disabled/enabled.
+ * @property formResetCallback - Called when associated form is reset.
+ * @property formStateRestoreCallback - Called when form state is restored.
+ * @property observedAttributes - Array of attribute names to observe for changes.
+ */
+export type CustomElementSpec = WritableOverrides & {
+	tagName: string; // Required for custom elements
+	constructor?: (element: HTMLElement) => void;
+	adoptedCallback?: (element: HTMLElement) => void;
+	attributeChangedCallback?: (element: HTMLElement, name: string, oldValue: string | null, newValue: string | null) => void;
+	connectedCallback?: (element: HTMLElement) => void;
+	connectedMoveCallback?: (element: HTMLElement) => void;
+	disconnectedCallback?: (element: HTMLElement) => void;
+	formAssociatedCallback?: (element: HTMLElement, form: HTMLFormElement | null) => void;
+	formDisabledCallback?: (element: HTMLElement, disabled: boolean) => void;
+	formResetCallback?: (element: HTMLElement) => void;
+	formStateRestoreCallback?: (element: HTMLElement, state: any, mode: 'restore' | 'autocomplete') => void;
+	observedAttributes?: string[];
+};
+
+/**
+ * HTMLBodyElementSpec Type Definition
+ * Represents the HTML body element with declarative properties.
+ * Extends the standard HTMLBodyElement interface with writable overrides
+ * to enable declarative definition of the document body.
+ */
+export type HTMLBodyElementSpec = Omit<HTMLBodyElement, keyof WritableOverrides> & WritableOverrides & {};
+
+/**
+ * HTMLElementSpec Type Definition
+ * Represents any standard HTML element with declarative properties.
+ * This is the base type for all HTML elements in the Declarative DOM system.
+ * @property tagName - Required HTML tag name for the element.
+ * @property parentNode - Optional parent node reference for processing.
+ */
+export type HTMLElementSpec = Omit<HTMLElement, keyof WritableOverrides | 'parentNode'> & WritableOverrides & {
+	tagName: string; // Required for elements
+	parentNode?: DOMNode | ElementSpec; // Allow parentNode to be declared during processing
+}
+
+/**
+ * HTMLHeadElementSpec Type Definition
+ * Represents the HTML head element with declarative properties.
+ * Extends the standard HTMLHeadElement interface with writable overrides
+ * to enable declarative definition of the document head.
+ */
+export type HTMLHeadElementSpec = Omit<HTMLHeadElement, keyof WritableOverrides> & WritableOverrides & {};
+
+/**
+ * DocumentSpec Type Definition
+ * Represents an HTML document with declarative properties.
+ * Enables declarative definition of document structure including head and body elements.
+ * @property body - Optional declarative body element definition.
+ * @property head - Optional declarative head element definition.
+ */
+export type DocumentSpec = Omit<Document, keyof WritableOverrides> & WritableOverrides & {
+	body?: Partial<HTMLBodyElementSpec>;
+	head?: Partial<HTMLHeadElementSpec>;
+};
+
+/**
+ * WindowSpec Type Definition
+ * Represents a browser window with declarative properties.
+ * Enables declarative definition of window-level properties and behavior.
+ * This is typically the root level of a Declarative DOM structure.
+ */
+export type WindowSpec = Omit<Window, keyof WritableOverrides> & WritableOverrides & {};
+
+/**
+ * DOMSpec Type Definition
+ * Union type representing all possible Declarative DOM node types.
+ * This includes all element types, documents, windows, and custom elements.
+ * Used as the top-level type for any Declarative DOM structure.
+ */
+export type DOMSpec = HTMLElementSpec | HTMLBodyElementSpec | HTMLHeadElementSpec | DocumentSpec | WindowSpec | CustomElementSpec;
+
+/**
+ * ElementSpec Type Definition
+ * Union type representing all Declarative DOM element types (excluding Document and Window).
+ * Used when specifically referring to element nodes rather than document or window objects.
+ */
+export type ElementSpec = HTMLElementSpec | HTMLBodyElementSpec | HTMLHeadElementSpec | CustomElementSpec;
+
+/**
+ * DOMNode Type Definition
+ * Union type representing all possible native DOM node types.
+ * Used for type checking when interfacing between Declarative DOM and native DOM APIs.
+ * Includes all standard DOM node types that can be parents or targets of DOM operations.
+ */
+export type DOMNode = HTMLElement | HTMLBodyElement | HTMLHeadElement | Document | ShadowRoot | DocumentFragment | Window;
+
+/**
+ * RequestConfig Type Definition
+ * Configuration for Request namespace properties in DDOM.
+ * Extends standard RequestInit with URL and web-standard control properties.
+ */
+export interface RequestConfig extends PrototypeConfig, RequestInit {
+  prototype: 'Request';
+  url: string;                        // Required: request URL
+  
+  // DDOM-specific extensions
+  manual?: boolean;                   // Manual execution mode - disables auto-triggering (default: false)
+  debounce?: number;                  // Debounce delay in milliseconds for auto-triggered requests
+  responseType?: XMLHttpRequestResponseType; // Response parsing hint - matches XMLHttpRequest.responseType
+}
+
+/**
+ * CookieConfig Type Definition
+ * Configuration for Cookie namespace properties in DDOM.
+ * Extends web-standard CookieInit with DDOM-specific value handling.
+ */
+export interface CookieConfig extends Omit<CookieInit, 'value'> {
+  value?: any;                        // Cookie value - supports any type with auto-serialization (DDOM extension)
+  maxAge?: number;                    // Max age in seconds (common extension)
+  secure?: boolean;                   // Secure flag (common extension)
+}
+
+/**
+ * SessionStorageConfig Type Definition
+ * Configuration for SessionStorage namespace properties in DDOM.
+ * Manages sessionStorage key-value pairs with reactive updates.
+ */
+export interface SessionStorageConfig {
+  key: string;                        // Required: storage key
+  value?: any;                        // Value - used as initial value if key doesn't exist
+}
+
+/**
+ * LocalStorageConfig Type Definition
+ * Configuration for LocalStorage namespace properties in DDOM.
+ * Manages localStorage key-value pairs with reactive updates.
+ */
+export interface LocalStorageConfig {
+  key: string;                        // Required: storage key
+  value?: any;                        // Value - used as initial value if key doesn't exist
+}
+
+/**
+ * IndexedDBConfig Type Definition
+ * Configuration for IndexedDB namespace properties in DDOM.
+ * 
+ * Two modes:
+ * 1. Database Setup Mode (no operation/filter/query) → returns IDBObjectStore
+ * 2. Query Mode (with operation/filter/query) → returns IndexedDBQuerySignal
+ */
+export interface IndexedDBConfig extends IDBObjectStoreParameters {
+  database: string;                   // Required: database name
+  store: string;                      // Required: object store name
+  version?: number;                   // Database version (default: 1)
+  indexes?: IndexedDBIndexConfig[];   // Optional: indexes to create on the store
+  value?: any | any[];                // Initial data to populate database (if empty)
+  
+  // Query configuration (presence determines if this returns IDBObjectStore or IndexedDBQuerySignal)
+  operation?: 'getAll' | 'get' | 'query' | 'count'; // Database operation
+  key?: any;                          // Key for get operation (reactive)
+  query?: IDBKeyRange | any;          // Query range for query operation (reactive)
+  index?: string;                     // Index name to query against (reactive)
+  direction?: IDBCursorDirection;     // Cursor direction for query operation
+  limit?: number;                     // Maximum number of results to return (reactive)
+  filter?: FilterCriteria<any>[];         // Client-side filter expressions (using existing FilterCriteria)
+  sort?: SortCriteria<any>[];             // Client-side sort expressions (using existing SortCriteria)
+  
+  // Binding to existing database store (alternative to database/store/version/indexes)
+  bind?: string;                      // Property accessor to existing IDBObjectStore (e.g., "this.$allProducts")
+  
+  // Control options (only for query mode)
+  manual?: boolean;                   // Manual execution mode - disables auto-triggering (default: false)
+  debounce?: number;                  // Debounce delay in milliseconds for auto-triggered queries
+}
+
+/**
+ * IndexedDBIndexConfig Type Definition
+ * Configuration for creating indexes on IndexedDB object stores.
+ */
+export interface IndexedDBIndexConfig extends IDBIndexParameters {
+  name: string;                       // Required: index name
+  keyPath: string | string[];         // Required: key path for the index
+}
+
+/**
+ * IndexedDBQuerySignal Type Definition
+ * A Signal.State that contains database query results and provides database methods.
+ * Automatically re-executes queries when reactive dependencies change.
+ */
+export interface IndexedDBQuerySignal<T = any> extends Signal.State<T[]> {
+  query(): Promise<T[]>;              // Manual query execution
+  add(value: any, key?: any): Promise<any>; // Add new record (triggers re-query)
+  put(value: any, key?: any): Promise<void>; // Update/insert record (triggers re-query)
+  delete(key: any): Promise<void>;    // Delete record (triggers re-query)
+  clear(): Promise<void>;             // Clear all records (triggers re-query)
+  count(): Promise<number>;           // Count records matching current query
+  getStore(mode?: IDBTransactionMode): IDBObjectStore; // Get fresh store reference
+}
+
+// === SIGNAL EXTENSIONS ===
+
+/**
+ * RequestSignal Type Definition
+ * A Signal.State that extends with fetch capabilities for manual request triggering.
+ * Contains the parsed response data directly and provides a fetch method for manual execution.
+ */
+export interface RequestSignal<T = any> extends Signal.State<T> {
+  fetch(): Promise<void>;             // Manual fetch trigger
+}
+
+/**
+ * StorageSignal Type Definition
+ * A Signal.State for storage operations (localStorage, sessionStorage, cookies).
+ * Contains the deserialized value and automatically syncs with the underlying storage.
+ */
+export interface StorageSignal<T = any> extends Signal.State<T> {
+  // Inherits all Signal.State methods - no additional methods needed
+  // The reactivity and storage sync happens automatically
+}
+
+/**
+ * IndexedDBSignal Type Definition
+ * REMOVED: IndexedDB now returns IDBObjectStore directly instead of a signal.
+ * This provides better alignment with database patterns and avoids anti-patterns
+ * of replicating database state in memory.
+ * 
+ * @deprecated Use IDBObjectStore directly from IndexedDB namespace
+ */
+export interface IndexedDBSignal<T = any> extends Signal.State<T> {
+  add(value: any, key?: any): Promise<any>;           // Add new record
+  get(key: any): Promise<any>;                        // Get single record
+  getAll(): Promise<any[]>;                           // Get all records
+  put(value: any, key?: any): Promise<void>;          // Update/insert record
+  delete(key: any): Promise<void>;                    // Delete record
+  clear(): Promise<void>;                             // Clear all records
+  count(): Promise<number>;                           // Count records
+}
+
+/**
+ * FormDataSignal Type Definition
+ * A Signal.Computed for reactive FormData objects.
+ * Automatically rebuilds FormData when source properties change.
+ */
+export interface FormDataSignal extends Signal.Computed<FormData> {
+  // Inherits all Signal.Computed methods
+  // Additional FormData-specific methods could be added here if needed
+}
+
+/**
+ * URLSearchParamsSignal Type Definition
+ * A Signal.Computed for reactive URLSearchParams objects.
+ * Automatically rebuilds URLSearchParams when source properties change.
+ */
+export interface URLSearchParamsSignal extends Signal.Computed<URLSearchParams> {
+  // Inherits all Signal.Computed methods
+  // Additional URLSearchParams-specific methods could be added here if needed
+}
+
+/**
+ * BlobSignal Type Definition
+ * A Signal.Computed for reactive Blob objects.
+ * Automatically rebuilds Blob when content or options change.
+ */
+export interface BlobSignal extends Signal.Computed<Blob> {
+  // Inherits all Signal.Computed methods
+  // Additional Blob-specific methods could be added here if needed
+}
+
+/**
+ * ArrayBufferSignal Type Definition
+ * A Signal.Computed for reactive ArrayBuffer objects.
+ * Automatically rebuilds ArrayBuffer when source data changes.
+ */
+export interface ArrayBufferSignal extends Signal.Computed<ArrayBuffer> {
+  // Inherits all Signal.Computed methods
+  // Additional ArrayBuffer-specific methods could be added here if needed
+}
+
+/**
+ * ReadableStreamSignal Type Definition
+ * A Signal.Computed for reactive ReadableStream objects.
+ * Automatically rebuilds stream when source data or strategy changes.
+ */
+export interface ReadableStreamSignal extends Signal.Computed<ReadableStream> {
+  // Inherits all Signal.Computed methods
+  // Additional ReadableStream-specific methods could be added here if needed
+}
+
+/**
+ * ComputedSignal Type Definition
+ * A Signal.Computed for reactive Web API objects (FormData, URLSearchParams, etc.).
+ * Automatically recomputes when dependencies change.
+ * 
+ * @deprecated Use specific signal types like FormDataSignal, URLSearchParamsSignal, etc.
+ */
+export interface ComputedSignal<T = any> extends Signal.Computed<T> {
+  // Inherits all Signal.Computed methods - no additional methods needed
+}
+
+// === PROTOTYPE-BASED NAMESPACE CONFIGURATIONS ===
+
+/**
+ * Base prototype configuration interface
+ */
+export interface PrototypeConfig {
+  prototype: string;
+}
+
+/**
+ * Array Configuration for Array-like prototypes
+ * Supports Array, Set, Map, and TypedArrays with unified processing
+ */
+export interface ArrayConfig extends PrototypeConfig {
+  prototype: 'Array' | 'Set' | 'Map' | 'Int8Array' | 'Uint8Array' | 'Int16Array' | 'Uint16Array' | 'Int32Array' | 'Uint32Array' | 'Float32Array' | 'Float64Array';
+  items: string | any[];           // Property accessor or direct array
+  filter?: FilterCriteria[];           // Filter expressions
+  map?: any;                       // Object template, string template, or function
+  sort?: SortCriteria[];              // Sort expressions  
+  debounce?: number;              // Debounce delay in milliseconds
+}
+
+/**
+ * Request Configuration with prototype
+ */
+export interface RequestConfig extends PrototypeConfig, RequestInit {
+  prototype: 'Request';
+  url: string;                        // Required: request URL
+  
+  // DDOM-specific extensions
+  manual?: boolean;                   // Manual execution mode - disables auto-triggering (default: false)
+  debounce?: number;                  // Debounce delay in milliseconds for auto-triggered requests
+  responseType?: XMLHttpRequestResponseType; // Response parsing hint - matches XMLHttpRequest.responseType
+}
+
+/**
+ * FormData Configuration with prototype
+ */
+export interface FormDataConfig extends PrototypeConfig {
+  prototype: 'FormData';
+  [key: string]: any;              // Form field values
+}
+
+/**
+ * URLSearchParams Configuration with prototype
+ */
+export interface URLSearchParamsConfig extends PrototypeConfig {
+  prototype: 'URLSearchParams';
+  [key: string]: any;              // Parameter values
+}
+
+/**
+ * Blob Configuration with prototype
+ */
+export interface BlobConfig extends PrototypeConfig {
+  prototype: 'Blob';
+  content?: any[];                // Blob parts array
+  type?: string;                  // MIME type
+  endings?: 'transparent' | 'native'; // Line ending handling
+}
+
+/**
+ * ArrayBuffer Configuration with prototype
+ */
+export interface ArrayBufferConfig extends PrototypeConfig {
+  prototype: 'ArrayBuffer';
+  data?: string | number[] | ArrayBuffer; // Source data
+  length?: number;                // Buffer length if creating empty buffer
+}
+
+/**
+ * ReadableStream Configuration with prototype
+ */
+export interface ReadableStreamConfig extends PrototypeConfig {
+  prototype: 'ReadableStream';
+  source?: ReadableStreamDefaultController; // Stream source object
+  data?: any[];                   // Data to stream
+}
+
+/**
+ * IndexedDB Configuration with prototype
+ */
+export interface IndexedDBConfig extends PrototypeConfig, IDBObjectStoreParameters {
+  prototype: 'IndexedDB';
+  database: string;                   // Required: database name
+  store: string;                      // Required: object store name
+  version?: number;                   // Database version (default: 1)
+  indexes?: IndexedDBIndexConfig[];   // Optional: indexes to create on the store
+  value?: any | any[];                // Initial data to populate database (if empty)
+  
+  // Query configuration (presence determines if this returns IDBObjectStore or IndexedDBQuerySignal)
+  operation?: 'getAll' | 'get' | 'query' | 'count'; // Database operation
+  key?: any;                          // Key for get operation (reactive)
+  query?: IDBKeyRange | any;          // Query range for query operation (reactive)
+  index?: string;                     // Index name to query against (reactive)
+  direction?: IDBCursorDirection;     // Cursor direction for query operation
+  limit?: number;                     // Maximum number of results to return (reactive)
+  filter?: FilterCriteria<any>[];         // Client-side filter expressions (using existing FilterCriteria)
+  sort?: SortCriteria<any>[];             // Client-side sort expressions (using existing SortCriteria)
+  
+  // Binding to existing database store (alternative to database/store/version/indexes)
+  bind?: string;                      // Property accessor to existing IDBObjectStore (e.g., "this.$allProducts")
+  
+  // Control options (only for query mode)
+  manual?: boolean;                   // Manual execution mode - disables auto-triggering (default: false)
+  debounce?: number;                  // Debounce delay in milliseconds for auto-triggered queries
+}
+
+/**
+ * DOMSpecOptions interface for processing options
+ */
+export interface DOMSpecOptions {
+  css?: boolean;                      // Whether to process CSS styles
+  ignoreKeys?: string[];              // Keys to ignore during processing
+}
+
+// === SIGNAL TYPE EXTENSIONS ===
+
+/**
+ * Request Signal - Signal.State with fetch capabilities
+ */
+export interface RequestSignal<T = any> extends Signal.State<T> {
+  fetch(overrideConfig?: Partial<RequestConfig>): Promise<T>;
+}
+
+/**
+ * Array Signal - Signal.Computed for processed arrays  
+ */
+export interface ArraySignal<T = any[]> extends Signal.Computed<T> {
+  // Inherits all Signal.Computed methods
+}
+
+/**
+ * IndexedDB Query Signal - Signal for reactive database queries
+ */
+export interface IndexedDBQuerySignal<T = any> extends Signal.State<T> {
+  add(value: any, key?: any): Promise<any>;
+  get(key: any): Promise<any>;
+  getAll(): Promise<any[]>;
+  put(value: any, key?: any): Promise<any>;
+  delete(key: any): Promise<void>;
+  clear(): Promise<void>;
+  count(): Promise<number>;
+}
