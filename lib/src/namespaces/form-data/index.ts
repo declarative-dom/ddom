@@ -5,8 +5,8 @@
  * Focused solely on FormData - each Web API gets its own namespace.
  */
 
-import { Signal } from '../../signals';
-import { resolvePropertyValue, evaluatePropertyValue } from '../../properties';
+import { Signal } from '../../core/signals';
+import { resolvePropertyValue, evaluatePropertyValue } from '../../core/properties';
 import { PrototypeConfig, validateNamespaceConfig, createNamespaceHandler } from '../index';
 
 /**

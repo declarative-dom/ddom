@@ -9,6 +9,7 @@
  */
 
 import { SortCriteria } from '../../types';
+import { getNestedProperty } from '../../utils/evaluation';
 
 /**
  * Applies an array of sort expressions to items
@@ -91,11 +92,4 @@ function getSortValue(item: any, sortBy: string | ((item: any) => any)): any {
   return item;
 }
 
-/**
- * Gets a nested property from an object using dot notation
- */
-function getNestedProperty(obj: any, path: string): any {
-  return path.split('.').reduce((current, key) => {
-    return current && typeof current === 'object' ? current[key] : undefined;
-  }, obj);
-}
+

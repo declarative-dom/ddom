@@ -5,7 +5,7 @@
  * All namespaces follow the pattern: { prototype: 'TypeName', ...config }
  */
 
-import { Signal } from '../signals';
+import { Signal } from '../core/signals';
 import { 
   isNamespacedProperty, 
   validateNamespaceConfig, 

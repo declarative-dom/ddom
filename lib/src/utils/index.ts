@@ -38,9 +38,11 @@ export {
   safeNumber,
   shallowClone,
   shallowEqual,
+  // Mutable props detection utilities (consolidated)
+  isMutableProp,
+  detectMutableProps,
   analyzeMutableProperties,
-  containsItemOrIndexReference,
-  extractItemPropertyPath
+  evaluateAccessor
 } from './helpers';
 
 // Serialization utilities
@@ -54,9 +56,4 @@ export {
   isValidStorageKey
 } from './serialization';
 
-// Mutable props detection utilities
-export {
-  isMutableProp,
-  detectMutableProps,
-  evaluateAccessor
-} from './mutable-props';
+

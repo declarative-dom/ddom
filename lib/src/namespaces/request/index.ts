@@ -5,8 +5,8 @@
  * debouncing, and response handling.
  */
 
-import { Signal, createEffect, ComponentSignalWatcher } from '../../signals';
-import { resolvePropertyValue, evaluatePropertyValue } from '../../properties';
+import { Signal, createEffect, ComponentSignalWatcher } from '../../core/signals';
+import { resolvePropertyValue, evaluatePropertyValue } from '../../core/properties';
 import { PrototypeConfig, validateNamespaceConfig, createNamespaceHandler } from '../index';
 import { performFetch } from './fetch';
 

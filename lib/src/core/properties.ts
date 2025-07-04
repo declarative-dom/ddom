@@ -1,40 +1,25 @@
 /**
- * Consolidated Properties Module
+ * Pure Properties Module
  *
- * This module provides a comprehensive property handling system for DDOM, combining:
- * - Template literals with ${...} expressions and reactive binding
- * - Property accessor strings (window.*, document.*, this.*)
- * - Native ES6 getter/setter support with computed signals
- * - Dynamic property handlers for special DDOM properties
- * - Unified property resolution and binding logic
+ * This module provides PURE property value resolution for DDOM:
+ * - Property value classification and validation
+ * - Template literal parsing and computed signal creation
+ * - Property accessor string resolution
+ * - Signal type detection and creation
+ * - Value evaluation and extraction
  *
- * The module uses modern JavaScript patterns with ultra-fine-grained reactivity,
- * automatic cleanup, and optimized performance.
+ * This module is COMPLETELY PURE - it performs NO side effects:
+ * - No DOM mutations
+ * - No element property assignments
+ * - No effect creation or binding
+ * - No calls to external modules that cause side effects
  *
- * This module is PURE - it performs no side effects and only resolves property values.
- * All DOM mutations and style applications are handled in the elements and binding modules.
+ * All DOM mutations and bindings are handled in the DOM modules (element.ts, binding.ts, etc.)
  */
 
-import { define } from '../dom/custom-elements';
-
-import { adoptNode } from '../dom/elements';
-
-import { Signal, createEffect, ComponentSignalWatcher } from './signals';
-
-
-
-import { isNamespacedProperty, processNamespacedProperty } from './namespaces';
-
-import {
-  DocumentSpec,
-  DOMNode,
-  DOMSpec,
-  HTMLElementSpec,
-  StyleExpr,
-  WindowSpec,
-} from './types';
-
-import { DOMSpecOptions } from './elements';
+import { Signal } from './signals';
+import { isNamespacedProperty } from '../namespaces';
+import { DOMNode, DOMSpec } from '../types';
 
 // === PROPERTY DETECTION AND CLASSIFICATION ===
 
@@ -96,445 +81,6 @@ export function shouldBeSignal(key: string, value: any): boolean {
     typeof value !== 'function' &&
     !isNamespacedProperty(value) // Not a namespaced property
   );
-}
-
-// === REACTIVE PROPERTY CREATION ===
-
-/**
- * Creates a reactive property using a direct Signal.State object.
- * This ensures proper dependency tracking with the TC39 Signals polyfill.
- *
- * @param el - The element to attach the property to
- * @param property - The property name
- * @param initialValue - The initial value for the property
- * @returns The Signal.State instance
- */
-export function createReactiveProperty(
-  el: any,
-  property: string,
-  initialValue: any
-): Signal.State<any> | Signal.Computed<any> {
-  // Handle regular values with Signal.State
-  const signal = new Signal.State(initialValue);
-  el[property] = signal;
-  return signal;
-}
-
-// === REACTIVE BINDING UTILITIES ===
-
-/**
- * Creates a reactive binding with automatic cleanup support.
- * Consolidates the common pattern of computed signals + effects + cleanup.
- *
- * @param computedSignal - The computed signal to bind
- * @param updateFn - Function to call when the signal value changes
- * @param shouldUpdate - Optional function to determine if update should occur
- * @returns A cleanup function to dispose of the reactive binding
- */
-function createReactiveBinding<T>(
-  computedSignal: Signal.Computed<T>,
-  updateFn: (value: T) => void,
-  shouldUpdate?: (newValue: T, currentValue?: T) => boolean
-): () => void {
-  const componentWatcher = (globalThis as any).__ddom_component_watcher as
-    | ComponentSignalWatcher
-    | undefined;
-
-  const cleanup = createEffect(() => {
-    const newValue = computedSignal.get();
-
-    // Only update if shouldUpdate returns true (or if no shouldUpdate provided)
-    if (!shouldUpdate || shouldUpdate(newValue)) {
-      updateFn(newValue);
-    }
-  }, componentWatcher);
-
-  // Auto-cleanup with AbortController if available
-  const signal = (globalThis as any).__ddom_abort_signal;
-  if (signal && !signal.aborted) {
-    signal.addEventListener('abort', cleanup, { once: true });
-  }
-
-  return cleanup;
-}
-
-/**
- * Creates a reactive template binding for any update function.
- * Handles template compilation and reactive updates in one place.
- *
- * @param template - The template string to make reactive
- * @param contextNode - The DOM node to use as context
- * @param updateFn - Function to call when the template value changes
- * @param shouldUpdate - Optional function to determine if update should occur
- * @returns A cleanup function to dispose of the reactive binding
- */
-function bindReactiveTemplate(
-  template: string,
-  contextNode: Node,
-  updateFn: (value: string) => void,
-  shouldUpdate?: (newValue: string, currentValue?: string) => boolean
-): () => void {
-  const computedValue = computedTemplate(template, contextNode);
-  return createReactiveBinding(computedValue, updateFn, shouldUpdate);
-}
-
-/**
- * Unified attribute setter with proper type handling.
- * Handles boolean attributes, null/undefined values, and string conversion.
- *
- * @param el - The element to set the attribute on
- * @param name - The attribute name
- * @param value - The attribute value to set
- */
-function setAttributeValue(el: Element, name: string, value: any): void {
-  if (typeof value === 'boolean') {
-    value ? el.setAttribute(name, '') : el.removeAttribute(name);
-  } else if (value == null) {
-    el.removeAttribute(name);
-  } else {
-    el.setAttribute(name, String(value));
-  }
-}
-
-/**
- * Processes a single attribute with automatic reactive/static detection.
- *
- * @param el - The element to set the attribute on
- * @param attrName - The attribute name
- * @param attrValue - The attribute value (can be string, function, or other types)
- */
-function processAttribute(el: Element, attrName: string, attrValue: any): void {
-  if (typeof attrValue === 'string' && isTemplateLiteral(attrValue)) {
-    // Reactive template expression
-    bindAttributeTemplate(el, attrName, attrValue);
-  } else if (typeof attrValue === 'function') {
-    // Reactive function attribute
-    bindAttributeFunction(el, attrName, attrValue);
-  } else if (typeof attrValue === 'string') {
-    // Static string - evaluate with context
-    const evaluatedValue = parseTemplateLiteral(attrValue, el);
-    setAttributeValue(el, attrName, evaluatedValue);
-  } else {
-    // Direct value
-    setAttributeValue(el, attrName, attrValue);
-  }
-}
-
-/**
- * Creates a property handler wrapper to reduce boilerplate.
- * Provides consistent error handling and conditional execution for handlers.
- *
- * @param handlerFn - The handler function to wrap
- * @param condition - Optional condition function to determine if handler should execute
- * @returns A standardized DDOM property handler function
- */
-function createHandler(
-  handlerFn: (value: any, el: DOMNode, options?: DOMSpecOptions) => void,
-  condition?: (el: DOMNode, options?: DOMSpecOptions) => boolean
-) {
-  return (
-    spec: DOMSpec,
-    el: DOMNode,
-    key: string,
-    value: any,
-    options: DOMSpecOptions = {}
-  ): void => {
-    if (!value || (condition && !condition(el, options))) return;
-
-    try {
-      handlerFn(value, el, options);
-    } catch (error) {
-      console.warn(`Handler failed for property "${key}":`, error);
-    }
-  };
-}
-
-//  === HANDLERS ===
-
-/**
- * Type definition for DDOM property handlers.
- * Each handler receives the spec, element, property key, value, and optional options.
- */
-export type DDOMPropertyHandler = (
-  spec: DOMSpec,
-  el: DOMNode,
-  key: string,
-  value: any,
-  options?: DOMSpecOptions
-) => void;
-
-/**
- * Handles the `attributes` property - processes declarative attribute objects.
- * Supports reactive templates, function attributes, and static values.
- */
-export function handleAttributesProperty(
-  spec: DOMSpec,
-  el: DOMNode,
-  key: string,
-  value: any,
-  _options: DOMSpecOptions = {}
-): void {
-  if (!value || typeof value !== 'object' || !(el instanceof Element)) return;
-
-  Object.entries(value).forEach(([attrName, attrValue]) =>
-    processAttribute(el, attrName, attrValue)
-  );
-}
-
-/**
- * Simplified async handlers using createHandler wrapper.
- * Handles custom element definitions by delegating to the define function.
- */
-export const handleCustomElementsProperty = createHandler((value, _el, _options) =>
-  define(value)
-);
-
-/**
- * Handles the document property by adopting document specifications.
- * Only executes when the element is the window object.
- */
-export const handleDocumentProperty = createHandler(
-  (value, _el, options = {}) => adoptNode(value as DocumentSpec, document, options),
-  (el) => el === window
-);
-
-/**
- * Handles the body property by adopting body specifications.
- * Only executes when the element is the document or has a documentElement property.
- */
-export const handleBodyProperty = createHandler(
-  (value, _el, options = {}) => adoptNode(value as HTMLElementSpec, document.body, options),
-  (el) => el === document || 'documentElement' in el
-);
-
-/**
- * Handles the head property by adopting head specifications.
- * Only executes when the element is the document or has a documentElement property.
- */
-export const handleHeadProperty = createHandler(
-  (value, _el, options = {}) => adoptNode(value as HTMLElementSpec, document.head, options),
-  (el) => el === document || 'documentElement' in el
-);
-
-/**
- * Handles the window property by adopting window specifications.
- * Adopts window-level DOM specifications into the global window object.
- */
-export const handleWindowProperty = createHandler((value, _el, options = {}) =>
-  adoptNode(value as WindowSpec, window, options)
-);
-
-// === VALUE RESOLUTION (Pure Functions) ===
-
-/**
- * Resolves a property value to its final form without side effects.
- * This is a pure function that only transforms values - no DOM manipulation.
- * 
- * @param key - The property name
- * @param value - The property value to resolve
- * @param contextNode - The context for template/accessor evaluation
- * @param options - Optional configuration
- * @returns Resolved value (signals, computed signals, or primitives)
- */
-export function resolvePropertyValue(
-  key: string,
-  value: any,
-  contextNode: any, // Accept any context
-  options: DOMSpecOptions = {}
-): any {
-  const { ignoreKeys = [] } = options;
-  
-  // Skip ignored keys - return as-is
-  if (ignoreKeys.includes(key)) {
-    return value;
-  }
-
-  // Handle property accessor strings
-  if (typeof value === 'string' && isPropertyAccessor(value)) {
-    const resolved = resolvePropertyAccessor(value, contextNode);
-    return resolved !== null ? resolved : value;
-  }
-
-  // Handle template literals - return computed signal
-  if (typeof value === 'string' && isTemplateLiteral(value)) {
-    return computedTemplate(value, contextNode);
-  }
-
-  // Everything else returns as-is
-  return value;
-}
-
-// === PROPERTY ASSIGNMENT (Side Effects) ===
-
-/**
- * Evaluates a resolved value to its final primitive form with validity checking.
- * This is the counterpart to assignPropertyValue - it extracts values and determines validity.
- * Recursively evaluates nested structures and collects validity state from all evaluations.
- * 
- * @param value - The resolved value (could be a signal, object, or primitive)
- * @returns Object with final primitive value and validity flag
- */
-export function evaluatePropertyValue(value: any): { value: any; isValid: boolean } {
-  let isValid = true;
-  
-  const evaluate = (val: any): any => {
-    // Handle signals - extract their current values
-    if (typeof val === 'object' && val !== null && Signal.isState(val)) {
-      const extracted = (val as Signal.State<any>).get();
-      if (extracted === '' || extracted === null || extracted === undefined || extracted === 'undefined') {
-        isValid = false;
-      }
-      return extracted;
-    } else if (typeof val === 'object' && val !== null && Signal.isComputed(val)) {
-      const extracted = (val as Signal.Computed<any>).get();
-      if (extracted === '' || extracted === null || extracted === undefined || extracted === 'undefined') {
-        isValid = false;
-      }
-      return extracted;
-    }
-    
-    // Handle nested objects recursively
-    if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
-      const evaluated: any = {};
-      Object.entries(val).forEach(([key, nestedValue]) => {
-        evaluated[key] = evaluate(nestedValue);
-      });
-      return evaluated;
-    }
-    
-    // Handle arrays recursively
-    if (Array.isArray(val)) {
-      return val.map(item => evaluate(item));
-    }
-    
-    // Check primitive validity
-    if (val === '' || val === null || val === undefined || val === 'undefined') {
-      isValid = false;
-    }
-    
-    // Everything else returns as-is
-    return val;
-  };
-  
-  const evaluatedValue = evaluate(value);
-  
-  return { value: evaluatedValue, isValid };
-}
-
-/**
- * Assigns a resolved value to an element property with appropriate DDOM logic.
- * Handles reactive properties, namespaced properties, and DOM binding.
- * 
- * @param el - The element to assign the property to
- * @param key - The property name
- * @param value - The already-resolved property value
- * @param options - Optional configuration
- */
-export function assignPropertyValue(
-  el: any,
-  key: string,
-  value: any,
-  options: DOMSpecOptions = {}
-): void {
-  // Handle namespaced properties
-  if (isNamespacedProperty(value)) {
-    processNamespacedProperty({} as any, el, key, value, options);
-    return;
-  }
-
-  // Handle reactive properties (only $-prefixed)
-  if (shouldBeSignal(key, value)) {
-    if (typeof value === 'object' && value !== null && Signal.isState(value)) {
-      el[key] = value; // Already a signal
-    } else if (typeof value === 'object' && value !== null && Signal.isComputed(value)) {
-      el[key] = value; // Already a computed signal
-    } else {
-      createReactiveProperty(el, key, value); // Create new Signal.State
-    }
-    return;
-  }
-
-  // Handle template literals on regular properties (create reactive DOM binding)
-  // FIXED: Check if value is a computed signal from template resolution
-  if (typeof value === 'object' && value !== null && Signal.isComputed(value) && !key.startsWith('$')) {
-    // For computed signals, we need to create an effect to update the property
-    createReactiveBinding(
-      value as Signal.Computed<any>,
-      (newValue) => (el[key] = newValue),
-      (newValue) => el[key] !== newValue
-    );
-    return;
-  }
-
-  // Handle functions
-  if (typeof value === 'function') {
-    el[key] = value;
-    return;
-  }
-
-  // Everything else: direct assignment
-  el[key] = value;
-}
-
-/**
- * Default property handler for properties that don't have specialized handlers.
- * Uses the modular resolve-then-assign pattern directly.
- * 
- * @param spec - The declarative DOM specification
- * @param el - The target DOM node
- * @param key - The property key
- * @param value - The property value
- * @param options - Optional configuration object
- */
-export function handleDefaultProperty(
-  spec: DOMSpec,
-  el: DOMNode,
-  key: string,
-  value: any,
-  options: DOMSpecOptions = {}
-): void {
-  if (!Object.hasOwn(el, key)) {
-    // Property doesn't exist - resolve then assign
-    const resolvedValue = resolvePropertyValue(key, value, el, options);
-    assignPropertyValue(el, key, resolvedValue, options);
-  }
-}
-
-/**
- * Gets the appropriate handler function for a given property key.
- * Uses a switch statement for optimal performance and clear code organization.
- *
- * @param key - The property key to get a handler for
- * @returns The appropriate handler function for the property
- * @example
- * ```typescript
- * const handler = getDOMHandler('attributes', { class: 'test' });
- * handler(spec, element, 'attributes', value, options);
- * ```
- */
-export function getDOMHandler(key: string): DDOMPropertyHandler {
-  switch (key) {
-    case 'attributes':
-      return handleAttributesProperty;
-
-    case 'customElements':
-      return handleCustomElementsProperty;
-
-    case 'document':
-      return handleDocumentProperty;
-
-    case 'body':
-      return handleBodyProperty;
-
-    case 'head':
-      return handleHeadProperty;
-
-    case 'window':
-      return handleWindowProperty;
-
-    default:
-      return handleDefaultProperty;
-  }
 }
 
 // === TEMPLATE LITERAL PROCESSING ===
@@ -600,89 +146,6 @@ export function computedTemplate(
   });
 }
 
-/**
- * Sets up reactive template binding for a property.
- * Creates a reactive binding that updates the property when the template expression changes.
- *
- * @param el - The element containing the property
- * @param property - The property name to bind to
- * @param template - The template string containing reactive expressions
- * @returns A cleanup function to dispose of the reactive binding
- */
-export function bindPropertyTemplate(
-  el: any,
-  property: string,
-  template: string
-): () => void {
-  return bindReactiveTemplate(
-    template,
-    el,
-    (newValue) => (el[property] = newValue),
-    (newValue) => el[property] !== newValue
-  );
-}
-
-/**
- * Sets up reactive template binding for an attribute.
- * Creates a reactive binding that updates the attribute when the template expression changes.
- *
- * @param el - The element to set the attribute on
- * @param attribute - The attribute name to bind to
- * @param template - The template string containing reactive expressions
- * @returns A cleanup function to dispose of the reactive binding
- */
-export function bindAttributeTemplate(
-  el: Element,
-  attribute: string,
-  template: string
-): () => void {
-  return bindReactiveTemplate(
-    template,
-    el,
-    (newValue) => {
-      if (newValue === null || newValue === undefined || newValue === '') {
-        el.removeAttribute(attribute);
-      } else {
-        el.setAttribute(attribute, String(newValue));
-      }
-    },
-    (newValue) => el.getAttribute(attribute) !== newValue
-  );
-}
-
-/**
- * Sets up reactive function binding for an attribute.
- * Creates a computed signal from the function and binds it to the attribute.
- *
- * @param el - The element to set the attribute on
- * @param attribute - The attribute name to bind to
- * @param attrFunction - The function that computes the attribute value
- * @returns A cleanup function to dispose of the reactive binding
- */
-export function bindAttributeFunction(
-  el: Element,
-  attribute: string,
-  attrFunction: () => any
-): () => void {
-  const computedValue = new Signal.Computed(() => {
-    try {
-      return attrFunction.call(el);
-    } catch (error) {
-      console.warn(`Attribute function evaluation failed for "${attribute}":`, error);
-      return null;
-    }
-  });
-  
-  return createReactiveBinding(
-    computedValue,
-    (newValue) => setAttributeValue(el, attribute, newValue),
-    (newValue) => {
-      const currentValue = el.getAttribute(attribute);
-      return newValue !== currentValue;
-    }
-  );
-}
-
 // === PROPERTY ACCESSOR HANDLING ===
 
 /**
@@ -720,173 +183,99 @@ export function resolvePropertyAccessor(
   }
 }
 
+// === PURE VALUE RESOLUTION ===
+
 /**
- * Processes a property using the appropriate DDOM handler.
- * This is the main entry point for property processing, dispatching to specialized handlers.
- *
- * @param spec - The declarative DOM specification
- * @param el - The target DOM node
- * @param key - The property key
- * @param value - The property value
- * @param options - Optional configuration object with css flag, ignoreKeys and other options
+ * Resolves a property value to its final form without side effects.
+ * This is a pure function that only transforms values - no DOM manipulation.
+ * 
+ * @param key - The property name
+ * @param value - The property value to resolve
+ * @param contextNode - The context for template/accessor evaluation
+ * @param options - Optional configuration with ignoreKeys
+ * @returns Resolved value (signals, computed signals, or primitives)
  */
-export function processProperty(
-  spec: DOMSpec,
-  el: DOMNode,
+export function resolvePropertyValue(
   key: string,
   value: any,
-  options: DOMSpecOptions = {}
-): void {
-  const handler = getDOMHandler(key);
-  handler(spec, el, key, value, options);
+  contextNode: any, // Accept any context
+  options: { ignoreKeys?: string[] } = {}
+): any {
+  const { ignoreKeys = [] } = options;
+  
+  // Skip ignored keys - return as-is
+  if (ignoreKeys.includes(key)) {
+    return value;
+  }
+
+  // Handle property accessor strings
+  if (typeof value === 'string' && isPropertyAccessor(value)) {
+    const resolved = resolvePropertyAccessor(value, contextNode);
+    return resolved !== null ? resolved : value;
+  }
+
+  // Handle template literals - return computed signal
+  if (typeof value === 'string' && isTemplateLiteral(value)) {
+    return computedTemplate(value, contextNode);
+  }
+
+  // Everything else returns as-is
+  return value;
 }
 
-// === PURE PROPERTY RESOLUTION ===
+// === PURE VALUE EVALUATION ===
 
 /**
- * Result of property resolution - contains the resolved value and assignment metadata
+ * Evaluates a resolved value to its final primitive form with validity checking.
+ * This is a pure function that extracts values and determines validity.
+ * Recursively evaluates nested structures and collects validity state from all evaluations.
+ * 
+ * @param value - The resolved value (could be a signal, object, or primitive)
+ * @returns Object with final primitive value and validity flag
  */
-export interface PropertyResolution {
-  /** The resolved value */
-  value: any;
-  /** The type of assignment needed */
-  assignmentType: 'direct' | 'attribute' | 'style' | 'event' | 'namespace' | 'special';
-  /** Additional metadata for the assignment */
-  metadata?: {
-    attributeName?: string;
-    eventName?: string;
-    namespace?: string;
-    specialHandler?: string;
+export function evaluatePropertyValue(value: any): { value: any; isValid: boolean } {
+  let isValid = true;
+  
+  const evaluate = (val: any): any => {
+    // Handle signals - extract their current values
+    if (typeof val === 'object' && val !== null && Signal.isState(val)) {
+      const extracted = (val as Signal.State<any>).get();
+      if (extracted === '' || extracted === null || extracted === undefined || extracted === 'undefined') {
+        isValid = false;
+      }
+      return extracted;
+    } else if (typeof val === 'object' && val !== null && Signal.isComputed(val)) {
+      const extracted = (val as Signal.Computed<any>).get();
+      if (extracted === '' || extracted === null || extracted === undefined || extracted === 'undefined') {
+        isValid = false;
+      }
+      return extracted;
+    }
+    
+    // Handle nested objects recursively
+    if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+      const evaluated: any = {};
+      Object.entries(val).forEach(([key, nestedValue]) => {
+        evaluated[key] = evaluate(nestedValue);
+      });
+      return evaluated;
+    }
+    
+    // Handle arrays recursively
+    if (Array.isArray(val)) {
+      return val.map(item => evaluate(item));
+    }
+    
+    // Check primitive validity
+    if (val === '' || val === null || val === undefined || val === 'undefined') {
+      isValid = false;
+    }
+    
+    // Everything else returns as-is
+    return val;
   };
-  /** Whether the value is reactive and needs effect tracking */
-  isReactive?: boolean;
-}
-
-/**
- * Pure function to resolve a property value without side effects
- */
-export function resolveProperty(
-  spec: DOMSpec,
-  el: DOMNode,
-  key: string,
-  value: any,
-  options: DOMSpecOptions = {}
-): PropertyResolution {
-  // Handle namespace properties
-  if (isNamespacedProperty(value)) {
-    const signal = processNamespacedProperty(spec, el, key, value, options);
-    return {
-      value: signal,
-      assignmentType: 'namespace',
-      metadata: { namespace: value.prototype },
-      isReactive: true
-    };
-  }
-
-  // Handle special properties
-  switch (key) {
-    case 'attributes':
-      return {
-        value: resolveAttributesValue(value, el),
-        assignmentType: 'special',
-        metadata: { specialHandler: 'attributes' },
-        isReactive: isTemplateReactive(value)
-      };
-
-    case 'style':
-      return {
-        value: resolveStyleValue(value, el),
-        assignmentType: 'style',
-        isReactive: isTemplateReactive(value)
-      };
-
-    case 'customElements':
-      return {
-        value,
-        assignmentType: 'special',
-        metadata: { specialHandler: 'customElements' }
-      };
-
-    case 'document':
-      return {
-        value,
-        assignmentType: 'special',
-        metadata: { specialHandler: 'document' }
-      };
-
-    case 'body':
-      return {
-        value,
-        assignmentType: 'special',
-        metadata: { specialHandler: 'body' }
-      };
-
-    case 'head':
-      return {
-        value,
-        assignmentType: 'special',
-        metadata: { specialHandler: 'head' }
-      };
-
-    case 'window':
-      return {
-        value,
-        assignmentType: 'special',
-        metadata: { specialHandler: 'window' }
-      };
-
-    default:
-      return resolveDefaultProperty(key, value, el);
-  }
-}
-
-/**
- * Pure function to resolve default properties
- */
-function resolveDefaultProperty(key: string, value: any, el: DOMNode): PropertyResolution {
-  // Event handlers
-  if (key.startsWith('on') && typeof value === 'function') {
-    return {
-      value,
-      assignmentType: 'event',
-      metadata: { eventName: key.slice(2) }
-    };
-  }
-
-  // Template literals
-  if (typeof value === 'string' && isTemplateReactive(value)) {
-    return {
-      value: resolveTemplateValue(value, el),
-      assignmentType: 'direct',
-      isReactive: true
-    };
-  }
-
-  // Direct property assignment
-  return {
-    value,
-    assignmentType: 'direct'
-  };
-}
-
-/**
- * Pure helper functions for property resolution
- */
-function resolveAttributesValue(value: any, el: DOMNode): any {
-  // Implementation would resolve attributes without setting them
-  return value; // Simplified for now
-}
-
-function resolveStyleValue(value: any, el: DOMNode): any {
-  // Implementation would resolve styles without applying them
-  return value; // Simplified for now
-}
-
-function resolveTemplateValue(value: string, el: DOMNode): any {
-  // Implementation would resolve template without setting up effects
-  return value; // Simplified for now
-}
-
-function isTemplateReactive(value: any): boolean {
-  return typeof value === 'string' && value.includes('${');
+  
+  const evaluatedValue = evaluate(value);
+  
+  return { value: evaluatedValue, isValid };
 }

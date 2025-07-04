@@ -1,19 +1,21 @@
-import { adoptDocument, adoptNode, adoptWindow, appendChild, createElement } from './elements';
+import { adoptDocument, adoptNode, adoptWindow, appendChild, createElement } from './dom/element';
 import { adoptStyleSheet, clearStyleSheet } from './dom/style-sheets';
 import { define } from './dom/custom-elements';
-import { createEffect, ComponentSignalWatcher } from './signals';
+import { adoptReactiveArray } from './dom/binding';
+import { createEffect, ComponentSignalWatcher } from './core/signals';
 import { Signal } from 'signal-polyfill';
-import { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate, createReactiveProperty } from './properties';
+import { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral } from './core/properties';
 import { isNamespacedProperty, processNamespacedProperty } from './namespaces';
 
 // Named exports for compatibility
-export { adoptDocument, adoptNode, adoptWindow, createElement } from './elements';
-export type { DOMSpecOptions, ReactiveProperties } from './elements';
+export { adoptDocument, adoptNode, adoptWindow, createElement } from './dom/element';
+export type { DOMSpecOptions, ReactiveProperties } from './dom/element';
 export { adoptStyleSheet, clearStyleSheet } from './dom/style-sheets';
 export { define } from './dom/custom-elements';
-export { createEffect, ComponentSignalWatcher } from './signals';
+export { adoptReactiveArray } from './dom/binding';
+export { createEffect, ComponentSignalWatcher } from './core/signals';
 export { Signal } from 'signal-polyfill';
-export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate, isPropertyAccessor, resolvePropertyAccessor, createReactiveProperty } from './properties';
+export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, isPropertyAccessor, resolvePropertyAccessor } from './core/properties';
 export { isNamespacedProperty, processNamespacedProperty } from './namespaces';
 export type { RequestConfig } from './types';
 
@@ -26,6 +28,7 @@ function DDOM(spec: any) {
 Object.assign(DDOM, {
 	adoptDocument,
 	adoptNode,
+	adoptReactiveArray,
 	adoptStyleSheet,
 	adoptWindow,
 	appendChild,
@@ -35,15 +38,12 @@ Object.assign(DDOM, {
 		define
 	},
 	createEffect,
-	createReactiveProperty,
 	ComponentSignalWatcher,
 	Signal,
 	parseTemplateLiteral,
 	bindTemplate,
 	computedTemplate,
 	isTemplateLiteral,
-	bindPropertyTemplate,
-	bindAttributeTemplate,
 	isNamespacedProperty,
 	processNamespacedProperty,
 });

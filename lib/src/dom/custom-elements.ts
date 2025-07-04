@@ -6,11 +6,11 @@ import {
 
 import {
 	adoptNode,
-} from '../elements';
+} from './element';
 
 import {
 	ComponentSignalWatcher,
-} from '../signals';
+} from '../core/signals';
 
 import {
 	insertRules,

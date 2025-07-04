@@ -4,8 +4,8 @@
  * Creates reactive ReadableStream objects from configuration.
  */
 
-import { Signal } from '../../signals';
-import { resolvePropertyValue, evaluatePropertyValue } from '../../properties';
+import { Signal } from '../../core/signals';
+import { resolvePropertyValue, evaluatePropertyValue } from '../../core/properties';
 import { PrototypeConfig, validateNamespaceConfig, createNamespaceHandler } from '../index';
 
 /**

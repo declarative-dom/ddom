@@ -7,8 +7,8 @@
  * Supports the same filter/map/sort operations across all types.
  */
 
-import { Signal } from '../../signals';
-import { resolvePropertyValue, evaluatePropertyValue } from '../../properties';
+import { Signal } from '../../core/signals';
+import { resolvePropertyValue, evaluatePropertyValue } from '../../core/properties';
 import { PrototypeConfig, validateNamespaceConfig, createNamespaceHandler } from '../index';
 import { ArrayConfig, FilterCriteria, SortCriteria } from '../../types';
 import { detectMutableProps } from '../../utils';

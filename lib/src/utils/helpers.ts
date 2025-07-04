@@ -80,8 +80,46 @@ export function shallowEqual(a: any, b: any): boolean {
 }
 
 /**
+ * Checks if a value references item or index data
+ */
+export function isMutableProp(value: any): boolean {
+  if (typeof value === 'string') {
+    // Check for property accessor patterns like 'item.id', 'item.name', 'index'
+    return (
+      value.includes('item.') || 
+      value === 'index' ||
+      value.includes('index.') ||
+      // Also check template literals like '${item.name}'
+      (value.includes('${') && (value.includes('item.') || value.includes('index')))
+    );
+  }
+  return false;
+}
+
+/**
+ * Analyzes a mapping configuration object and returns the properties
+ * that reference item or index data and need surgical updates
+ */
+export function detectMutableProps(mapConfig: any): string[] {
+  if (!mapConfig || typeof mapConfig !== 'object') {
+    return [];
+  }
+
+  const mutableProps: string[] = [];
+
+  Object.entries(mapConfig).forEach(([key, value]) => {
+    if (isMutableProp(value)) {
+      mutableProps.push(key);
+    }
+  });
+
+  return mutableProps;
+}
+
+/**
  * Analyzes a template to detect mutable properties that reference item or index.
  * Used for surgical DOM updates when array data changes.
+ * Provides deep recursive analysis of nested objects and arrays.
  * 
  * @param template - The template object to analyze
  * @returns Array of property names that contain item/index references
@@ -92,7 +130,7 @@ export function analyzeMutableProperties(template: any): string[] {
   function analyze(obj: any, propPath: string = ''): void {
     if (typeof obj === 'string') {
       // Check for template literals containing item or index
-      if (containsItemOrIndexReference(obj)) {
+      if (isMutableProp(obj)) {
         if (propPath) {
           mutableProps.push(propPath);
         }
@@ -113,49 +151,45 @@ export function analyzeMutableProperties(template: any): string[] {
   return mutableProps;
 }
 
-/**
- * Checks if a string contains references to item or index
- */
-export function containsItemOrIndexReference(str: string): boolean {
-  if (typeof str !== 'string') return false;
-  
-  // Check for property accessor patterns
-  if (str.startsWith('item.') || str === 'item' || str === 'index') {
-    return true;
-  }
-  
-  // Check for template literal patterns
-  if (str.includes('${item.') || str.includes('${index}') || str.includes('${item}')) {
-    return true;
-  }
-  
-  return false;
-}
+import { getNestedProperty } from './evaluation';
 
 /**
- * Extracts the actual property path from an item reference string
- * 
- * @param reference - The reference string (e.g., 'item.name', '${item.id}')
- * @returns The property path or null if not an item reference
+ * Evaluates a property accessor string like 'item.id' or 'index' 
+ * with the given item and index values
  */
-export function extractItemPropertyPath(reference: string): string | null {
-  if (typeof reference !== 'string') return null;
-  
-  // Handle direct property accessor: 'item.name' -> 'name'
-  if (reference.startsWith('item.')) {
-    return reference.substring(5); // Remove 'item.'
+export function evaluateAccessor(accessor: string, item: any, index: number): any {
+  if (accessor === 'index') {
+    return index;
   }
   
-  // Handle template literal: '${item.name}' -> 'name'
-  const templateMatch = reference.match(/\$\{item\.([^}]+)\}/);
-  if (templateMatch) {
-    return templateMatch[1];
+  if (accessor.startsWith('item.')) {
+    const propertyPath = accessor.substring(5); // Remove 'item.'
+    return getNestedProperty(item, propertyPath);
   }
   
-  // Handle direct item reference
-  if (reference === 'item' || reference === '${item}') {
-    return '';
+  // Handle template literals
+  if (accessor.includes('${')) {
+    try {
+      // Simple template evaluation - replace item. and index references
+      let evaluated = accessor;
+      evaluated = evaluated.replace(/\$\{item\.([^}]+)\}/g, (_, path) => {
+        const value = getNestedProperty(item, path);
+        return JSON.stringify(value);
+      });
+      evaluated = evaluated.replace(/\$\{index\}/g, String(index));
+      
+      // Remove template literal syntax if it was purely templated
+      if (evaluated.startsWith('${') && evaluated.endsWith('}')) {
+        return JSON.parse(evaluated.slice(2, -1));
+      }
+      
+      return evaluated;
+    } catch {
+      return accessor; // Fallback to original string
+    }
   }
   
-  return null;
+  return accessor;
 }
+
+
