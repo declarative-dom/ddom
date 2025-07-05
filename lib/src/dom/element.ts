@@ -111,8 +111,11 @@ export function adoptNode(
   el: DOMNode,
   options: DOMSpecOptions = {}
 ): void {
+  console.debug('🔧 adoptNode called with spec:', spec, 'el:', el, 'options:', options);
+  
   // Process all properties using key/value pairs
   const specEntries = Object.entries(spec);
+  console.debug('📝 Processing spec entries:', specEntries);
 
   // Inherit parent reactive properties directly (simple assignment)
   if (options.scopeReactiveProperties) {
@@ -126,6 +129,7 @@ export function adoptNode(
 
   // Process reactive properties directly on this element
   localReactiveProperties.forEach(([key, value]) => {
+    console.debug('⚡ Processing reactive property:', key, '=', value);
     applyPropertyBinding(spec, el, key, value, options);
   });
 
@@ -136,7 +140,6 @@ export function adoptNode(
   };
 
   options.ignoreKeys = [
-    'children',
     ...(options.ignoreKeys? options.ignoreKeys : []),
     ...Object.keys(localReactiveProperties || {}),
   ];
@@ -151,47 +154,22 @@ export function adoptNode(
     options.ignoreKeys.push('id');
   }
 
-  // handle style property separately
-  if (options.css && 'style' in spec && spec.style) {
+  // handle style property separately (css defaults to true)
+  if ((options.css !== false) && 'style' in spec && spec.style) {
 	// Generate a unique selector for this element
 	const selector = (el as any).id ? `#${(el as any).id}` : generatePathSelector(el as Element);
-	// Resolve the style value
-	const resolved = resolvePropertyValue('style', spec.style, el, options);
-	const evaluated = evaluatePropertyValue(resolved);
 	// Apply styles using the DDOM CSS rule system
-	if (evaluated.isValid) {
-	  insertRules(evaluated.value, selector);
-	}
+	insertRules(spec.style, selector);
 	options.ignoreKeys.push('style');
   }
 
   // Process all other properties using the enhanced binding system
   specEntries.forEach(([key, value]) => {
+    console.debug('🔗 Processing property:', key, '=', value, 'ignored:', options.ignoreKeys?.includes(key));
     if (!options.ignoreKeys?.includes(key)) {
       applyPropertyBinding(spec, el, key, value, options);
     }
   });
-
-  // Handle children last to ensure all properties are set before appending
-  if ('children' in spec && spec.children) {
-    const children = spec.children;
-    if (isNamespacedProperty(children, 'Array')) {
-      try {
-        const resolved = resolvePropertyValue('children', children, el, options);
-        if (resolved) {
-          bindReactiveArray(resolved, el as Element, options);
-        }
-      } catch (error) {
-        console.warn(`Failed to process namespace property for children:`, error);
-      }
-    } else if (Array.isArray(children)) {
-      children.forEach((child: HTMLElementSpec) => {
-        appendChild(child, el as DOMNode, options);
-      });
-    } else {
-      console.warn(`Invalid children value for key "children":`, children);
-    }
-  }
 }
 
 /**
@@ -210,6 +188,7 @@ export function adoptNode(
  * ```
  */
 export function adoptWindow(spec: WindowSpec): void {
+  console.debug('🏠 adoptWindow called with spec:', spec);
   adoptNode(spec, window);
 }
 
@@ -235,7 +214,9 @@ export function createElement(
   spec: HTMLElementSpec,
   options: DOMSpecOptions = {}
 ): HTMLElement {
+  console.debug('🎯 createElement called with spec:', spec, 'options:', options);
   const el = document.createElement(spec.tagName) as HTMLElement;
+  console.debug('✅ Created element:', el);
   
   // Apply all properties using the unified adoption system
   adoptNode(
@@ -274,11 +255,15 @@ export function appendChild(
   parentNode: DOMNode,
   options: DOMSpecOptions = {}
 ): HTMLElement {
+  console.debug('🔗 appendChild called with spec:', spec, 'parentNode:', parentNode);
   const el = createElement(spec, options);
 
   // Append the element to the provided parent node
   if ('appendChild' in parentNode) {
+    console.debug('➕ Appending element to parent:', el, '→', parentNode);
     parentNode.appendChild(el);
+  } else {
+    console.warn('❌ parentNode does not support appendChild:', parentNode);
   }
 
   return el;

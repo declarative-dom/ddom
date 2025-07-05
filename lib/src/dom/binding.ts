@@ -23,7 +23,7 @@
  */
 
 import { DOMSpec, DOMNode, HTMLElementSpec } from '../types';
-import { DOMSpecOptions } from './element';
+import { adoptDocument, appendChild, DOMSpecOptions, createElement } from './element';
 import { createEffect, Signal, ComponentSignalWatcher } from '../core/signals';
 import { resolvePropertyValue, evaluatePropertyValue, shouldBeSignal } from '../core/properties';
 import { isNamespacedProperty, processNamespacedProperty } from '../namespaces';
@@ -60,8 +60,11 @@ export function applyPropertyBinding(
   value: any,
   options: DOMSpecOptions = {}
 ): void {
+  console.debug('🎯 applyPropertyBinding called:', key, '=', value, 'on element:', el);
+  
   // Skip ignored keys
   if (options.ignoreKeys?.includes(key)) {
+    console.debug('⏭️ Skipping ignored key:', key);
     return;
   }
 
@@ -87,23 +90,25 @@ export function applyPropertyBinding(
   // Handle special DOM properties with dedicated handlers
   switch (key) {
     case 'document':
+      console.debug('📄 Handling document property');
       // Special handling for document property - adopt into existing document instead of replacing
       if (value && typeof value === 'object' && el === window) {
         // Apply the document spec directly to the document object
-        Object.entries(value).forEach(([docKey, docValue]) => {
-          applyPropertyBinding(value, document, docKey, docValue, options);
-        });
+        adoptDocument(value, document);
         return;
       }
       break;
 
     case 'head':
     case 'body':
+      console.debug('🏢 Handling', key, 'property');
       // Special handling for head and body - adopt into existing elements instead of replacing
       if (value && typeof value === 'object' && el === document) {
         const targetElement = el[key as 'head' | 'body'];
+        console.debug('🏢 Target element for', key, ':', targetElement);
         if (targetElement) {
           Object.entries(value).forEach(([subKey, subValue]) => {
+            console.debug('🏢 Processing', key, 'property:', subKey, '=', subValue);
             applyPropertyBinding(value, targetElement, subKey, subValue, options);
           });
         }
@@ -124,20 +129,22 @@ export function applyPropertyBinding(
       break;
 
     case 'children':
+      console.debug('👶 Handling children in binding layer');
+	  options.ignoreKeys = []; // reset ignoreKeys prior to children processing
       if (Array.isArray(value)) {
-        // Static children array
-        value.forEach((child: HTMLElementSpec) => {
+        // Static children array - use simple element creation since binding.ts shouldn't depend on element.ts
+        console.debug('📋 Processing', value.length, 'static children');
+        value.forEach((child: HTMLElementSpec, index) => {
+          console.debug(`👶 Creating child ${index}:`, child);
           if (child && typeof child === 'object' && child.tagName) {
-            const childElement = createElement(child, options);
-            if ('appendChild' in el) {
-              (el as any).appendChild(childElement);
-            }
+            appendChild(child, el, options);
           }
         });
       }
       break;
 
     default:
+      console.debug('🔗 Applying standard property binding for:', key);
       // Standard property binding with reactive support
       applyStandardPropertyBinding(el, key, value, options);
       break;
@@ -146,7 +153,7 @@ export function applyPropertyBinding(
 
 /**
  * Applies standard property binding with full reactive support.
- * Handles signals, computed values, template literals, and static values.
+ * Direct, efficient approach - single pass with clear decision tree.
  */
 function applyStandardPropertyBinding(
   el: DOMNode,
@@ -154,28 +161,58 @@ function applyStandardPropertyBinding(
   value: any,
   options: DOMSpecOptions
 ): void {
-  // Check if this should be a signal first (before resolving)
-  if (shouldBeSignal(key, value)) {
-    // Create a Signal.State for reactive properties
-    const signal = new Signal.State(value);
-    (el as any)[key] = signal;
+  console.debug('🔧 applyStandardPropertyBinding:', key, '=', value);
+  
+  // DIRECT APPROACH: Handle each case once, efficiently
+  
+  // Case 1: Reactive property with simple value → Create Signal.State
+  if (key.startsWith('$') && typeof value !== 'string' && typeof value !== 'function' && !isNamespacedProperty(value)) {
+    console.debug('⚡ Creating Signal.State for reactive property:', key);
+    (el as any)[key] = new Signal.State(value);
     return;
   }
-
-  // Resolve the property value using the pure properties module
-  const resolved = resolvePropertyValue(key, value, el, options);
-
-  // Check if this is a signal or computed value that needs reactive binding
-  if (resolved && typeof resolved === 'object' && typeof resolved.get === 'function') {
-    // Set up reactive binding for signals/computed values
-    setupReactiveProperty(el, key, resolved);
-  } else {
-    // Static value - just assign directly
-    const evaluated = evaluatePropertyValue(resolved);
-    if (evaluated.isValid) {
-      (el as any)[key] = evaluated.value;
+  
+  // Case 2: Template literal → Create Computed and assign/bind appropriately
+  if (typeof value === 'string' && value.includes('${')) {
+    console.debug('🧮 Creating computed for template literal:', key);
+    const computed = resolvePropertyValue(key, value, el, options); // Returns Signal.Computed
+    
+    if (key.startsWith('$')) {
+      // Reactive property: assign computed directly
+      console.debug('📡 Assigning computed to reactive property:', key);
+      (el as any)[key] = computed;
+    } else {
+      // DOM property: set up reactive binding
+      console.debug('🔗 Setting up reactive binding for DOM property:', key);
+      setupReactiveProperty(el, key, computed);
     }
+    return;
   }
+  
+  // Case 3: Property accessor → Resolve and assign/bind appropriately  
+  if (typeof value === 'string' && (value.startsWith('window.') || value.startsWith('document.') || value.startsWith('this.'))) {
+    console.debug('� Resolving property accessor:', key);
+    const resolved = resolvePropertyValue(key, value, el, options);
+    
+    if (key.startsWith('$')) {
+      // Reactive property: assign resolved value directly (could be signal or primitive)
+      console.debug('� Assigning resolved value to reactive property:', key);
+      (el as any)[key] = resolved;
+    } else if (resolved && typeof resolved === 'object' && typeof resolved.get === 'function') {
+      // DOM property with signal: set up reactive binding
+      console.debug('� Setting up reactive binding for resolved signal:', key);
+      setupReactiveProperty(el, key, resolved);
+    } else {
+      // DOM property with primitive: direct assignment
+      console.debug('📝 Direct assignment of resolved primitive:', key);
+      (el as any)[key] = resolved;
+    }
+    return;
+  }
+  
+  // Case 4: Static value → Direct assignment
+  console.debug('📝 Static value assignment for:', key);
+  (el as any)[key] = value;
 }
 
 /**
@@ -331,19 +368,30 @@ export function bindSignalToAttribute(
 }
 
 /**
- * Applies attributes binding with reactive support for template literals and signals.
- * Processes an attributes object and sets up reactive bindings where needed.
+ * Applies attributes binding with reactive support for template literals, signals, and functions.
+ * Functions are automatically converted to computed signals for conditional attributes.
  * 
  * @param element - The DOM element to apply attributes to
  * @param attributes - Object containing attribute name/value pairs
  */
 function applyAttributesBinding(element: Element, attributes: Record<string, any>): void {
   Object.entries(attributes).forEach(([attrName, attrValue]) => {
-    if (attrValue && typeof attrValue === 'object' && typeof attrValue.get === 'function') {
+    console.debug('🏷️ Processing attribute:', attrName, '=', attrValue, 'type:', typeof attrValue);
+    
+    if (typeof attrValue === 'function') {
+      // Function → Convert to computed signal and bind consistently
+      console.debug('⚡ Converting function to computed signal for attribute:', attrName);
+      const computed = new Signal.Computed(() => attrValue());
+      bindSignalToAttribute(element, attrName, computed);
+      
+    } else if (attrValue && typeof attrValue === 'object' && typeof attrValue.get === 'function') {
       // Signal/computed value - set up reactive binding
+      console.debug('📡 Setting up signal binding for attribute:', attrName);
       bindSignalToAttribute(element, attrName, attrValue);
+      
     } else if (typeof attrValue === 'string' && attrValue.includes('${')) {
       // Template literal - resolve to computed value and bind
+      console.debug('🧮 Processing template literal for attribute:', attrName);
       const resolved = resolvePropertyValue(attrName, attrValue, element);
       if (resolved && typeof resolved.get === 'function') {
         bindSignalToAttribute(element, attrName, resolved);
@@ -354,8 +402,10 @@ function applyAttributesBinding(element: Element, attributes: Record<string, any
           setAttributeValue(element, attrName, evaluated.value);
         }
       }
+      
     } else {
       // Static value
+      console.debug('📝 Static attribute assignment:', attrName);
       setAttributeValue(element, attrName, attrValue);
     }
   });
@@ -601,21 +651,4 @@ function deepEqual(a: any, b: any): boolean {
     keysA.length === keysB.length &&
     keysA.every((key) => deepEqual(a[key], b[key]))
   );
-}
-
-/**
- * Creates an element from a declarative specification.
- * This is a simplified version that works with the binding system.
- */
-function createElement(spec: HTMLElementSpec, options: DOMSpecOptions = {}): HTMLElement {
-  const el = document.createElement(spec.tagName) as HTMLElement;
-  
-  // Apply all properties using the binding system
-  Object.entries(spec).forEach(([key, value]) => {
-    if (key !== 'tagName') {
-      applyPropertyBinding(spec, el, key, value, options);
-    }
-  });
-  
-  return el;
 }
