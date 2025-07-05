@@ -39,7 +39,6 @@ import { isNamespacedProperty, processNamespacedProperty } from '../namespaces';
 import { createEffect, ComponentSignalWatcher, Signal } from '../core/signals';
 import { resolvePropertyValue, evaluatePropertyValue } from '../core/properties';
 import { applyPropertyBinding, bindReactiveArray } from './binding';
-import { insertRules } from './style-sheets';
 
 /**
  * Type definition for scope property injection data.
@@ -154,15 +153,6 @@ export function adoptNode(
     options.ignoreKeys.push('id');
   }
 
-  // handle style property separately (css defaults to true)
-  if ((options.css !== false) && 'style' in spec && spec.style) {
-	// Generate a unique selector for this element
-	const selector = (el as any).id ? `#${(el as any).id}` : generatePathSelector(el as Element);
-	// Apply styles using the DDOM CSS rule system
-	insertRules(spec.style, selector);
-	options.ignoreKeys.push('style');
-  }
-
   // Process all other properties using the enhanced binding system
   specEntries.forEach(([key, value]) => {
     console.debug('🔗 Processing property:', key, '=', value, 'ignored:', options.ignoreKeys?.includes(key));
@@ -267,70 +257,4 @@ export function appendChild(
   }
 
   return el;
-}
-
-/**
- * Adopts a reactive array signal and renders its items as DOM elements in the parent container.
- * This function takes a reactive array signal from the namespace system and renders each item
- * as a DOM element, properly handling reactive properties and leveraging fine-grained updates
- * for optimal performance.
- *
- * Uses modern fine-grained updates instead of clearing and re-rendering everything:
- * - Tracks elements by stable keys for efficient reconciliation
- * - Only updates properties that actually changed
- * - Reuses unchanged elements to minimize DOM manipulation
- * - Uses document fragments for efficient batch updates
- *
- * @param arraySignal - The reactive array signal from the namespace system
- * @param parentElement - The parent DOM element to render items into
- * @param options - Optional configuration object with named parameters
- * @example
- * ```typescript
- * // Array signal with items
- * const itemsSignal = new Signal.State([
- *   { tagName: 'li', textContent: 'Item 1' },
- *   { tagName: 'li', textContent: 'Item 2' }
- * ]);
- * 
- * // Adopt the array to render items
-/**
- * Generates a path-based CSS selector for an element.
- * Creates a unique selector using element hierarchy and nth-of-type selectors.
- * This function assumes the element exists in the DOM with a parentElement.
- *
- * @param el - The element to generate a selector for (must be in DOM)
- * @returns A unique CSS selector string based on DOM hierarchy
- * @example
- * ```typescript
- * const selector = generatePathSelector(myDiv);
- * // Returns something like: "body > div:nth-of-type(2) > span"
- * ```
- */
-function generatePathSelector(el: Element): string {
-  const path: string[] = [];
-  let current: Element | null = el;
-
-  while (current && current !== document.documentElement) {
-    const tagName = current.tagName.toLowerCase();
-    const parent: Element | null = current.parentElement;
-
-    if (parent) {
-      const siblings = Array.from(parent.children).filter(
-        (child: Element) => child.tagName.toLowerCase() === tagName
-      );
-
-      if (siblings.length === 1) {
-        path.unshift(tagName);
-      } else {
-        const index = siblings.indexOf(current) + 1;
-        path.unshift(`${tagName}:nth-of-type(${index})`);
-      }
-    } else {
-      path.unshift(tagName);
-    }
-
-    current = parent;
-  }
-
-  return path.join(' > ');
 }

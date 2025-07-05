@@ -23,10 +23,13 @@
  */
 
 import { DOMSpec, DOMNode, HTMLElementSpec } from '../types';
+import { generatePathSelector } from '../utils/helpers';
 import { adoptDocument, appendChild, DOMSpecOptions, createElement } from './element';
 import { createEffect, Signal, ComponentSignalWatcher } from '../core/signals';
 import { resolvePropertyValue, evaluatePropertyValue, shouldBeSignal } from '../core/properties';
 import { isNamespacedProperty, processNamespacedProperty } from '../namespaces';
+import { insertRules } from './style-sheets';
+
 
 /**
  * Applies property resolution and binding to a DOM element (the impure DOM magic!).
@@ -94,7 +97,7 @@ export function applyPropertyBinding(
       // Special handling for document property - adopt into existing document instead of replacing
       if (value && typeof value === 'object' && el === window) {
         // Apply the document spec directly to the document object
-        adoptDocument(value, document);
+        adoptDocument(value);
         return;
       }
       break;
@@ -123,14 +126,20 @@ export function applyPropertyBinding(
       break;
 
     case 'style':
-      // Style handling should be done by the calling module (element.ts or custom-elements.ts)
-      // because they handle selector generation and CSS rule insertion
-      console.warn('Style property should be handled by the calling module, not the binding layer');
+      // only proceed if CSS is enabled
+      if (options.css == false) {
+        break;
+      }
+      // Generate a unique selector for this element
+      const selector = (el as any).id ? `#${(el as any).id}` : generatePathSelector(el as Element);
+      // Apply styles using the DDOM CSS rule system
+      insertRules(value, selector);
+
       break;
 
     case 'children':
       console.debug('👶 Handling children in binding layer');
-	  options.ignoreKeys = []; // reset ignoreKeys prior to children processing
+      options.ignoreKeys = []; // reset ignoreKeys prior to children processing
       if (Array.isArray(value)) {
         // Static children array - use simple element creation since binding.ts shouldn't depend on element.ts
         console.debug('📋 Processing', value.length, 'static children');

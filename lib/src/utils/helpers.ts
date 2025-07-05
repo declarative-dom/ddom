@@ -192,4 +192,44 @@ export function evaluateAccessor(accessor: string, item: any, index: number): an
   return accessor;
 }
 
+/**
+ * Generates a path-based CSS selector for an element.
+ * Creates a unique selector using element hierarchy and nth-of-type selectors.
+ * This function assumes the element exists in the DOM with a parentElement.
+ *
+ * @param el - The element to generate a selector for (must be in DOM)
+ * @returns A unique CSS selector string based on DOM hierarchy
+ * @example
+ * ```typescript
+ * const selector = generatePathSelector(myDiv);
+ * // Returns something like: "body > div:nth-of-type(2) > span"
+ * ```
+ */
+export function generatePathSelector(el: Element): string {
+  const path: string[] = [];
+  let current: Element | null = el;
 
+  while (current && current !== document.documentElement) {
+	const tagName = current.tagName.toLowerCase();
+	const parent: Element | null = current.parentElement;
+
+	if (parent) {
+	  const siblings = Array.from(parent.children).filter(
+		(child: Element) => child.tagName.toLowerCase() === tagName
+	  );
+
+	  if (siblings.length === 1) {
+		path.unshift(tagName);
+	  } else {
+		const index = siblings.indexOf(current) + 1;
+		path.unshift(`${tagName}:nth-of-type(${index})`);
+	  }
+	} else {
+	  path.unshift(tagName);
+	}
+
+	current = parent;
+  }
+
+  return path.join(' > ');
+}
