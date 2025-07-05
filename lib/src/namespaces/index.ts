@@ -24,7 +24,7 @@ import { createReadableStreamNamespace } from './readable-stream';
 import { createCookieNamespace } from './cookie';
 import { createSessionStorageNamespace } from './session-storage';
 import { createLocalStorageNamespace } from './local-storage';
-// import { createIndexedDBNamespace } from './indexed-db';
+import { createIndexedDBNamespace } from './indexed-db';
 // import { createWebSocketNamespace } from './web-socket';
 
 /**
@@ -88,7 +88,7 @@ const NAMESPACE_HANDLERS: Record<string, NamespaceHandler> = {
   'Cookie': createCookieNamespace,
   'SessionStorage': createSessionStorageNamespace,
   'LocalStorage': createLocalStorageNamespace,
-  // 'IndexedDB': createIndexedDBNamespace,
+  'IndexedDB': createIndexedDBNamespace,
   // 'WebSocket': createWebSocketNamespace,
 };
 
