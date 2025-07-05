@@ -26,7 +26,7 @@ import { DOMSpec, DOMNode, HTMLElementSpec } from '../types';
 import { generatePathSelector } from '../utils/helpers';
 import { adoptDocument, appendChild, DOMSpecOptions, createElement } from './element';
 import { createEffect, Signal, ComponentSignalWatcher } from '../core/signals';
-import { resolvePropertyValue, evaluatePropertyValue, shouldBeSignal } from '../core/properties';
+import { processProperty, ProcessedProperty } from '../core/properties';
 import { isNamespacedProperty, processNamespacedProperty } from '../namespaces';
 import { insertRules } from './style-sheets';
 
@@ -161,8 +161,8 @@ export function applyPropertyBinding(
 }
 
 /**
- * Applies standard property binding with full reactive support.
- * Direct, efficient approach - single pass with clear decision tree.
+ * Applies standard property binding using the universal ProcessedProperty system.
+ * Uses the pure property processing logic and a simple prototype-based switch.
  */
 function applyStandardPropertyBinding(
   el: DOMNode,
@@ -172,56 +172,54 @@ function applyStandardPropertyBinding(
 ): void {
   console.debug('🔧 applyStandardPropertyBinding:', key, '=', value);
   
-  // DIRECT APPROACH: Handle each case once, efficiently
+  // Process the property using the universal property system
+  const processed = processProperty(key, value, el, options);
   
-  // Case 1: Reactive property with simple value → Create Signal.State
-  if (key.startsWith('$') && typeof value !== 'string' && typeof value !== 'function' && !isNamespacedProperty(value)) {
-    console.debug('⚡ Creating Signal.State for reactive property:', key);
-    (el as any)[key] = new Signal.State(value);
+  if (!processed.isValid) {
+    console.warn(`❌ Invalid property ${key}:`, processed.error);
     return;
   }
   
-  // Case 2: Template literal → Create Computed and assign/bind appropriately
-  if (typeof value === 'string' && value.includes('${')) {
-    console.debug('🧮 Creating computed for template literal:', key);
-    const computed = resolvePropertyValue(key, value, el, options); // Returns Signal.Computed
-    
-    if (key.startsWith('$')) {
-      // Reactive property: assign computed directly
-      console.debug('📡 Assigning computed to reactive property:', key);
-      (el as any)[key] = computed;
-    } else {
-      // DOM property: set up reactive binding
-      console.debug('🔗 Setting up reactive binding for DOM property:', key);
-      setupReactiveProperty(el, key, computed);
-    }
-    return;
-  }
+  console.debug('✅ Processed property:', key, '→', processed.prototype, 'value:', processed.value);
   
-  // Case 3: Property accessor → Resolve and assign/bind appropriately  
-  if (typeof value === 'string' && (value.startsWith('window.') || value.startsWith('document.') || value.startsWith('this.'))) {
-    console.debug('� Resolving property accessor:', key);
-    const resolved = resolvePropertyValue(key, value, el, options);
-    
-    if (key.startsWith('$')) {
-      // Reactive property: assign resolved value directly (could be signal or primitive)
-      console.debug('� Assigning resolved value to reactive property:', key);
-      (el as any)[key] = resolved;
-    } else if (resolved && typeof resolved === 'object' && typeof resolved.get === 'function') {
-      // DOM property with signal: set up reactive binding
-      console.debug('� Setting up reactive binding for resolved signal:', key);
-      setupReactiveProperty(el, key, resolved);
-    } else {
-      // DOM property with primitive: direct assignment
-      console.debug('📝 Direct assignment of resolved primitive:', key);
-      (el as any)[key] = resolved;
-    }
-    return;
+  // Apply binding based on the processed property's prototype
+  switch (processed.prototype) {
+    case 'Signal.State':
+    case 'Signal.Computed':
+      if (key.startsWith('$')) {
+        // Reactive property: assign signal directly
+        console.debug('📡 Assigning signal to reactive property:', key);
+        (el as any)[key] = processed.value;
+      } else {
+        // DOM property: set up reactive binding
+        console.debug('🔗 Setting up reactive binding for DOM property:', key);
+        setupReactiveProperty(el, key, processed.value);
+      }
+      break;
+      
+    case 'function':
+      if (key.startsWith('on') || key.includes('Event')) {
+        // Event handler: assign function directly
+        console.debug('🎯 Assigning event handler:', key);
+        (el as any)[key] = processed.value;
+      } else {
+        // Function property: convert to computed signal and bind
+        console.debug('🧮 Converting function to computed signal:', key);
+        const computed = new Signal.Computed(processed.value);
+        if (key.startsWith('$')) {
+          (el as any)[key] = computed;
+        } else {
+          setupReactiveProperty(el, key, computed);
+        }
+      }
+      break;
+      
+    default:
+      // Primitive value: direct assignment
+      console.debug('📝 Direct assignment of primitive:', key, '=', processed.value);
+      (el as any)[key] = processed.value;
+      break;
   }
-  
-  // Case 4: Static value → Direct assignment
-  console.debug('📝 Static value assignment for:', key);
-  (el as any)[key] = value;
 }
 
 /**
@@ -360,11 +358,7 @@ export function bindSignalToAttribute(
 ): () => void {
   const updateAttribute = () => {
     const value = signal.get();
-    if (value == null) {
-      element.removeAttribute(attributeName);
-    } else {
-      element.setAttribute(attributeName, String(value));
-    }
+    setAttributeValue(element, attributeName, value);
   };
 
   // Set initial value
@@ -377,8 +371,8 @@ export function bindSignalToAttribute(
 }
 
 /**
- * Applies attributes binding with reactive support for template literals, signals, and functions.
- * Functions are automatically converted to computed signals for conditional attributes.
+ * Applies attributes binding using the universal ProcessedProperty system.
+ * Processes each attribute value and applies appropriate binding based on its type.
  * 
  * @param element - The DOM element to apply attributes to
  * @param attributes - Object containing attribute name/value pairs
@@ -387,35 +381,37 @@ function applyAttributesBinding(element: Element, attributes: Record<string, any
   Object.entries(attributes).forEach(([attrName, attrValue]) => {
     console.debug('🏷️ Processing attribute:', attrName, '=', attrValue, 'type:', typeof attrValue);
     
-    if (typeof attrValue === 'function') {
-      // Function → Convert to computed signal and bind consistently
-      console.debug('⚡ Converting function to computed signal for attribute:', attrName);
-      const computed = new Signal.Computed(() => attrValue());
-      bindSignalToAttribute(element, attrName, computed);
-      
-    } else if (attrValue && typeof attrValue === 'object' && typeof attrValue.get === 'function') {
-      // Signal/computed value - set up reactive binding
-      console.debug('📡 Setting up signal binding for attribute:', attrName);
-      bindSignalToAttribute(element, attrName, attrValue);
-      
-    } else if (typeof attrValue === 'string' && attrValue.includes('${')) {
-      // Template literal - resolve to computed value and bind
-      console.debug('🧮 Processing template literal for attribute:', attrName);
-      const resolved = resolvePropertyValue(attrName, attrValue, element);
-      if (resolved && typeof resolved.get === 'function') {
-        bindSignalToAttribute(element, attrName, resolved);
-      } else {
-        // Fallback to static value
-        const evaluated = evaluatePropertyValue(resolved);
-        if (evaluated.isValid) {
-          setAttributeValue(element, attrName, evaluated.value);
-        }
-      }
-      
-    } else {
-      // Static value
-      console.debug('📝 Static attribute assignment:', attrName);
-      setAttributeValue(element, attrName, attrValue);
+    // Process the attribute value using the universal property system
+    const processed = processProperty(attrName, attrValue, element);
+    
+    if (!processed.isValid) {
+      console.warn(`❌ Invalid attribute ${attrName}:`, processed.error);
+      return;
+    }
+    
+    console.debug('✅ Processed attribute:', attrName, '→', processed.prototype, 'value:', processed.value);
+    
+    // Apply attribute binding based on the processed property's prototype
+    switch (processed.prototype) {
+      case 'Signal.State':
+      case 'Signal.Computed':
+        // Signal/computed value - set up reactive binding
+        console.debug('📡 Setting up signal binding for attribute:', attrName);
+        bindSignalToAttribute(element, attrName, processed.value);
+        break;
+        
+      case 'function':
+        // Function → Convert to computed signal and bind consistently
+        console.debug('⚡ Converting function to computed signal for attribute:', attrName);
+        const computed = new Signal.Computed(processed.value);
+        bindSignalToAttribute(element, attrName, computed);
+        break;
+        
+      default:
+        // Static value
+        console.debug('📝 Static attribute assignment:', attrName);
+        setAttributeValue(element, attrName, processed.value);
+        break;
     }
   });
 }
