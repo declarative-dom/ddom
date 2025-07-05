@@ -1,36 +1,20 @@
 import {
-  MappedArrayExpr,
+  ArrayConfig,
   DocumentSpec,
   DOMSpec,
   HTMLElementSpec,
   WindowSpec,
   DOMNode,
-} from '../../types/src';
+} from './types';
 
-import { MappedArray, isMappedArrayExpr } from './arrays';
-
+import { isNamespacedProperty, processNamespacedProperty } from './namespaces';
 import { createEffect, ComponentSignalWatcher, Signal } from './signals';
+import { processProperty, resolveProperty, PropertyResolution } from './properties';
+import { applyPropertyResolution } from './dom/binding';
+import { DOMSpecOptions, ReactiveProperties, createElement as createDOMElement, appendChild as appendDOMChild } from './dom/element';
 
-import { processProperty } from './properties';
 
 
-/**
- * Type definition for scope property injection data.
- */
-export type ReactiveProperties = Record<string, Signal.State<any> | Signal.Computed<any> | Function>;
-
-/**
- * Options object for DOM specification functions.
- * Provides named arguments for common function parameters.
- */
-export interface DOMSpecOptions {
-  /** Whether to process CSS styles (default: true) */
-  css?: boolean;
-  /** Array of property keys to ignore during adoption (default: []) */
-  ignoreKeys?: string[];
-  /** Reactive properties to inherit from parent scope */
-  scopeReactiveProperties?: ReactiveProperties;
-}
 
 
 /**
@@ -111,29 +95,34 @@ export function adoptNode(
 
   // Handle protected properties first (id, tagName) - set once, never reactive
   if ('id' in spec && spec.id !== undefined && el instanceof HTMLElement) {
-    processProperty(spec, el, 'id', spec.id, options);
+    const resolution = resolveProperty(spec, el, 'id', spec.id, options);
+    applyPropertyResolution(spec, el, 'id', resolution, options);
     options.ignoreKeys.push('id');
   }
 
-  // Process all other properties with new reactivity model
+  // Process all other properties with pure resolution and assignment separation
   specEntries.forEach(([key, value]) => {
     if (!options.ignoreKeys?.includes(key)) {
-      processProperty(spec, el, key, value, options);
+      const resolution = resolveProperty(spec, el, key, value, options);
+      applyPropertyResolution(spec, el, key, resolution, options);
     }
   });
 
   // Handle children last to ensure all properties are set before appending
   if ('children' in spec && spec.children) {
     const children = spec.children;
-    if (isMappedArrayExpr(children)) {
+    if (isNamespacedProperty(children, 'Array')) {
       try {
-        adoptArray(children, el as Element, options);
+        const resolution = resolveProperty(spec, el, 'children', children, options);
+        if (resolution.value) {
+          adoptArray(resolution.value, el as Element, options);
+        }
       } catch (error) {
-        console.warn(`Failed to process MappedArrayExpr for children:`, error);
+        console.warn(`Failed to process namespace property for children:`, error);
       }
     } else if (Array.isArray(children)) {
       children.forEach((child: HTMLElementSpec) => {
-        appendChild(child, el as DOMNode, options);
+        appendDOMChild(child, el as DOMNode, options);
       });
     } else {
       console.warn(`Invalid children value for key "children":`, children);
@@ -158,114 +147,72 @@ export function adoptWindow(spec: WindowSpec) {
   adoptNode(spec, window);
 }
 
-/**
- * Creates an HTML element from a declarative element definition and appends it to a parent node.
- * This function constructs a real DOM element based on the provided declarative structure,
- * applying all properties, attributes, children, and event handlers, then immediately appends
- * it to the specified parent node.
- *
- * @param spec The declarative HTML element definition
- * @param parentNode The parent node to append the created element to
- * @param options Optional configuration object with named parameters
- * @returns The created HTML element
- * @example
- * ```typescript
- * const button = appendChild({
- *   tagName: 'button',
- *   textContent: 'Click me',
- *   onclick: () => alert('Clicked!')
- * }, document.body, { css: true });
- * ```
- */
+// Re-export element creation functions from dom module with proper adoption
+export function createElement(
+  spec: HTMLElementSpec,
+  options: DOMSpecOptions = {}
+): HTMLElement {
+  const el = createDOMElement(spec, options);
+  
+  // Apply all properties using the unified adoption system
+  adoptNode(
+    spec,
+    el,
+    {
+      ...options,
+      ignoreKeys: [...(options.ignoreKeys || []), 'id', 'parentNode', 'tagName']
+    }
+  );
+  
+  return el;
+}
+
 export function appendChild(
   spec: HTMLElementSpec,
   parentNode: DOMNode,
   options: DOMSpecOptions = {}
 ): HTMLElement {
-  const el = document.createElement(spec.tagName) as HTMLElement;
+  const el = createElement(spec, options);
 
   // Append the element to the provided parent node
   if ('appendChild' in parentNode) {
     parentNode.appendChild(el);
   }
 
-  // Apply all properties using the unified dispatch table
-  adoptNode(
-    spec,
-    el,
-    {
-      ...options,
-      ignoreKeys: [...(options.ignoreKeys || []), 'id', 'parentNode', 'tagName']
-    }
-  );
-
   return el;
 }
 
-/**
- * Creates an HTML element from a declarative element definition.
- * This function constructs a real DOM element based on the provided declarative structure,
- * applying all properties, attributes, children, and event handlers.
- *
- * @param spec The declarative HTML element definition
- * @param options Optional configuration object with named parameters
- * @returns The created HTML element
- * @example
- * ```typescript
- * const button = createElement({
- *   tagName: 'button',
- *   textContent: 'Click me',
- *   onclick: () => alert('Clicked!')
- * }, { css: true });
- * ```
- */
-export function createElement(
-  spec: HTMLElementSpec,
-  options: DOMSpecOptions = {}
-): HTMLElement {
-  const el = document.createElement(spec.tagName) as HTMLElement;
-
-  // Apply all properties using the unified dispatch table
-  adoptNode(
-    spec,
-    el,
-    {
-      ...options,
-      ignoreKeys: [...(options.ignoreKeys || []), 'id', 'parentNode', 'tagName']
-    }
-  );
-
-  return el;
-}
+// Re-export types from dom module
+export type { DOMSpecOptions, ReactiveProperties } from './dom/element';
 
 /**
- * Adopts a MappedArrayExpr and renders its items as DOM elements in the parent container
+ * Adopts a reactive array signal and renders its items as DOM elements in the parent container
  *
- * This function creates a reactive MappedArrayExpr instance and renders each mapped item
+ * This function takes a reactive array signal from the namespace system and renders each item
  * as a DOM element, properly handling reactive properties and leveraging existing element
  * creation functions.
  *
  * Uses modern fine-grained updates instead of clearing and re-rendering everything.
  *
- * @param arrayExpr - The MappedArray configuration
+ * @param arraySignal - The reactive array signal from the namespace system
  * @param parentElement - The parent DOM element to render items into
  * @param options - Optional configuration object with named parameters
  */
 export function adoptArray<T>(
-  arrayExpr: MappedArrayExpr<T, any>,
+  arraySignal: any, // Enhanced signal with getMutableProps method
   parentElement: Element,
   options: DOMSpecOptions = {}
 ): void {
-  // Create the reactive MappedArrayExpr instance
-  const reactiveArray = new MappedArray(arrayExpr, parentElement);
-  const mutableProps = reactiveArray.getMutableProps();
-
   // Keep track of rendered elements by index for efficient updates
   const renderedElements = new Map<number, Element>();
   let previousItems: any[] = [];
 
+  // Get mutable properties if available
+  const mutableProps = typeof arraySignal.getMutableProps === 'function' 
+    ? arraySignal.getMutableProps() 
+    : [];
+
   // Function to update the current array state with fine-grained updates
-  // True key-based diffing inspired by the futuristic ComponentRepeater
   const updateArray = (items: any[]) => {
     // Consistent key generation function
     const getItemKey = (item: any) => item.id || JSON.stringify(item);
@@ -328,7 +275,7 @@ export function adoptArray<T>(
         (item) => getItemKey(item) === key
       );
       if (item) {
-        const element = createElement(item, options);
+        const element = createDOMElement(item, options);
         newComponentsByKey.set(key, element);
       }
     });
@@ -345,11 +292,11 @@ export function adoptArray<T>(
       if (item && previousIndex >= 0) {
         const element = renderedElements.get(previousIndex);
         if (element) {
-          // debug
+          // Surgical updates using mutable props tracking
           console.debug(`Updating existing component for key ${key} with mutable properties`, mutableProps);
-          // Efficient mutable property updates using pre-analyzed properties
+          
+          // Only update properties that actually reference item/index data
           mutableProps.forEach((prop: string) => {
-            // debug
             console.debug(`Updating property ${prop} for key ${key}`);
             if (prop in item) {
               const value = item[prop];
@@ -471,8 +418,8 @@ export function adoptArray<T>(
     | undefined;
 
   const _effectCleanup = createEffect(() => {
-    // Get the current items within the effect to establish dependency tracking
-    const currentItems = reactiveArray.get();
+    // Get the current items from the array signal to establish dependency tracking
+    const currentItems = arraySignal.get();
 
     // Call updateArray immediately with the current items
     updateArray(currentItems);

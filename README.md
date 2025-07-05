@@ -224,11 +224,11 @@ NOTE: Scopes are partitioned at the window, document, and custom element levels.
 
 ### 🌐 Dynamic Mapped Arrays
 
-Create dynamic lists that automatically update when data changes:
+Create dynamic lists that automatically update when data changes using the prototype-based namespace syntax:
 
 ```JavaScript
 { // Object for defining an entire window
-    $todoList = [
+    $todoList: [
       { id: 1, text: 'Learn DDOM basics', completed: false },
       { id: 2, text: 'Build a todo app', completed: false },
       { id: 3, text: 'Deploy to production', completed: true }
@@ -242,16 +242,18 @@ Create dynamic lists that automatically update when data changes:
 
         textContent: '${this.$todoItem.get().text}' // ← Explicit signal access
     }],
+    
     // Document body structure
     document: {
         body: {
-            children: { // ← Dynamic Mapped Array Expression using items/map instead of direct array
+            children: { // ← Array namespace with prototype-based configuration
+                prototype: 'Array',
                 items: 'window.$todoList', // ← Reference data from anywhere
                 // items: [{ id: 1, text: 'Task 1' }, { id: 2, text: 'Task 2' }], // ← Or a static array
                 map: {
                     tagName: 'todo-item', // ← element tag for each item
-                    $todoItem: (item, _index) => item, // ← Access each array item
-                    $todoIndex: (_item, index) => index, // ← Access the item's index
+                    $todoItem: '${item}', // ← Declarative template for each array item
+                    $todoIndex: '${index}', // ← Declarative template for item index
                 }
             }
         }
@@ -261,48 +263,46 @@ Create dynamic lists that automatically update when data changes:
 
 ### 🌐 Web API Namespaces
 
-DDOM provides declarative access to Web APIs through namespaced properties, enabling reactive integration with browser functionality:
+DDOM provides declarative access to Web APIs through prototype-based namespace configuration, enabling reactive integration with browser functionality:
 
 ```JavaScript
 {
   // Reactive HTTP requests
   $userData: {
-    Request: {
-      url: '/api/users/${this.$userId.get()}',
-      method: 'GET',
-      delay: 300 // Debounce requests
-    }
+    prototype: 'Request',
+    url: '/api/users/${this.$userId.get()}',
+    method: 'GET',
+    debounce: 300 // Debounce requests
   },
   
   // Reactive form data
   $uploadForm: {
-    FormData: {
-      file: '${this.$selectedFile.get()}',
-      description: '${this.$description.get()}'
-    }
+    prototype: 'FormData',
+    file: '${this.$selectedFile.get()}',
+    description: '${this.$description.get()}'
   },
   
   // Reactive URL parameters
   $searchParams: {
-    URLSearchParams: {
-      q: '${this.$query.get()}',
-      page: '${this.$page.get()}'
-    }
+    prototype: 'URLSearchParams',
+    q: '${this.$query.get()}',
+    page: '${this.$page.get()}'
   },
   
   // Use in API calls
   $searchResults: {
-    Request: {
-      url: '/api/search?${this.$searchParams.get().toString()}'
-    }
+    prototype: 'Request',
+    url: '/api/search?${this.$searchParams.get().toString()}'
   }
 }
 ```
 
-**Supported Namespaces:**
+**Supported Prototypes:**
 - **Request** - Declarative fetch API integration
 - **FormData** - Reactive form data construction
 - **URLSearchParams** - Reactive URL parameter handling
+- **Array, Set, Map** - Reactive collections with filtering, mapping, and sorting
+- **TypedArrays** - Reactive binary data arrays
 - **Blob** - Reactive binary data creation
 - **ArrayBuffer** - Reactive buffer management
 - **ReadableStream** - Reactive stream creation
@@ -425,7 +425,7 @@ The `examples/` directory contains comprehensive demonstrations:
 The weather dashboard demonstrates real-world API integration using DDOM's declarative fetch capabilities:
 
 - **Reactive location selection** - Automatically updates coordinates when location changes
-- **Debounced API requests** - Prevents excessive calls with intelligent delay
+- **Debounced API requests** - Prevents excessive calls with intelligent debounce
 - **Template literal URLs** - Dynamic URLs built from reactive properties
 - **Error handling** - Graceful fallbacks for missing data
 - **Beautiful UI** - Modern design with responsive grid layout
@@ -435,7 +435,7 @@ The weather dashboard demonstrates real-world API integration using DDOM's decla
 $weatherData: {
   Request: {
     url: 'https://api.weather.gov/points/${this.$currentCoords().lat},${this.$currentCoords().lon}',
-    delay: 500 // Debounce API calls
+    debounce: 500 // Debounce API calls
   }
 }
 ```
@@ -502,6 +502,17 @@ DOM immutable properties `id` and `tagName` are automatically protected from rea
 
 ## Philosophy
 
+### The Rule of Least Power
+
+DDOM follows [Tim Berners-Lee's Rule of Least Power](https://www.w3.org/DesignIssues/Principles.html#PLP): *"Given a choice of solutions, pick the least powerful solution capable of solving the problem."* This principle guides every design decision:
+
+* **Declarative over imperative** - Use data structures instead of functions where possible
+* **Templates over functions** - Template literals `'${item.name}'` instead of `(item) => item.name`
+* **Configuration over code** - Describe what you want, not how to build it
+* **Web standards over custom APIs** - Leverage existing browser capabilities
+
+This approach creates more maintainable, serializable, and understandable code while preventing over-engineering.
+
 ### DOM-First Design
 
 DDOM maintains strict alignment with DOM APIs and web standards. In general, DDOM aims to mirror and support valid DOM properties, keys, and value types as closely as possible.
@@ -512,6 +523,7 @@ DDOM prioritizes:
 
 * **Familiar syntax** - Works like normal JavaScript
 * **Minimal novelty** - Standards-alignment over DSLs
+* **Least power** - Simplest solution that solves the problem
 * **Predictable behavior** - Standard property access patterns
 * **Debugging friendly** - Properties work in dev tools
 

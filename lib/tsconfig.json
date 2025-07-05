@@ -4,14 +4,11 @@
 		"declaration": true,
 		"esModuleInterop": true,
 		"forceConsistentCasingInFileNames": true,
-		"lib": [
-			"DOM",
-			"ES2022"
-		],
+		"lib": ["DOM","ES2022"],
 		"module": "ES2022",
 		"moduleResolution": "bundler",
 		"outDir": "./dist",
-		"rootDir": "../",
+		"rootDir": ".",
 		"skipLibCheck": true,
 		"sourceMap": false,
 		"strict": true,
@@ -19,12 +16,9 @@
 	},
 	"exclude": [
 		"node_modules",
-		"dist",
-		"**/*.test.ts",
-		"**/*.spec.ts"
+		"dist"
 	],
 	"include": [
-		"src/**/*",
-		"../types/src/types.d.ts"
+		"src/**/*.ts"
 	]
 }

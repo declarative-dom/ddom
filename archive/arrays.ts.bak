@@ -1,7 +1,7 @@
 import {
-  MappedArrayExpr,
-  FilterExpr,
-  SortExpr,
+  ArrayConfig,
+  FilterCriteria,
+  SortCriteria,
 } from '../../types/src';
 
 import {
@@ -20,7 +20,7 @@ import {
 /**
  * Evaluates a filter expression against an item in an array.
  * Handles both static values and dynamic functions for operands, supporting
- * all operators defined in the FilterExpr specification.
+ * all operators defined in the FilterCriteria specification.
  * 
  * @template T - The type of items being filtered
  * @param item - The current item being evaluated
@@ -36,7 +36,7 @@ import {
  * ); // returns true
  * ```
  */
-function evaluateFilter<T>(item: T, index: number, filter: FilterExpr<T>): boolean {
+function evaluateFilter<T>(item: T, index: number, filter: FilterCriteria<T>): boolean {
   // Get left operand value
   let leftValue: any;
   if (typeof filter.leftOperand === 'string') {
@@ -82,7 +82,7 @@ function evaluateFilter<T>(item: T, index: number, filter: FilterExpr<T>): boole
  * 
  * @template T - The type of items in the array
  * @param array - The array to sort (will be modified in place)
- * @param sortExpressions - Array of sort expressions to apply in order
+ * @param SortCriteriaessions - Array of sort expressions to apply in order
  * @returns The sorted array (same reference as input)
  * @example
  * ```typescript
@@ -92,19 +92,19 @@ function evaluateFilter<T>(item: T, index: number, filter: FilterExpr<T>): boole
  * ]);
  * ```
  */
-function applySorting<T>(array: T[], sortExpressions: SortExpr<T>[]): T[] {
+function applySorting<T>(array: T[], SortCriteriaessions: SortCriteria<T>[]): T[] {
   return array.sort((a, b) => {
-    for (const sortExpr of sortExpressions) {
+    for (const SortCriteria of SortCriteriaessions) {
       let aValue: any;
       let bValue: any;
 
       // Get sort values
-      if (typeof sortExpr.sortBy === 'string') {
-        aValue = (a as any)[sortExpr.sortBy];
-        bValue = (b as any)[sortExpr.sortBy];
-      } else if (typeof sortExpr.sortBy === 'function') {
-        aValue = sortExpr.sortBy(a, 0); // Index not meaningful in sort context
-        bValue = sortExpr.sortBy(b, 0);
+      if (typeof SortCriteria.sortBy === 'string') {
+        aValue = (a as any)[SortCriteria.sortBy];
+        bValue = (b as any)[SortCriteria.sortBy];
+      } else if (typeof SortCriteria.sortBy === 'function') {
+        aValue = SortCriteria.sortBy(a); // Index not meaningful in sort context
+        bValue = SortCriteria.sortBy(b);
       } else {
         continue;
       }
@@ -115,7 +115,7 @@ function applySorting<T>(array: T[], sortExpressions: SortExpr<T>[]): T[] {
       else if (aValue > bValue) comparison = 1;
 
       // Apply direction
-      if (sortExpr.direction === 'desc') {
+      if (SortCriteria.direction === 'desc') {
         comparison = -comparison;
       }
 
@@ -182,21 +182,21 @@ function applyGrouping<T>(
 }
 
 /**
- * Type guard to check if a value is an MappedArrayExpr.
- * Validates that the object has the required 'items' property to be considered an MappedArrayExpr.
+ * Type guard to check if a value is an ArrayConfig.
+ * Validates that the object has the required 'items' property to be considered an ArrayConfig.
  * 
  * @template T - The type of items in the array
  * @param value - The value to check
- * @returns True if the value is an MappedArrayExpr, false otherwise
+ * @returns True if the value is an ArrayConfig, false otherwise
  * @example
  * ```typescript
- * if (isMappedArrayExpr(someValue)) {
- *   // TypeScript now knows someValue is MappedArrayExpr<T, any>
+ * if (isArrayConfig(someValue)) {
+ *   // TypeScript now knows someValue is ArrayConfig<T, any>
  *   console.log(someValue.items);
  * }
  * ```
  */
-export function isMappedArrayExpr<T>(value: any): value is MappedArrayExpr<T, any> {
+export function isArrayConfig<T>(value: any): value is ArrayConfig<T, any> {
   return value !== null && value !== undefined && typeof value === 'object' && 'items' in value;
 }
 
@@ -231,11 +231,11 @@ export class MappedArray<T, U = any> {
    * 
    * Supports property accessors like "window.todos" or "this.parentNode.items" for value resolution.
    * 
-   * @param expr - The MappedArrayExpr configuration defining the processing pipeline
+   * @param expr - The ArrayConfig configuration defining the processing pipeline
    * @param parentElement - Optional parent element for context-aware operations
    */
   constructor(
-    private expr: MappedArrayExpr<T, U>,
+    private expr: ArrayConfig<T, U>,
     private parentElement?: Element
   ) {
     // Initialize isolated signal watcher for this MappedArray
@@ -289,7 +289,7 @@ export class MappedArray<T, U = any> {
         throw error;
       }
     } else {
-      throw new Error('MappedArrayExpr items must be an array, Signal, property accessor string, or function');
+      throw new Error('ArrayConfig items must be an array, Signal, property accessor string, or function');
     }    // Create computed that processes the array through the full pipeline
     this.computed = new Signal.Computed(() => {
       try {

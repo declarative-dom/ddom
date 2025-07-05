@@ -11,10 +11,10 @@ npm install @declarative-dom/types
 ## Usage
 
 ```typescript
-import { MappedArrayExpr, FilterExpr, StyleExpr, CustomElementSpec } from '@declarative-dom/types';
+import { ArrayConfig, FilterCriteria, StyleExpr, CustomElementSpec } from '@declarative-dom/types';
 
 // Example: Define a mapped array expression
-const mappedArray: MappedArrayExpr<{ id: number; name: string }, string> = {
+const mappedArray: ArrayConfig<{ id: number; name: string }, string> = {
   items: [{ id: 1, name: 'Item 1' }, { id: 2, name: 'Item 2' }],
   map: {
     tagName: (item) => item.id === 1 ? 'div' : 'span',
@@ -44,9 +44,9 @@ const style: StyleExpr = {
 
 ### Core Types
 
-- `MappedArrayExpr<T, R>` - Defines declarative array mapping, filtering, and sorting.
-- `FilterExpr<T>` - Defines filter expressions for array items.
-- `SortExpr<T>` - Defines sorting expressions for array items.
+- `ArrayConfig<T, R>` - Defines declarative array mapping, filtering, and sorting.
+- `FilterCriteria<T>` - Defines filter expressions for array items.
+- `SortCriteria<T>` - Defines sorting expressions for array items.
 - `StyleExpr` - Defines declarative CSS styles with support for nesting.
 - `CustomElementSpec` - Defines specifications for custom elements.
 - `DOMSpec` - Represents the declarative structure of DOM nodes.

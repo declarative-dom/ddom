@@ -1,100 +1,9 @@
 /**
- * Declarative DOM is a type system and specification for defining structured DOM data
- * in a JS-native format. It is intended to reflect the shape of the real DOM 
- * (HTMLElement, Window, etc.) as closely as possible, with only the minimal
- * necessary changes to support declarative definition.
+ * DOM Type Definitions
+ * 
+ * Core DOM specification types for Declarative DOM.
+ * These types define the structure of declarative DOM objects.
  */
-
-/**
- * FilterOper Type Definition
- * Defines operators specifically for use in filter expressions that return boolean values.
- * Includes comparison, logical, and conditional operators suitable for filtering operations.
- */
-const FILTER_OPERATORS = [
-	'>', '<', '>=', '<=', 
-	'==', '!=', '===', '!==', 
-	'&&', '||', '!', '?',
-	'includes', 'startsWith', 'endsWith',
-] as const;
-
-export type FilterOper = typeof FILTER_OPERATORS[number];
-
-/**
- * Operator Type Definition
- * Defines all supported operators for use in expressions and computations.
- * Includes comparison, logical, arithmetic, bitwise, and conditional operators.
- * Note: For filtering operations, use FilterOper instead.
- */
-const OPERATORS = [
-	'>', '<', '>=', '<=', 
-	'==', '!=', '===', '!==', 
-	'&&', '||', 
-	'+', '-', '*', '/', '%', 
-	'^', '&', '|', '!', '~', 
-	'<<', '>>', '>>>', 
-	'?', 'includes', 'startsWith', 'endsWith',
-] as const;
-
-export type Operator = typeof OPERATORS[number];
-
-/**
- * FilterExpr Type Definition
- * This type is used to define filters that can be applied to arrays of items.
- * It allows for complex filtering operations using operators and can handle both static and dynamic values.
- * @template T - The type of items in the array.
- * @property leftOperand - The left operand of the filter condition, which can be a string (property name), a function, or a dynamic value.
- * @property operator - The filter operator to use for comparison - only boolean-returning operators are allowed.
- * @property rightOperand - The right operand of the filter condition, which can be a static value, a function, or a dynamic value.
- * */
-export type FilterExpr<T = any> = {
-	leftOperand: string | ((item: T, index: number) => any);
-	operator: FilterOper;
-	rightOperand: any | ((item: T, index: number) => any);
-};
-
-/**
- * SortExpr Type Definition
- * This type is used to define sorting operations for arrays of items.
- * It allows for both static and dynamic sorting based on properties or functions.
- * @template T - The type of items in the array.
- * @property sortBy - The property name or function to sort by.
- * @property direction - The direction of sorting, either 'asc' for ascending or 'desc' for descending.
- */
-export type SortExpr<T = any> = {
-	sortBy: string | ((item: T, index: number) => any);
-	direction?: 'asc' | 'desc';
-};
-
-/**
- * MappedArrayExpr Type Definition
- * Provides a declarative way to define arrays with built-in filtering, sorting, grouping, and mapping capabilities.
- * This type enables complex data transformations without imperative code.
- * @template T - The type of items in the source array.
- * @template R - The type of items after mapping transformation.
- * @property items - The source array of items to be processed. Can be:
- *   - A static array
- *   - A function that returns an array
- *   - A Signal.State or Signal.Computed containing an array
- *   - A string address like "window.todos" or "this.parentNode.items" that resolves to a signal
- * @property map - Transformation to apply to each item. Can be:
- *   - An object template with function properties for dynamic values
- *   - A string template for simple interpolation
- *   - A static value for direct mapping
- * @property filter - Optional array of filters to apply to items before mapping.
- * @property sort - Optional array of sort operations to apply before mapping.
- * @property groupBy - Optional function to group items by a key before mapping.
- * @property prepend - Optional array of items to add at the beginning of the result.
- * @property append - Optional array of items to add at the end of the result.
- */
-export type MappedArrayExpr<T = any, R = any> = {
-	items: T[] | ((contextNode?: Node) => T[]) | Signal.State<T[]> | Signal.Computed<T[]> | string;
-	map?: string | R;
-	filter?: FilterExpr<T>[];
-	sort?: SortExpr<T>[];
-	groupBy?: (item: T, index: number) => string | number;
-	prepend?: R[];
-	append?: R[];
-};
 
 /**
  * StyleExpr Type Definition
@@ -129,7 +38,7 @@ export type StyleExpr = {
 type WritableOverrides = {
 	tagName?: string;
 	attributes?: Record<string, string>;
-	children?: HTMLElementSpec[] | MappedArrayExpr<any[], CustomElementSpec>;
+	children?: HTMLElementSpec[] | import('./namespaces').ArrayConfig<any[], CustomElementSpec>;
 	document?: Partial<DocumentSpec>
 	customElements?: CustomElementSpec[];
 	style?: StyleExpr;
@@ -246,27 +155,13 @@ export type ElementSpec = HTMLElementSpec | HTMLBodyElementSpec | HTMLHeadElemen
 export type DOMNode = HTMLElement | HTMLBodyElement | HTMLHeadElement | Document | ShadowRoot | DocumentFragment | Window;
 
 /**
- * RequestConfig Type Definition
- * Configuration for Request namespace properties in DDOM.
- * Uses standard Request constructor properties with minimal DDOM extensions.
+ * DOMSpecOptions interface for processing options
  */
-export interface RequestConfig {
-  url: string;
-  method?: string;
-  headers?: Record<string, string>;
-  body?: any;
-  mode?: RequestMode;
-  credentials?: RequestCredentials;
-  cache?: RequestCache;
-  redirect?: RequestRedirect;
-  referrer?: string;
-  referrerPolicy?: ReferrerPolicy;
-  integrity?: string;
-  keepalive?: boolean;
-  signal?: any;
-  
-  // DDOM extensions for declarative control
-  disabled?: boolean; // Disable auto execution (default: false) - matches standard DOM pattern
-  delay?: number; // Delay/debounce in milliseconds - matches Web Animations API
-  responseType?: 'arrayBuffer' | 'blob' | 'formData' | 'json' | 'text'; // Matches XMLHttpRequest.responseType
+export interface DOMSpecOptions {
+  /** Whether to process CSS styles (default: true) */
+  css?: boolean;
+  /** Array of property keys to ignore during adoption (default: []) */
+  ignoreKeys?: string[];
+  /** Reactive properties to inherit from parent scope */
+  scopeReactiveProperties?: Record<string, any>;
 }

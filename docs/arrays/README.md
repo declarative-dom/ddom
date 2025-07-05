@@ -1,25 +1,27 @@
-# Dynamic Content with MappedArrayExprs
+# Dynamic Content with Array Namespaces
 
-DDOM provides **MappedArrayExprs** for dynamic content generation, particularly useful for rendering lists and repeated content. This feature enables data-driven UI construction while maintaining DDOM's declarative philosophy.
+DDOM provides **Array namespaces** for dynamic content generation, particularly useful for rendering lists and repeated content. This feature enables data-driven UI construction while maintaining DDOM's declarative philosophy and following the Rule of Least Power.
 
 ## Standards Alignment
 
-MappedArrayExprs are modeled after the ECMAScript `Array.from(items, mapper)` method and chainable array functions. This design ensures familiar syntax for JavaScript developers while providing powerful data transformation capabilities:
+Array namespaces are modeled after the ECMAScript `Array.from(items, mapper)` method and chainable array functions, but strictly adhere to the Rule of Least Power by using only declarative templates instead of functions. This design ensures maintainable, serializable code while providing powerful data transformation capabilities:
 
+* **`prototype: 'Array'`** - Declares the namespace as an Array-type configuration
 * **`items`** - Source data array (equivalent to `Array.from` first parameter)
 * **`map`** - Object or string template for transformation (declarative alternative to `Array.from` mapper)
-* **`filter`** - Declarative filtering (equivalent to `Array.prototype.filter`)
-* **`sort`** - Declarative sorting (equivalent to `Array.prototype.sort`)
+* **`filter`** - Declarative filtering expressions (equivalent to `Array.prototype.filter`)
+* **`sort`** - Declarative sorting expressions (equivalent to `Array.prototype.sort`)
 * **`prepend`/`append`** - Additional items for list composition
 
 ## Syntax
 
 ```javascript
 {
-  items: T[],                    // Source data array
-  map: string | object,          // Object template or string template
-  filter?: FilterExpr[],         // Optional filtering
-  sort?: SortExpr[],            // Optional sorting  
+  prototype: 'Array',            // Required: declares this as an Array namespace
+  items: T[] | string,           // Source data array or property accessor
+  map?: string | object,         // Object template or string template (declarative only)
+  filter?: FilterCriteria[],         // Optional filtering expressions
+  sort?: SortCriteria[],            // Optional sorting expressions  
   prepend?: R[],                // Optional items to prepend
   append?: R[]                  // Optional items to append
 }
@@ -28,13 +30,13 @@ MappedArrayExprs are modeled after the ECMAScript `Array.from(items, mapper)` me
 ## Mapping Types
 
 ### Object Templates
-Use object templates with function properties for dynamic values:
+Use object templates with template string properties for dynamic values:
 ```javascript
 map: {
   tagName: 'div',
-  id: (item) => `item-${item.id}`,
-  textContent: (item) => `${item.name} - $${item.price}`,
-  className: (item) => item.active ? 'active' : 'inactive'
+  id: 'item-${item.id}',
+  textContent: '${item.name} - $${item.price}',
+  className: '${item.active ? "active" : "inactive"}'
 }
 ```
 
@@ -45,13 +47,14 @@ map: '${item.name} costs $${item.price}'
 ```
 
 ## Use Cases
+## Use Cases
 
-MappedArrayExprs excel at:
+Array namespaces excel at:
 
 * **Dynamic Lists**: Rendering data collections as UI elements
-* **Template Mapping**: Converting data objects to UI components using object templates
-* **Conditional Rendering**: Filtering items based on data properties
-* **Sorted Displays**: Ordering content by various criteria
+* **Template Mapping**: Converting data objects to UI components using declarative object templates
+* **Conditional Rendering**: Filtering items based on data properties using filter expressions
+* **Sorted Displays**: Ordering content by various criteria using sort expressions
 * **Data-Driven Components**: Building UIs that respond to changing datasets
 
 ## Examples
@@ -62,6 +65,7 @@ MappedArrayExprs excel at:
 {
   tagName: 'ul',
   children: {
+    prototype: 'Array',
     items: [
       { id: 1, name: 'Apple', price: 1.50 },
       { id: 2, name: 'Banana', price: 0.75 },
@@ -69,8 +73,8 @@ MappedArrayExprs excel at:
     ],
     map: {
       tagName: 'li',
-      textContent: (item) => `${item.name} - $${item.price}`,
-      id: (item) => `item-${item.id}`
+      textContent: '${item.name} - $${item.price}',
+      id: 'item-${item.id}'
     }
   }
 }
@@ -83,11 +87,12 @@ MappedArrayExprs excel at:
 {
   tagName: 'div',
   children: {
+    prototype: 'Array',
     items: 'window.userData',  // Property accessor to global data
     map: {
       tagName: 'div',
-      textContent: (user) => user.name,
-      className: (user) => `user-${user.role}`
+      textContent: '${user.name}',
+      className: 'user-${user.role}'
     }
   }
 }
@@ -99,11 +104,12 @@ MappedArrayExprs excel at:
 {
   tagName: 'div',
   children: {
+    prototype: 'Array',
     items: [{ name: 'John', role: 'Admin' }, { name: 'Jane', role: 'User' }],
     map: {
       tagName: 'span', 
-      textContent: '${name} (${role})',
-      className: 'user-${role}'
+      textContent: '${item.name} (${item.role})',
+      className: 'user-${item.role}'
     }
   }
 }
@@ -115,6 +121,7 @@ MappedArrayExprs excel at:
 {
   tagName: 'table',
   children: {
+    prototype: 'Array',
     items: [
       { name: 'John', age: 30, active: true },
       { name: 'Jane', age: 25, active: false },
@@ -130,8 +137,8 @@ MappedArrayExprs excel at:
     map: {
       tagName: 'tr',
       children: [
-        { tagName: 'td', textContent: (user) => user.name },
-        { tagName: 'td', textContent: (user) => user.age.toString() }
+        { tagName: 'td', textContent: '${item.name}' },
+        { tagName: 'td', textContent: '${item.age}' }
       ]
     }
   }
@@ -144,13 +151,14 @@ MappedArrayExprs excel at:
 {
   tagName: 'nav',
   children: {
+    prototype: 'Array',
     items: [{ text: 'Products', href: '/products' }],
     prepend: [{ tagName: 'a', textContent: 'Home', href: '/' }],
     append: [{ tagName: 'a', textContent: 'Contact', href: '/contact' }],
     map: {
       tagName: 'a',
-      textContent: (item) => item.text,
-      href: (item) => item.href
+      textContent: '${item.text}',
+      href: '${item.href}'
     }
   }
 }
@@ -162,32 +170,33 @@ MappedArrayExprs excel at:
 {
   tagName: 'div',
   children: {
+    prototype: 'Array',
     items: 'window.$userList',  // Reactive signal
     map: {
       tagName: 'div',
-      id: (item) => `user-${item.id}`,
-      $textContent: (item) => item.name,        // Reactive property
-      $className: (item) => `user-${item.role}`, // Updates automatically
-      onclick: (item) => () => selectUser(item.id)
-    }
-  }
+      id: 'user-${item.id}',
+      $textContent: '${item.name}',        // Reactive property
+      $className: 'user-${item.role}',     // Updates automatically
+      onclick: 'selectUser(${item.id})'    // Declarative event handler
 }
 ```
 
 ## Integration with Property Accessors
 
-MappedArrayExprs work seamlessly with property accessors for referencing data:
+Array namespaces work seamlessly with property accessors for referencing data:
 
 ```javascript
 {
   tagName: 'div',
   children: {
+    prototype: 'Array',
     items: 'this.parentNode.userList',  // Property accessor to parent data
     map: {
       tagName: 'div',
       textContent: 'window.$currentTheme',  // Property accessor in template
-      className: (item) => `user-card user-${item.status}`
+      className: 'user-card user-${item.status}'  // Declarative template
     }
   }
+}
 }
 ```
