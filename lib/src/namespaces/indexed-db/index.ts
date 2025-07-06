@@ -7,7 +7,7 @@
  */
 
 import { Signal } from '../../core/signals';
-import { resolvePropertyValue, evaluatePropertyValue } from '../../core/properties';
+import { processProperty } from '../../core/properties';
 import { PrototypeConfig, validateNamespaceConfig, createNamespaceHandler } from '../index';
 import { IndexedDBConfig } from '../../types/namespaces';
 
@@ -43,23 +43,20 @@ export const createIndexedDBNamespace = createNamespaceHandler(
  * Creates a reactive IndexedDB store for setup mode
  */
 function createIndexedDBStore(config: IndexedDBConfig, key: string, element: any): Signal.State<any> {
-  const resolvedDatabase = resolvePropertyValue('database', config.database, element);
-  const resolvedStore = resolvePropertyValue('store', config.store, element);
+  const processedDatabase = processProperty('database', config.database, element);
+  const processedStore = processProperty('store', config.store, element);
   
   const dbSignal = new Signal.State((() => {
     try {
-      const { value: dbName, isValid: dbValid } = evaluatePropertyValue(resolvedDatabase);
-      const { value: storeName, isValid: storeValid } = evaluatePropertyValue(resolvedStore);
-      
-      if (!dbValid || !storeValid || !dbName || !storeName) {
+      if (!processedDatabase.isValid || !processedStore.isValid || !processedDatabase.value || !processedStore.value) {
         console.warn(`Invalid IndexedDB configuration for ${key}`);
         return null;
       }
 
       // Return a store interface object
       return {
-        database: dbName,
-        store: storeName,
+        database: processedDatabase.value,
+        store: processedStore.value,
         version: config.version || 1,
         keyPath: config.keyPath,
         autoIncrement: config.autoIncrement,
@@ -68,9 +65,9 @@ function createIndexedDBStore(config: IndexedDBConfig, key: string, element: any
         // Provide methods for database operations
         getStore: async (): Promise<IDBObjectStore | null> => {
           try {
-            const db = await openDatabase(dbName, config.version || 1, config);
-            const transaction = db.transaction([storeName], 'readwrite');
-            return transaction.objectStore(storeName);
+            const db = await openDatabase(processedDatabase.value, config.version || 1, config);
+            const transaction = db.transaction([processedStore.value], 'readwrite');
+            return transaction.objectStore(processedStore.value);
           } catch (error) {
             console.warn(`Failed to get store for ${key}:`, error);
             return null;
@@ -79,7 +76,7 @@ function createIndexedDBStore(config: IndexedDBConfig, key: string, element: any
 
         get: async (keyValue: any) => {
           try {
-            const store = await getStoreForOperation(dbName, storeName, config, 'readonly');
+            const store = await getStoreForOperation(processedDatabase.value, processedStore.value, config, 'readonly');
             if (!store) return null;
             
             return new Promise((resolve, reject) => {
@@ -95,7 +92,7 @@ function createIndexedDBStore(config: IndexedDBConfig, key: string, element: any
 
         set: async (keyValue: any, value: any) => {
           try {
-            const store = await getStoreForOperation(dbName, storeName, config, 'readwrite');
+            const store = await getStoreForOperation(processedDatabase.value, processedStore.value, config, 'readwrite');
             if (!store) return false;
             
             return new Promise((resolve, reject) => {
@@ -111,7 +108,7 @@ function createIndexedDBStore(config: IndexedDBConfig, key: string, element: any
 
         add: async (value: any, keyValue?: any) => {
           try {
-            const store = await getStoreForOperation(dbName, storeName, config, 'readwrite');
+            const store = await getStoreForOperation(processedDatabase.value, processedStore.value, config, 'readwrite');
             if (!store) return false;
             
             return new Promise((resolve, reject) => {
@@ -127,7 +124,7 @@ function createIndexedDBStore(config: IndexedDBConfig, key: string, element: any
 
         delete: async (keyValue: any) => {
           try {
-            const store = await getStoreForOperation(dbName, storeName, config, 'readwrite');
+            const store = await getStoreForOperation(processedDatabase.value, processedStore.value, config, 'readwrite');
             if (!store) return false;
             
             return new Promise((resolve, reject) => {
@@ -143,7 +140,7 @@ function createIndexedDBStore(config: IndexedDBConfig, key: string, element: any
 
         clear: async () => {
           try {
-            const store = await getStoreForOperation(dbName, storeName, config, 'readwrite');
+            const store = await getStoreForOperation(processedDatabase.value, processedStore.value, config, 'readwrite');
             if (!store) return false;
             
             return new Promise((resolve, reject) => {
@@ -255,12 +252,12 @@ async function getStoreForOperation(
  */
 async function initializeDatabase(config: IndexedDBConfig, key: string): Promise<void> {
   try {
-    const { value: dbName } = evaluatePropertyValue(config.database);
-    const { value: storeName } = evaluatePropertyValue(config.store);
+    const processedDatabase = processProperty('database', config.database, null);
+    const processedStore = processProperty('store', config.store, null);
     
-    if (!dbName || !storeName || !config.value) return;
+    if (!processedDatabase.isValid || !processedStore.isValid || !processedDatabase.value || !processedStore.value || !config.value) return;
 
-    const store = await getStoreForOperation(dbName, storeName, config, 'readwrite');
+    const store = await getStoreForOperation(processedDatabase.value, processedStore.value, config, 'readwrite');
     if (!store) return;
 
     // Check if store is empty

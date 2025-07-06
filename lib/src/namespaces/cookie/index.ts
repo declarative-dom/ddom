@@ -6,7 +6,7 @@
  */
 
 import { Signal } from '../../core/signals';
-import { resolvePropertyValue, evaluatePropertyValue } from '../../core/properties';
+import { processProperty } from '../../core/properties';
 import { PrototypeConfig, validateNamespaceConfig, createNamespaceHandler } from '../index';
 import { CookieConfig } from '../../types';
 
@@ -20,8 +20,8 @@ export const createCookieNamespace = createNamespaceHandler(
   
   (config: CookieConfig, key: string, element: any) => {
     // Resolve the cookie name and initial value
-    const resolvedName = resolvePropertyValue('name', config.name, element);
-    const resolvedValue = config.value ? resolvePropertyValue('value', config.value, element) : null;
+    const processedName = processProperty('name', config.name, element);
+    const processedValue = config.value ? processProperty('value', config.value, element) : null;
     
     // Helper function to get cookie value
     const getCookieValue = (name: string): string | null => {
@@ -62,24 +62,22 @@ export const createCookieNamespace = createNamespaceHandler(
     // Create a reactive signal that manages the cookie
     const cookieSignal = new Signal.State((() => {
       try {
-        const { value: finalName, isValid: nameValid } = evaluatePropertyValue(resolvedName);
-        if (!nameValid || !finalName) {
+        if (!processedName.isValid || !processedName.value) {
           console.warn(`Invalid cookie name for ${key}`);
           return null;
         }
 
         // Get existing value from cookie
-        const existingValue = getCookieValue(finalName);
+        const existingValue = getCookieValue(processedName.value);
         
         if (existingValue !== null) {
           return existingValue;
-        } else if (resolvedValue) {
+        } else if (processedValue) {
           // Use initial value if provided
-          const { value: initialValue, isValid: valueValid } = evaluatePropertyValue(resolvedValue);
-          if (valueValid) {
+          if (processedValue.isValid) {
             // Store the initial value as cookie
-            const valueStr = typeof initialValue === 'string' ? initialValue : JSON.stringify(initialValue);
-            setCookieValue(finalName, valueStr, config);
+            const valueStr = typeof processedValue.value === 'string' ? processedValue.value : JSON.stringify(processedValue.value);
+            setCookieValue(processedName.value, valueStr, config);
             return valueStr;
           }
         }
@@ -95,11 +93,10 @@ export const createCookieNamespace = createNamespaceHandler(
     const originalSet = cookieSignal.set.bind(cookieSignal);
     cookieSignal.set = (newValue: any) => {
       try {
-        const { value: finalName, isValid } = evaluatePropertyValue(resolvedName);
-        if (isValid && finalName) {
+        if (processedName.isValid && processedName.value) {
           // Save to cookie
           const valueStr = typeof newValue === 'string' ? newValue : JSON.stringify(newValue);
-          setCookieValue(finalName, valueStr, config);
+          setCookieValue(processedName.value, valueStr, config);
           
           // Update the signal
           originalSet(valueStr);
@@ -112,9 +109,8 @@ export const createCookieNamespace = createNamespaceHandler(
     // Add a clear method for convenience
     (cookieSignal as any).clear = () => {
       try {
-        const { value: finalName, isValid } = evaluatePropertyValue(resolvedName);
-        if (isValid && finalName) {
-          setCookieValue(finalName, '', { ...config, maxAge: 0 });
+        if (processedName.isValid && processedName.value) {
+          setCookieValue(processedName.value, '', { ...config, maxAge: 0 });
           originalSet(null);
         }
       } catch (error) {
@@ -125,9 +121,8 @@ export const createCookieNamespace = createNamespaceHandler(
     // Add a refresh method to reload from cookie
     (cookieSignal as any).refresh = () => {
       try {
-        const { value: finalName, isValid } = evaluatePropertyValue(resolvedName);
-        if (isValid && finalName) {
-          const currentValue = getCookieValue(finalName);
+        if (processedName.isValid && processedName.value) {
+          const currentValue = getCookieValue(processedName.value);
           originalSet(currentValue);
         }
       } catch (error) {

@@ -5,7 +5,7 @@
  */
 
 import { Signal } from '../../core/signals';
-import { resolvePropertyValue, evaluatePropertyValue } from '../../core/properties';
+import { processProperty } from '../../core/properties';
 import { PrototypeConfig, validateNamespaceConfig, createNamespaceHandler } from '../index';
 
 /**
@@ -35,11 +35,10 @@ export const createArrayBufferNamespace = createNamespaceHandler(
           return;
         }
         
-        const resolved = resolvePropertyValue(configKey, configValue, element);
-        const { value, isValid } = evaluatePropertyValue(resolved);
+        const processed = processProperty(configKey, configValue, element);
         
-        if (isValid) {
-          resolvedConfig[configKey] = value;
+        if (processed.isValid) {
+          resolvedConfig[configKey] = processed.value;
         }
       });
       

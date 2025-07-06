@@ -37,7 +37,7 @@ import {
 
 import { isNamespacedProperty, processNamespacedProperty } from '../namespaces';
 import { createEffect, ComponentSignalWatcher, Signal } from '../core/signals';
-import { resolvePropertyValue, evaluatePropertyValue } from '../core/properties';
+import { processProperty } from '../core/properties';
 import { applyPropertyBinding, bindReactiveArray } from './binding';
 
 /**
@@ -145,10 +145,9 @@ export function adoptNode(
 
   // Handle protected properties first (id, tagName) - set once, never reactive
   if ('id' in spec && spec.id !== undefined && el instanceof HTMLElement) {
-    const resolved = resolvePropertyValue('id', spec.id, el, options);
-    const evaluated = evaluatePropertyValue(resolved);
-    if (evaluated.isValid) {
-      el.id = evaluated.value;
+    const processed = processProperty('id', spec.id, el, options);
+    if (processed.isValid) {
+      el.id = processed.value;
     }
     options.ignoreKeys.push('id');
   }

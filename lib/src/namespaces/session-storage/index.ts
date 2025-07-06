@@ -6,7 +6,7 @@
  */
 
 import { Signal } from '../../core/signals';
-import { resolvePropertyValue, evaluatePropertyValue } from '../../core/properties';
+import { processProperty } from '../../core/properties';
 import { PrototypeConfig, validateNamespaceConfig, createNamespaceHandler } from '../index';
 import { SessionStorageConfig } from '../../types';
 import { 
@@ -26,31 +26,29 @@ export const createSessionStorageNamespace = createNamespaceHandler(
   
   (config: SessionStorageConfig, key: string, element: any) => {
     // Resolve the storage key and initial value
-    const resolvedKey = resolvePropertyValue('key', config.key, element);
-    const resolvedValue = config.value ? resolvePropertyValue('value', config.value, element) : null;
+    const processedKey = processProperty('key', config.key, element);
+    const processedValue = config.value ? processProperty('value', config.value, element) : null;
     
     // Create a reactive signal that manages sessionStorage
     const sessionStorageSignal = new Signal.State((() => {
       try {
-        const { value: finalKey, isValid: keyValid } = evaluatePropertyValue(resolvedKey);
-        if (!keyValid || !finalKey) {
+        if (!processedKey.isValid || !processedKey.value) {
           console.warn(`Invalid sessionStorage key for ${key}`);
           return null;
         }
 
         // Get existing value from sessionStorage
-        const existingValue = sessionStorage.getItem(finalKey);
+        const existingValue = sessionStorage.getItem(processedKey.value);
         
         if (existingValue !== null) {
           // Parse existing value
           return restoreFromStorage(existingValue);
-        } else if (resolvedValue) {
+        } else if (processedValue) {
           // Use initial value if provided
-          const { value: initialValue, isValid: valueValid } = evaluatePropertyValue(resolvedValue);
-          if (valueValid) {
+          if (processedValue.isValid) {
             // Store the initial value
-            sessionStorage.setItem(finalKey, prepareForStorage(initialValue));
-            return initialValue;
+            sessionStorage.setItem(processedKey.value, prepareForStorage(processedValue.value));
+            return processedValue.value;
           }
         }
         
@@ -65,10 +63,9 @@ export const createSessionStorageNamespace = createNamespaceHandler(
     const originalSet = sessionStorageSignal.set.bind(sessionStorageSignal);
     sessionStorageSignal.set = (newValue: any) => {
       try {
-        const { value: finalKey, isValid } = evaluatePropertyValue(resolvedKey);
-        if (isValid && finalKey) {
+        if (processedKey.isValid && processedKey.value) {
           // Save to sessionStorage
-          sessionStorage.setItem(finalKey, prepareForStorage(newValue));
+          sessionStorage.setItem(processedKey.value, prepareForStorage(newValue));
           
           // Update the signal
           originalSet(newValue);
@@ -81,9 +78,8 @@ export const createSessionStorageNamespace = createNamespaceHandler(
     // Add a clear method for convenience
     (sessionStorageSignal as any).clear = () => {
       try {
-        const { value: finalKey, isValid } = evaluatePropertyValue(resolvedKey);
-        if (isValid && finalKey) {
-          sessionStorage.removeItem(finalKey);
+        if (processedKey.isValid && processedKey.value) {
+          sessionStorage.removeItem(processedKey.value);
           originalSet(null);
         }
       } catch (error) {
@@ -94,9 +90,8 @@ export const createSessionStorageNamespace = createNamespaceHandler(
     // Add a refresh method to reload from sessionStorage
     (sessionStorageSignal as any).refresh = () => {
       try {
-        const { value: finalKey, isValid } = evaluatePropertyValue(resolvedKey);
-        if (isValid && finalKey) {
-          const currentValue = sessionStorage.getItem(finalKey);
+        if (processedKey.isValid && processedKey.value) {
+          const currentValue = sessionStorage.getItem(processedKey.value);
           const parsedValue = restoreFromStorage(currentValue);
           originalSet(parsedValue);
         }

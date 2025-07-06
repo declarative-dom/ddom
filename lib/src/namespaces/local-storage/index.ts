@@ -6,7 +6,7 @@
  */
 
 import { Signal } from '../../core/signals';
-import { resolvePropertyValue, evaluatePropertyValue } from '../../core/properties';
+import { processProperty } from '../../core/properties';
 import { PrototypeConfig, validateNamespaceConfig, createNamespaceHandler } from '../index';
 import { LocalStorageConfig } from '../../types';
 import { 
@@ -26,31 +26,29 @@ export const createLocalStorageNamespace = createNamespaceHandler(
   
   (config: LocalStorageConfig, key: string, element: any) => {
     // Resolve the storage key and initial value
-    const resolvedKey = resolvePropertyValue('key', config.key, element);
-    const resolvedValue = config.value ? resolvePropertyValue('value', config.value, element) : null;
+    const processedKey = processProperty('key', config.key, element);
+    const processedValue = config.value ? processProperty('value', config.value, element) : null;
     
     // Create a reactive signal that manages localStorage
     const localStorageSignal = new Signal.State((() => {
       try {
-        const { value: finalKey, isValid: keyValid } = evaluatePropertyValue(resolvedKey);
-        if (!keyValid || !finalKey) {
+        if (!processedKey.isValid || !processedKey.value) {
           console.warn(`Invalid localStorage key for ${key}`);
           return null;
         }
 
         // Get existing value from localStorage
-        const existingValue = localStorage.getItem(finalKey);
+        const existingValue = localStorage.getItem(processedKey.value);
         
         if (existingValue !== null) {
           // Parse existing value
           return restoreFromStorage(existingValue);
-        } else if (resolvedValue) {
+        } else if (processedValue) {
           // Use initial value if provided
-          const { value: initialValue, isValid: valueValid } = evaluatePropertyValue(resolvedValue);
-          if (valueValid) {
+          if (processedValue.isValid) {
             // Store the initial value
-            localStorage.setItem(finalKey, prepareForStorage(initialValue));
-            return initialValue;
+            localStorage.setItem(processedKey.value, prepareForStorage(processedValue.value));
+            return processedValue.value;
           }
         }
         
@@ -65,10 +63,9 @@ export const createLocalStorageNamespace = createNamespaceHandler(
     const originalSet = localStorageSignal.set.bind(localStorageSignal);
     localStorageSignal.set = (newValue: any) => {
       try {
-        const { value: finalKey, isValid } = evaluatePropertyValue(resolvedKey);
-        if (isValid && finalKey) {
+        if (processedKey.isValid && processedKey.value) {
           // Save to localStorage
-          localStorage.setItem(finalKey, prepareForStorage(newValue));
+          localStorage.setItem(processedKey.value, prepareForStorage(newValue));
           
           // Update the signal
           originalSet(newValue);
@@ -81,9 +78,8 @@ export const createLocalStorageNamespace = createNamespaceHandler(
     // Add a clear method for convenience
     (localStorageSignal as any).clear = () => {
       try {
-        const { value: finalKey, isValid } = evaluatePropertyValue(resolvedKey);
-        if (isValid && finalKey) {
-          localStorage.removeItem(finalKey);
+        if (processedKey.isValid && processedKey.value) {
+          localStorage.removeItem(processedKey.value);
           originalSet(null);
         }
       } catch (error) {
@@ -94,9 +90,8 @@ export const createLocalStorageNamespace = createNamespaceHandler(
     // Add a refresh method to reload from localStorage
     (localStorageSignal as any).refresh = () => {
       try {
-        const { value: finalKey, isValid } = evaluatePropertyValue(resolvedKey);
-        if (isValid && finalKey) {
-          const currentValue = localStorage.getItem(finalKey);
+        if (processedKey.isValid && processedKey.value) {
+          const currentValue = localStorage.getItem(processedKey.value);
           const parsedValue = restoreFromStorage(currentValue);
           originalSet(parsedValue);
         }

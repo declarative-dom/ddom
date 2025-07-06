@@ -6,7 +6,7 @@
  */
 
 import { Signal, createEffect, ComponentSignalWatcher } from '../../core/signals';
-import { resolvePropertyValue, evaluatePropertyValue } from '../../core/properties';
+import { processProperty } from '../../core/properties';
 import { PrototypeConfig, validateNamespaceConfig, createNamespaceHandler } from '../index';
 import { performFetch } from './fetch';
 
@@ -44,8 +44,8 @@ export const createRequestNamespace = createNamespaceHandler(
     
     // Add fetch method to the signal for manual triggering
     (responseSignal as any).fetch = async (overrideConfig?: Partial<RequestConfig>) => {
-      const { value: currentConfig, isValid } = evaluatePropertyValue(resolvedConfig);
-      if (!isValid) return null;
+      const currentConfig = resolvedConfig;
+      if (!currentConfig) return null;
       
       const finalConfig = overrideConfig ? { ...currentConfig, ...overrideConfig } : currentConfig;
       
@@ -66,7 +66,7 @@ export const createRequestNamespace = createNamespaceHandler(
 
 /**
  * Processes a configuration object recursively using the unified property resolution.
- * Reuses the existing resolvePropertyValue function from properties.ts to avoid duplication.
+ * Extracts the actual values from ProcessedProperty objects for use in fetch operations.
  */
 function resolveConfig(config: any, contextNode: any): any {
   const processed: any = { ...config };
@@ -79,7 +79,9 @@ function resolveConfig(config: any, contextNode: any): any {
       processed[key] = resolveConfig(value, contextNode);
     } else {
       // Use the unified property resolution from properties.ts
-      processed[key] = resolvePropertyValue(key, value, contextNode);
+      const processedProp = processProperty(key, value, contextNode);
+      // Extract the actual value if valid, otherwise use undefined
+      processed[key] = processedProp.isValid ? processedProp.value : undefined;
     }
   });
 
@@ -88,7 +90,7 @@ function resolveConfig(config: any, contextNode: any): any {
 
 /**
  * Sets up automatic request triggering based on reactive dependencies.
- * Uses evaluatePropertyValue to determine validity on each reactive change.
+ * Creates a reactive effect that automatically fetches when dependencies change.
  * Handles debouncing through setTimeout in the effect.
  */
 function createRequestEffect(
@@ -104,9 +106,9 @@ function createRequestEffect(
   const cleanup = createEffect(() => {
     try {
       // Evaluate config to trigger reactive dependencies and check validity
-      const { value: finalConfig, isValid } = evaluatePropertyValue(resolvedConfig);
+      const finalConfig = resolvedConfig;
 
-      if (!isValid) {
+      if (!finalConfig) {
         // Don't execute if config is invalid
         return;
       }

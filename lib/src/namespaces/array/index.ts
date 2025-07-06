@@ -8,7 +8,7 @@
  */
 
 import { Signal } from '../../core/signals';
-import { resolvePropertyValue, evaluatePropertyValue } from '../../core/properties';
+import { processProperty } from '../../core/properties';
 import { PrototypeConfig, validateNamespaceConfig, createNamespaceHandler } from '../index';
 import { ArrayConfig, FilterCriteria, SortCriteria } from '../../types';
 import { detectMutableProps } from '../../utils';
@@ -48,34 +48,33 @@ export const createArrayNamespace = createNamespaceHandler(
     // Create computed signal that processes the array
     const computedArray = new Signal.Computed(() => {
       // Resolve the source items
-      const resolvedItems = resolvePropertyValue('items', config.items, element);
-      const { value: sourceItems, isValid } = evaluatePropertyValue(resolvedItems);
+      const processed = processProperty('items', config.items, element);
       
-      if (!isValid || !Array.isArray(sourceItems)) {
+      if (!processed.isValid || !Array.isArray(processed.value)) {
         // Return empty array of the appropriate type
         return createEmptyCollection(config.prototype);
       }
       
       // Process the array through the pipeline
-      let processed = [...sourceItems];
+      let processedArray = [...processed.value];
       
       // Apply filters
       if (config.filter && config.filter.length > 0) {
-        processed = applyFilters(processed, config.filter, element);
+        processedArray = applyFilters(processedArray, config.filter, element);
       }
       
       // Apply mapping
       if (config.map) {
-        processed = applyMapping(processed, config.map);
+        processedArray = applyMapping(processedArray, config.map);
       }
       
       // Apply sorting
       if (config.sort && config.sort.length > 0) {
-        processed = applySorting(processed, config.sort);
+        processedArray = applySorting(processedArray, config.sort);
       }
       
       // Convert to the target type
-      return convertToTargetType(processed, config.prototype);
+      return convertToTargetType(processedArray, config.prototype);
     });
     
     // Return an object with both the signal and mutable props info
