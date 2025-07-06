@@ -91,8 +91,12 @@ export function isPropertyAccessor(value: string): boolean {
  * @deprecated This logic is now handled internally by the pattern-based classification system
  */
 export function shouldBeSignal(key: string, value: any): boolean {
-  const designation = classifyProperty(key, value);
-  return designation.startsWith('scoped') && !designation.includes('Function') && !designation.includes('Namespaced');
+  // Scoped properties (starting with $) become signals, except functions and namespaced objects
+  if (key.startsWith('$')) {
+    const pattern = classifyProperty(value);
+    return pattern !== 'function' && pattern !== 'namespaced';
+  }
+  return false;
 }
 
 // === TEMPLATE LITERAL PROCESSING ===
@@ -110,9 +114,14 @@ export function parseTemplateLiteral(
   contextNode: Node
 ): string {
   try {
-    return new Function('return `' + template + '`').call(contextNode);
+    console.debug('🔧 parseTemplateLiteral called with template:', template, 'context:', contextNode);
+    console.debug('🔧 Context properties:', Object.keys(contextNode as any).filter(k => k.startsWith('$')));
+    const result = new Function('return `' + template + '`').call(contextNode);
+    console.debug('🔧 Template result:', result);
+    return result;
   } catch (error) {
     console.warn(`Template evaluation failed: ${error}, Template: ${template}`);
+    console.debug('🔧 Available context properties:', Object.keys(contextNode as any).filter(k => k.startsWith('$')));
     return template;
   }
 }
@@ -125,9 +134,14 @@ export function parseTemplateLiteral(
  */
 export const bindTemplate = (template: string) => (context: any) => {
   try {
-    return new Function('return `' + template + '`').call(context);
+    console.debug('🔧 bindTemplate called with template:', template, 'context:', context);
+    console.debug('🔧 Context properties:', Object.keys(context).filter((k: string) => k.startsWith('$')));
+    const result = new Function('return `' + template + '`').call(context);
+    console.debug('🔧 Template result:', result);
+    return result;
   } catch (error) {
     console.warn(`Template binding failed: ${error}, Template: ${template}`);
+    console.debug('🔧 Available context properties:', Object.keys(context).filter((k: string) => k.startsWith('$')));
     return template;
   }
 };
@@ -198,21 +212,11 @@ export function resolvePropertyAccessor(
 // === PROPERTY PATTERN CLASSIFICATION ===
 
 /**
- * Property scope classification
- */
-const SCOPE_PATTERNS = {
-  SCOPED: /^\$/,              // Reactive properties: $count, $selected, $items
-  NATIVE: /^[a-zA-Z]/,        // Standard DOM: textContent, className, href
-  IGNORED: /^_/               // Internal/ignored properties: _internal, _metadata
-} as const;
-
-/**
  * Value type classification with regex patterns
  */
 const VALUE_PATTERNS = {
   TEMPLATE: /\$\{/,           // Template literals: 'Hello ${name}'
   ACCESSOR: /^(window\.|document\.|this\.)/,  // Property accessors: 'window.data'
-  NAMESPACED: /^prototype$/,  // Namespaced objects: { prototype: 'Array' }
   FUNCTION: (v: any) => typeof v === 'function',
   STRING: (v: any) => typeof v === 'string',
   OBJECT: (v: any) => v !== null && typeof v === 'object' && !Array.isArray(v),
@@ -221,65 +225,290 @@ const VALUE_PATTERNS = {
 } as const;
 
 /**
- * Classifies a key/value pair into a processing designation.
- * Returns a designation string that uniquely identifies the processing pattern.
+ * Classifies a value into a processing pattern.
+ * Returns a pattern string that identifies how the value should be processed.
  * 
- * @param key - Property name
- * @param value - Property value
- * @returns Designation string for pattern matching
+ * @param value - Property value to classify
+ * @returns Pattern string for switch statement matching
  */
-export function classifyProperty(key: string, value: any): string {
-  // Determine scope
-  let scope: string;
-  if (SCOPE_PATTERNS.SCOPED.test(key)) {
-    scope = 'scoped';
-  } else if (SCOPE_PATTERNS.IGNORED.test(key)) {
-    scope = 'ignored';
-  } else {
-    scope = 'native';
-  }
-
+export function classifyProperty(value: any): string {
   // Determine value pattern (order matters - most specific first)
-  let valuePattern: string;
-  
   if (VALUE_PATTERNS.FUNCTION(value)) {
-    valuePattern = 'function';
+    return 'function';
   } else if (typeof value === 'string') {
     if (VALUE_PATTERNS.TEMPLATE.test(value)) {
-      valuePattern = 'template';
+      console.debug('🎯 classifyProperty: TEMPLATE detected:', value);
+      return 'template';
     } else if (VALUE_PATTERNS.ACCESSOR.test(value)) {
-      valuePattern = 'accessor';
+      return 'accessor';
     } else {
-      valuePattern = 'string';
+      return 'string';
     }
   } else if (VALUE_PATTERNS.OBJECT(value) && isNamespacedProperty(value)) {
-    valuePattern = 'namespaced';
+    return 'namespaced';
   } else if (VALUE_PATTERNS.ARRAY(value)) {
-    valuePattern = 'array';
+    return 'array';
   } else if (VALUE_PATTERNS.OBJECT(value)) {
-    valuePattern = 'object';
+    return 'object';
   } else if (VALUE_PATTERNS.PRIMITIVE(value)) {
-    valuePattern = 'primitive';
+    return 'primitive';
   } else {
-    valuePattern = 'unknown';
+    return 'unknown';
   }
-
-  // Combine scope and pattern into designation
-  return `${scope}${valuePattern.charAt(0).toUpperCase()}${valuePattern.slice(1)}`;
 }
 
-// === UNIVERSAL PROPERTY PROCESSING ===
+// === SHARED PROCESSING UTILITIES ===
 
 /**
- * Universal property processor - the single source of truth for all property resolution.
- * Uses pattern-based classification for systematic and maintainable property handling.
- * This is the ONLY function that binding.ts should call from properties.ts.
+ * Core value processing utilities shared across all property types.
+ * These handle the common patterns without caring about scope context.
+ */
+const ValueProcessors = {
+  template: (value: string, contextNode: any): ProcessedProperty => {
+    try {
+      const computed = computedTemplate(value, contextNode);
+      return {
+        prototype: 'Signal.Computed',
+        value: computed,
+        isValid: validateComputedValue(computed)
+      };
+    } catch (error) {
+      return createErrorProperty(`Template processing failed: ${error}`, value);
+    }
+  },
+
+  accessor: (value: string, contextNode: any): ProcessedProperty => {
+    try {
+      const resolved = resolvePropertyAccessor(value, contextNode);
+      if (resolved !== null) {
+        return {
+          prototype: getValuePrototype(resolved),
+          value: resolved,
+          isValid: resolved != null && resolved !== ''
+        };
+      }
+      return {
+        prototype: 'string',
+        value: value,
+        isValid: false
+      };
+    } catch (error) {
+      return createErrorProperty(`Accessor resolution failed: ${error}`, value);
+    }
+  },
+
+  function: (value: Function): ProcessedProperty => ({
+    prototype: 'function',
+    value: value,
+    isValid: true
+  }),
+
+  namespaced: (value: any): ProcessedProperty => ({
+    prototype: 'namespace',
+    value: value,
+    isValid: true
+  }),
+
+  primitive: (value: any): ProcessedProperty => ({
+    prototype: getValuePrototype(value),
+    value: value,
+    isValid: value != null && value !== ''
+  })
+};
+
+/**
+ * Creates an error ProcessedProperty.
+ */
+function createErrorProperty(error: string, originalValue?: any): ProcessedProperty {
+  return {
+    prototype: 'error',
+    value: originalValue || null,
+    isValid: false,
+    error
+  };
+}
+
+// === SPECIALIZED PROPERTY PROCESSORS ===
+
+/**
+ * Processes scoped/reactive properties ($name, $count, etc.).
+ * These ALWAYS become signals unless they're functions or namespaced objects.
+ * Called during the reactive property initialization phase.
  * 
- * @param key - The property name
+ * @param key - The scoped property name (starts with $)
  * @param value - The property value to process
- * @param contextNode - The context for template/accessor evaluation
- * @param options - Optional configuration with ignoreKeys
- * @returns ProcessedProperty with prototype, value, isValid, and optional error
+ * @param contextNode - Context for template/accessor evaluation
+ * @returns ProcessedProperty optimized for scoped property handling
+ */
+export function processScopedProperty(
+  key: string,
+  value: any,
+  contextNode: any
+): ProcessedProperty {
+  try {
+    console.debug('🔍 processScopedProperty:', key, '=', value, 'typeof:', typeof value);
+    const pattern = classifyProperty(value);
+    console.debug('🎯 Classified', key, 'as:', pattern);
+    
+    switch (pattern) {
+      case 'function':
+        // Scoped functions remain as functions (unusual but valid)
+        return ValueProcessors.function(value);
+        
+      case 'namespaced':
+        // Scoped namespaced objects
+        return ValueProcessors.namespaced(value);
+        
+      case 'template':
+        // Template → Computed Signal
+        return ValueProcessors.template(value, contextNode);
+        
+      case 'accessor':
+        // Accessor → Resolve then wrap in signal if needed
+        const processed = ValueProcessors.accessor(value, contextNode);
+        // If resolution succeeded, wrap in signal for reactivity
+        if (processed.isValid && processed.prototype !== 'Signal.State' && processed.prototype !== 'Signal.Computed') {
+          return {
+            prototype: 'Signal.State',
+            value: new Signal.State(processed.value),
+            isValid: processed.isValid
+          };
+        }
+        return processed;
+        
+      case 'string':
+      case 'primitive':
+      case 'array':
+      case 'object':
+      default:
+        // Everything else becomes a reactive signal
+        console.debug('📦 Creating Signal.State for', key, 'with value:', value);
+        const signal = new Signal.State(value);
+        console.debug('📦 Created signal:', signal, 'signal.get():', signal.get());
+        return {
+          prototype: 'Signal.State',
+          value: signal,
+          isValid: value != null && value !== ''
+        };
+    }
+
+  } catch (error) {
+    return createErrorProperty(`Scoped property processing failed for "${key}": ${error}`, value);
+  }
+}
+
+/**
+ * Processes native DOM properties (textContent, className, onClick, etc.).
+ * These follow different rules: templates become computed, functions stay as functions,
+ * primitives stay as primitives unless they need reactivity.
+ * Called during the standard DOM property binding phase.
+ * 
+ * @param key - The native property name
+ * @param value - The property value to process
+ * @param contextNode - Context for template/accessor evaluation
+ * @returns ProcessedProperty optimized for native property handling
+ */
+export function processNativeProperty(
+  key: string,
+  value: any,
+  contextNode: any
+): ProcessedProperty {
+  try {
+    console.debug('🔍 processNativeProperty:', key, '=', value, 'typeof:', typeof value);
+    const pattern = classifyProperty(value);
+    console.debug('📊 Pattern classified as:', pattern);
+    
+    switch (pattern) {
+      case 'function':
+        // Functions stay as functions (events, callbacks)
+        return ValueProcessors.function(value);
+        
+      case 'namespaced':
+        // Namespaced objects for complex behaviors
+        return ValueProcessors.namespaced(value);
+        
+      case 'template':
+        // Templates become computed for reactivity
+        console.debug('🎨 Processing template:', value);
+        return ValueProcessors.template(value, contextNode);
+        
+      case 'accessor':
+        // Accessors get resolved
+        return ValueProcessors.accessor(value, contextNode);
+        
+      case 'string':
+      case 'primitive':
+      case 'array':
+      case 'object':
+      default:
+        // Everything else stays as primitive values
+        return ValueProcessors.primitive(value);
+    }
+
+  } catch (error) {
+    return createErrorProperty(`Native property processing failed for "${key}": ${error}`, value);
+  }
+}
+
+/**
+ * Processes attribute values for DOM attributes (class, data-*, aria-*, etc.).
+ * Attributes have different requirements: they're always strings in the end,
+ * and functions should become computed signals for reactive updates.
+ * Called during the attributes binding phase.
+ * 
+ * @param attributeName - The attribute name
+ * @param value - The attribute value to process
+ * @param contextNode - Context for template/accessor evaluation
+ * @returns ProcessedProperty optimized for attribute handling
+ */
+export function processAttributeValue(
+  attributeName: string,
+  value: any,
+  contextNode: any
+): ProcessedProperty {
+  try {
+    const pattern = classifyProperty(value);
+    
+    switch (pattern) {
+      case 'template':
+        // Templates always become computed for reactive attributes
+        return ValueProcessors.template(value, contextNode);
+        
+      case 'accessor':
+        // Accessors get resolved
+        return ValueProcessors.accessor(value, contextNode);
+        
+      case 'function':
+        // Functions become computed signals for reactive attribute updates
+        try {
+          const computed = new Signal.Computed(value);
+          return {
+            prototype: 'Signal.Computed',
+            value: computed,
+            isValid: validateComputedValue(computed)
+          };
+        } catch (error) {
+          return createErrorProperty(`Function to computed conversion failed: ${error}`, value);
+        }
+        
+      case 'string':
+      case 'primitive':
+      case 'array':
+      case 'object':
+      case 'namespaced':
+      default:
+        // Everything else stays as primitive (will be stringified for attributes)
+        return ValueProcessors.primitive(value);
+    }
+
+  } catch (error) {
+    return createErrorProperty(`Attribute processing failed for "${attributeName}": ${error}`, value);
+  }
+}
+
+/**
+ * Legacy universal processor for backward compatibility.
+ * @deprecated Use processScopedProperty, processNativeProperty, or processAttributeValue instead
  */
 export function processProperty(
   key: string,
@@ -287,163 +516,18 @@ export function processProperty(
   contextNode: any,
   options: { ignoreKeys?: string[] } = {}
 ): ProcessedProperty {
-  try {
-    const { ignoreKeys = [] } = options;
-    
-    // Skip ignored keys - return as-is
-    if (ignoreKeys.includes(key)) {
-      return {
-        prototype: typeof value,
-        value: value,
-        isValid: value != null && value !== ''
-      };
-    }
+  const { ignoreKeys = [] } = options;
+  
+  // Skip ignored keys
+  if (ignoreKeys.includes(key)) {
+    return ValueProcessors.primitive(value);
+  }
 
-    // Classify the property into a processing designation
-    const designation = classifyProperty(key, value);
-    
-    // Process based on designation pattern
-    switch (designation) {
-      // === SCOPED PROPERTY PATTERNS ===
-      case 'scopedPrimitive':
-      case 'scopedString':
-      case 'scopedArray':
-      case 'scopedObject':
-        // Scoped properties become reactive signals
-        const signal = new Signal.State(value);
-        return {
-          prototype: 'Signal.State',
-          value: signal,
-          isValid: value != null && value !== ''
-        };
-
-      case 'scopedFunction':
-        // Scoped functions are stored as-is (unusual but possible)
-        return {
-          prototype: 'function',
-          value: value,
-          isValid: true
-        };
-
-      case 'scopedTemplate':
-        // Scoped template becomes computed signal
-        const scopedComputed = computedTemplate(value, contextNode);
-        return {
-          prototype: 'Signal.Computed',
-          value: scopedComputed,
-          isValid: validateComputedValue(scopedComputed)
-        };
-
-      case 'scopedAccessor':
-        // Scoped accessor gets resolved and wrapped in signal
-        const scopedResolved = resolvePropertyAccessor(value, contextNode);
-        if (scopedResolved !== null) {
-          return {
-            prototype: getValuePrototype(scopedResolved),
-            value: scopedResolved,
-            isValid: scopedResolved != null && scopedResolved !== ''
-          };
-        }
-        return {
-          prototype: 'string',
-          value: value,
-          isValid: false
-        };
-
-      case 'scopedNamespaced':
-        // Scoped namespaced properties
-        return {
-          prototype: 'namespace',
-          value: value,
-          isValid: true
-        };
-
-      // === NATIVE PROPERTY PATTERNS ===
-      case 'nativeTemplate':
-        // Native template becomes computed signal for reactivity
-        const nativeComputed = computedTemplate(value, contextNode);
-        return {
-          prototype: 'Signal.Computed',
-          value: nativeComputed,
-          isValid: validateComputedValue(nativeComputed)
-        };
-
-      case 'nativeAccessor':
-        // Native accessor gets resolved
-        const nativeResolved = resolvePropertyAccessor(value, contextNode);
-        if (nativeResolved !== null) {
-          return {
-            prototype: getValuePrototype(nativeResolved),
-            value: nativeResolved,
-            isValid: nativeResolved != null && nativeResolved !== ''
-          };
-        }
-        return {
-          prototype: 'string',
-          value: value,
-          isValid: false
-        };
-
-      case 'nativeFunction':
-        // Native functions (events, computed callbacks)
-        return {
-          prototype: 'function',
-          value: value,
-          isValid: true
-        };
-
-      case 'nativeNamespaced':
-        // Native namespaced properties
-        return {
-          prototype: 'namespace',
-          value: value,
-          isValid: true
-        };
-
-      case 'nativeString':
-      case 'nativePrimitive':
-      case 'nativeArray':
-      case 'nativeObject':
-        // Native static values
-        return {
-          prototype: getValuePrototype(value),
-          value: value,
-          isValid: value != null && value !== ''
-        };
-
-      // === IGNORED PROPERTY PATTERNS ===
-      case 'ignoredString':
-      case 'ignoredPrimitive':
-      case 'ignoredArray':
-      case 'ignoredObject':
-      case 'ignoredFunction':
-      case 'ignoredTemplate':
-      case 'ignoredAccessor':
-      case 'ignoredNamespaced':
-        // Ignored properties pass through as-is
-        return {
-          prototype: getValuePrototype(value),
-          value: value,
-          isValid: value != null && value !== ''
-        };
-
-      // === FALLBACK ===
-      default:
-        console.warn(`Unknown property designation: ${designation} for key: ${key}`);
-        return {
-          prototype: getValuePrototype(value),
-          value: value,
-          isValid: value != null && value !== ''
-        };
-    }
-    
-  } catch (error) {
-    return {
-      prototype: 'error',
-      value: null,
-      isValid: false,
-      error: `Property processing failed for "${key}": ${error instanceof Error ? error.message : String(error)}`
-    };
+  // Route to appropriate specialized processor based on key pattern
+  if (key.startsWith('$')) {
+    return processScopedProperty(key, value, contextNode);
+  } else {
+    return processNativeProperty(key, value, contextNode);
   }
 }
 

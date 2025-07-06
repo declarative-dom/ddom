@@ -37,7 +37,7 @@ import {
 
 import { isNamespacedProperty, processNamespacedProperty } from '../namespaces';
 import { createEffect, ComponentSignalWatcher, Signal } from '../core/signals';
-import { processProperty } from '../core/properties';
+import { processScopedProperty, processNativeProperty } from '../core/properties';
 import { applyPropertyBinding, bindReactiveArray } from './binding';
 
 /**
@@ -129,7 +129,16 @@ export function adoptNode(
   // Process reactive properties directly on this element
   localReactiveProperties.forEach(([key, value]) => {
     console.debug('⚡ Processing reactive property:', key, '=', value);
-    applyPropertyBinding(spec, el, key, value, options);
+    // Use specialized scoped property processor
+    const processed = processScopedProperty(key, value, el);
+    console.debug('📦 processScopedProperty result:', { prototype: processed.prototype, value: processed.value, isValid: processed.isValid });
+    if (processed.isValid) {
+      (el as any)[key] = processed.value;
+      console.debug('✅ Assigned', key, 'to element. Element[' + key + ']:', (el as any)[key]);
+      console.debug('✅ Is signal?', typeof (el as any)[key]?.get === 'function');
+    } else {
+      console.warn(`❌ Invalid scoped property ${key}:`, processed.error);
+    }
   });
 
   // Combine parent and local reactive properties for children
@@ -140,12 +149,12 @@ export function adoptNode(
 
   options.ignoreKeys = [
     ...(options.ignoreKeys? options.ignoreKeys : []),
-    ...Object.keys(localReactiveProperties || {}),
+    ...localReactiveProperties.map(([key]) => key),
   ];
 
   // Handle protected properties first (id, tagName) - set once, never reactive
   if ('id' in spec && spec.id !== undefined && el instanceof HTMLElement) {
-    const processed = processProperty('id', spec.id, el, options);
+    const processed = processNativeProperty('id', spec.id, el);
     if (processed.isValid) {
       el.id = processed.value;
     }

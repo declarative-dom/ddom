@@ -26,7 +26,7 @@ import { DOMSpec, DOMNode, HTMLElementSpec } from '../types';
 import { generatePathSelector } from '../utils/helpers';
 import { adoptDocument, appendChild, DOMSpecOptions, createElement } from './element';
 import { createEffect, Signal, ComponentSignalWatcher } from '../core/signals';
-import { processProperty, ProcessedProperty } from '../core/properties';
+import { processNativeProperty, processAttributeValue, ProcessedProperty } from '../core/properties';
 import { isNamespacedProperty, processNamespacedProperty } from '../namespaces';
 import { insertRules } from './style-sheets';
 
@@ -161,8 +161,8 @@ export function applyPropertyBinding(
 }
 
 /**
- * Applies standard property binding using the universal ProcessedProperty system.
- * Uses the pure property processing logic and a simple prototype-based switch.
+ * Applies standard property binding using specialized property processors.
+ * Uses the appropriate processor based on property type for optimal performance.
  */
 function applyStandardPropertyBinding(
   el: DOMNode,
@@ -172,8 +172,8 @@ function applyStandardPropertyBinding(
 ): void {
   console.debug('🔧 applyStandardPropertyBinding:', key, '=', value);
   
-  // Process the property using the universal property system
-  const processed = processProperty(key, value, el, options);
+  // Use specialized native property processor
+  const processed = processNativeProperty(key, value, el);
   
   if (!processed.isValid) {
     console.warn(`❌ Invalid property ${key}:`, processed.error);
@@ -371,8 +371,8 @@ export function bindSignalToAttribute(
 }
 
 /**
- * Applies attributes binding using the universal ProcessedProperty system.
- * Processes each attribute value and applies appropriate binding based on its type.
+ * Applies attributes binding using specialized attribute value processing.
+ * Uses the attribute-specific processor for optimal performance and correctness.
  * 
  * @param element - The DOM element to apply attributes to
  * @param attributes - Object containing attribute name/value pairs
@@ -381,8 +381,8 @@ function applyAttributesBinding(element: Element, attributes: Record<string, any
   Object.entries(attributes).forEach(([attrName, attrValue]) => {
     console.debug('🏷️ Processing attribute:', attrName, '=', attrValue, 'type:', typeof attrValue);
     
-    // Process the attribute value using the universal property system
-    const processed = processProperty(attrName, attrValue, element);
+    // Use specialized attribute value processor
+    const processed = processAttributeValue(attrName, attrValue, element);
     
     if (!processed.isValid) {
       console.warn(`❌ Invalid attribute ${attrName}:`, processed.error);
