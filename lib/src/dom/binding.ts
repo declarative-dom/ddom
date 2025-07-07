@@ -29,6 +29,8 @@ import { createEffect, Signal, ComponentSignalWatcher } from '../core/signals';
 import { processNativeProperty, processAttributeValue, ProcessedProperty } from '../core/properties';
 import { isNamespacedProperty, processNamespacedProperty } from '../namespaces';
 import { insertRules } from './style-sheets';
+import { define } from './custom-elements';
+
 
 
 /**
@@ -99,6 +101,14 @@ export function applyPropertyBinding(
         // Apply the document spec directly to the document object
         adoptDocument(value);
         return;
+      }
+      break;
+
+    case 'customElements':
+      console.debug('🔧 Handling customElements property');
+      // Special handling for customElements - process array but don't assign to window.customElements
+      if (Array.isArray(value)) {
+        define(value);
       }
       break;
 
@@ -202,15 +212,14 @@ function applyStandardPropertyBinding(
         // Event handler: assign function directly
         console.debug('🎯 Assigning event handler:', key);
         (el as any)[key] = processed.value;
+      } else if (key.startsWith('$')) {
+        // Scoped function: assign directly (they're already processed correctly)
+        console.debug('📡 Assigning scoped function:', key);
+        (el as any)[key] = processed.value;
       } else {
-        // Function property: convert to computed signal and bind
-        console.debug('🧮 Converting function to computed signal:', key);
-        const computed = new Signal.Computed(processed.value);
-        if (key.startsWith('$')) {
-          (el as any)[key] = computed;
-        } else {
-          setupReactiveProperty(el, key, computed);
-        }
+        // Regular function: assign directly
+        console.debug('📝 Assigning regular function:', key);
+        (el as any)[key] = processed.value;
       }
       break;
       

@@ -2,11 +2,12 @@
 // No more $-prefixed properties! Uses transparent signal proxies and template literals.
 
 export default {
-  $items: {
-    prototype: "LocalStorage",
-    key: "todo-list",
-    value: ["Apple", "Banana", "Cherry"],
-  },
+  // $items: {
+  //   prototype: "LocalStorage",
+  //   key: "todo-list",
+  //   value: ["Apple", "Banana", "Cherry"],
+  // },
+  $items: ["Apple", "Banana", "Cherry"], // Initial items
 
   $newItemText: "",
 
@@ -91,7 +92,7 @@ export default {
                     type: "text",
                     placeholder: "Add a new item...",
                   },
-                  value: "${this.$newItemText.get()}",
+                  value: "${window.$newItemText.get()}",
                   style: {
                     flex: "1",
                     padding: "0.75em",
@@ -105,11 +106,11 @@ export default {
                     },
                   },
                   oninput: function (event) {
-                    this.$newItemText.set(event.target.value);
+                    window.$newItemText.set(event.target.value);
                   },
                   onkeydown: function (event) {
                     if (event.key === "Enter") {
-                      this.$addItem();
+                      window.$addItem();
                     }
                   },
                 },
@@ -136,11 +137,11 @@ export default {
                   },
                   attributes: {
                     disabled: function () {
-                      return !this.$newItemText.get().trim();
+                      return !window.$newItemText.get().trim();
                     },
                   },
                   onclick: function () {
-                    this.$addItem();
+                    window.$addItem();
                   },
                 },
               ],
@@ -220,7 +221,7 @@ export default {
             {
               tagName: "span",
               // Template literal automatically gets computed signal + effect!
-              textContent: "${this.$item.get()}",
+              textContent: "${window.$item.get()}",
               contentEditable: true,
               style: {
                 flex: "1",
@@ -234,8 +235,8 @@ export default {
               },
               onblur: function (_event) {
                 const newText = this.textContent.trim();
-                const index = this.$index.get();
-                const originalItem = this.$item.get();
+                const index = window.$index.get();
+                const originalItem = window.$item.get();
 
                 if (newText && newText !== originalItem) {
                   window.updateItem(index, newText);
@@ -248,7 +249,7 @@ export default {
                 }
                 if (event.key === "Escape") {
                   // Reset to original value
-                  this.textContent = this.$item.get();
+                  this.textContent = window.$item.get();
                   this.blur();
                 }
               },
@@ -270,8 +271,8 @@ export default {
                 },
               },
               onclick: function (_event) {
-                const index = this.$index.get();
-                const item = this.$item.get();
+                const index = window.$index.get();
+                const item = window.$item.get();
                 if (confirm(`Are you sure you want to remove "${item}"?`)) {
                   window.removeItem(index);
                 }

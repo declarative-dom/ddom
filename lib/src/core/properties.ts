@@ -284,13 +284,13 @@ const ValueProcessors = {
         return {
           prototype: getValuePrototype(resolved),
           value: resolved,
-          isValid: resolved != null && resolved !== ''
+          isValid: true  // Successfully resolved accessors are valid
         };
       }
       return {
         prototype: 'string',
         value: value,
-        isValid: false
+        isValid: false  // Failed to resolve, keep as string but mark invalid
       };
     } catch (error) {
       return createErrorProperty(`Accessor resolution failed: ${error}`, value);
@@ -312,7 +312,7 @@ const ValueProcessors = {
   primitive: (value: any): ProcessedProperty => ({
     prototype: getValuePrototype(value),
     value: value,
-    isValid: value != null && value !== ''
+    isValid: true  // All primitive values are valid for signals
   })
 };
 
@@ -388,7 +388,7 @@ export function processScopedProperty(
         return {
           prototype: 'Signal.State',
           value: signal,
-          isValid: value != null && value !== ''
+          isValid: true  // All signal values are valid, including empty strings, 0, false, etc.
         };
     }
 
