@@ -5,6 +5,9 @@
  * These types define the structure of declarative DOM objects.
  */
 
+import { Signal } from '../core/signals';
+import type { ArrayConfig } from '../namespaces/array';
+
 /**
  * StyleExpr Type Definition
  * Extends standard CSS properties to support nested selectors and pseudo-selectors.
@@ -38,7 +41,7 @@ export type StyleExpr = {
 type WritableOverrides = {
 	tagName?: string;
 	attributes?: Record<string, string>;
-	children?: HTMLElementSpec[] | import('./namespaces').ArrayConfig<any[], CustomElementSpec>;
+	children?: HTMLElementSpec[] | ArrayConfig<any[], CustomElementSpec>;
 	document?: Partial<DocumentSpec>
 	customElements?: CustomElementSpec[];
 	style?: StyleExpr;
@@ -155,6 +158,12 @@ export type ElementSpec = HTMLElementSpec | HTMLBodyElementSpec | HTMLHeadElemen
 export type DOMNode = HTMLElement | HTMLBodyElement | HTMLHeadElement | Document | ShadowRoot | DocumentFragment | Window;
 
 /**
+ * Type definition for scope property injection data.
+ * Maps property names to their reactive signal or function values.
+ */
+export type ScopeProperties = Record<string, Signal.State<any> | Signal.Computed<any> | Function>;
+
+/**
  * DOMSpecOptions interface for processing options
  */
 export interface DOMSpecOptions {
@@ -163,5 +172,5 @@ export interface DOMSpecOptions {
   /** Array of property keys to ignore during adoption (default: []) */
   ignoreKeys?: string[];
   /** Reactive properties to inherit from parent scope */
-  scopeReactiveProperties?: Record<string, any>;
+  scopeProperties?: ScopeProperties;
 }

@@ -1,23 +1,15 @@
 import { adoptDocument, adoptNode, adoptWindow, appendChild, createElement } from './dom/element';
 import { adoptStyleSheet, clearStyleSheet } from './dom/style-sheets';
 import { define } from './dom/custom-elements';
-import { bindReactiveArray } from './dom/binding';
-import { createEffect, ComponentSignalWatcher } from './core/signals';
+import { createEffect } from './core/signals';
 import { Signal } from 'signal-polyfill';
-import { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral } from './core/properties';
-import { isNamespacedProperty, processNamespacedProperty, extractNamespace, NAMESPACE_HANDLERS } from './namespaces';
 
 // Named exports for compatibility
 export { adoptDocument, adoptNode, adoptWindow, createElement } from './dom/element';
-export type { DOMSpecOptions, ReactiveProperties } from './dom/element';
 export { adoptStyleSheet, clearStyleSheet } from './dom/style-sheets';
 export { define } from './dom/custom-elements';
-export { bindReactiveArray } from './dom/binding';
-export { createEffect, ComponentSignalWatcher } from './core/signals';
+export { createEffect } from './core/signals';
 export { Signal } from 'signal-polyfill';
-export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, isPropertyAccessor, resolvePropertyAccessor } from './core/properties';
-export { isNamespacedProperty, processNamespacedProperty, extractNamespace, NAMESPACE_HANDLERS } from './namespaces';
-export type { RequestConfig } from './types';
 
 // Default export: DDOM function with namespace properties
 function DDOM(spec: any) {
@@ -28,7 +20,6 @@ function DDOM(spec: any) {
 Object.assign(DDOM, {
 	adoptDocument,
 	adoptNode,
-	bindReactiveArray,
 	adoptStyleSheet,
 	adoptWindow,
 	appendChild,
@@ -38,16 +29,7 @@ Object.assign(DDOM, {
 		define
 	},
 	createEffect,
-	ComponentSignalWatcher,
 	Signal,
-	parseTemplateLiteral,
-	bindTemplate,
-	computedTemplate,
-	isTemplateLiteral,
-	isNamespacedProperty,
-	processNamespacedProperty,
-	extractNamespace,
-	NAMESPACE_HANDLERS,
 });
 
 export default DDOM;

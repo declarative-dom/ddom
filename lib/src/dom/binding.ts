@@ -22,12 +22,13 @@
  * @author Declarative DOM Working Group
  */
 
-import { DOMSpec, DOMNode, HTMLElementSpec } from '../types';
+import type { DOMSpec, DOMNode, DOMSpecOptions, HTMLElementSpec } from '../types';
 import { generatePathSelector } from '../utils/helpers';
-import { adoptDocument, appendChild, DOMSpecOptions, createElement } from './element';
+import { adoptDocument, appendChild, createElement } from './element';
 import { createEffect, Signal, ComponentSignalWatcher } from '../core/signals';
-import { processNativeProperty, processAttributeValue, ProcessedProperty } from '../core/properties';
-import { isNamespacedProperty, processNamespacedProperty } from '../namespaces';
+import { processProperty, processAttributeValue } from '../core/properties';
+import { processNamespacedProperty } from '../namespaces/index';
+import type { ArraySignal } from '../namespaces/array';
 import { insertRules } from './style-sheets';
 import { define } from './custom-elements';
 
@@ -68,27 +69,8 @@ export function applyPropertyBinding(
   console.debug('🎯 applyPropertyBinding called:', key, '=', value, 'on element:', el);
   
   // Skip ignored keys
-  if (options.ignoreKeys?.includes(key)) {
+  if (options.ignoreKeys?.includes(key) || (options?.css === false && key === 'style')) {
     console.debug('⏭️ Skipping ignored key:', key);
-    return;
-  }
-
-  // Handle special namespace properties (like Array children)
-  if (isNamespacedProperty(value)) {
-    try {
-      const signal = processNamespacedProperty(spec, el, key, value, options);
-      if (signal) {
-        // Assign the signal to the element
-        (el as any)[key] = signal;
-        
-        if (key === 'children') {
-          // Use our enhanced array adoption for reactive children
-          bindReactiveArray(signal, el as Element, options);
-        }
-      }
-    } catch (error) {
-      console.warn(`Failed to process namespace property ${key}:`, error);
-    }
     return;
   }
 
@@ -136,12 +118,9 @@ export function applyPropertyBinding(
       break;
 
     case 'style':
-      // only proceed if CSS is enabled
-      if (options.css == false) {
-        break;
-      }
       // Generate a unique selector for this element
       const selector = (el as any).id ? `#${(el as any).id}` : generatePathSelector(el as Element);
+      console.debug('🎨 Applying styles to selector:', selector, 'with value:', value);
       // Apply styles using the DDOM CSS rule system
       insertRules(value, selector);
 
@@ -159,6 +138,15 @@ export function applyPropertyBinding(
             appendChild(child, el, options);
           }
         });
+      } else if (value && typeof value === 'object' && value.prototype === 'Array') {
+        // Reactive children array - use our enhanced reactive array binding
+        console.debug('📋 Binding reactive children array');
+        const signal = processNamespacedProperty(value, key, el);
+        if (signal) {
+          bindReactiveArray(signal, el as Element, options);
+        }
+      } else {
+        console.warn('❗ Invalid children value:', value);
       }
       break;
 
@@ -183,17 +171,17 @@ function applyStandardPropertyBinding(
   console.debug('🔧 applyStandardPropertyBinding:', key, '=', value);
   
   // Use specialized native property processor
-  const processed = processNativeProperty(key, value, el);
+  const processed = processProperty(key, value, el);
   
   if (!processed.isValid) {
     console.warn(`❌ Invalid property ${key}:`, processed.error);
     return;
   }
   
-  console.debug('✅ Processed property:', key, '→', processed.prototype, 'value:', processed.value);
+  console.debug('✅ Processed property:', key, '→', processed.type, 'value:', processed.value);
   
-  // Apply binding based on the processed property's prototype
-  switch (processed.prototype) {
+  // Apply binding based on the processed property's type
+  switch (processed.type) {
     case 'Signal.State':
     case 'Signal.Computed':
       if (key.startsWith('$')) {
@@ -220,6 +208,15 @@ function applyStandardPropertyBinding(
         // Regular function: assign directly
         console.debug('📝 Assigning regular function:', key);
         (el as any)[key] = processed.value;
+      }
+      break;
+
+    case 'namespaced':
+      // Namespaced property: process using namespace system
+      console.debug('🌐 Processing namespaced property:', key);
+      const signal = processNamespacedProperty(processed.value, key, el);
+      if (signal) {
+        (el as any)[key] = signal;
       }
       break;
       
@@ -398,10 +395,10 @@ function applyAttributesBinding(element: Element, attributes: Record<string, any
       return;
     }
     
-    console.debug('✅ Processed attribute:', attrName, '→', processed.prototype, 'value:', processed.value);
+    console.debug('✅ Processed attribute:', attrName, '→', processed.type, 'value:', processed.value);
     
-    // Apply attribute binding based on the processed property's prototype
-    switch (processed.prototype) {
+    // Apply attribute binding based on the processed property's type
+    switch (processed.type) {
       case 'Signal.State':
       case 'Signal.Computed':
         // Signal/computed value - set up reactive binding
@@ -415,6 +412,8 @@ function applyAttributesBinding(element: Element, attributes: Record<string, any
         const computed = new Signal.Computed(processed.value);
         bindSignalToAttribute(element, attrName, computed);
         break;
+
+      case 'boolean':
         
       default:
         // Static value
@@ -468,10 +467,14 @@ function setAttributeValue(element: Element, name: string, value: any): void {
  * ```
  */
 export function bindReactiveArray<T>(
-  arraySignal: any, // Enhanced signal with getMutableProps method
+  arraySignal: ArraySignal, // Enhanced signal with getMutableProps method
   parentElement: Element,
   options: DOMSpecOptions = {}
 ): void {
+
+  // debug
+  console.debug('🔗 bindReactiveArray called with options:', options);
+
   // Keep track of rendered elements by stable keys for efficient updates
   const renderedElements = new Map<string, Element>();
   let previousItems: any[] = [];
@@ -483,6 +486,8 @@ export function bindReactiveArray<T>(
 
   // Function to update the current array state with fine-grained updates
   const updateArray = (items: any[]) => {
+    console.debug('🔄 updateArray called with items:', items);
+    
     // Consistent key generation function
     const getItemKey = (item: any) => item.id || JSON.stringify(item);
 
@@ -499,6 +504,7 @@ export function bindReactiveArray<T>(
     );
 
     items.forEach((item: any) => {
+      console.debug('🔍 Processing item for DOM creation:', item);
       if (item && typeof item === 'object' && item.tagName) {
         const key = getItemKey(item);
         currentKeys.add(key);
@@ -514,7 +520,16 @@ export function bindReactiveArray<T>(
         } else {
           keysToCreate.add(key);
         }
+      } else {
+        console.warn('⚠️ Item missing tagName or not an object:', item);
       }
+    });
+
+    console.debug('📊 Array update summary:', {
+      currentKeys: Array.from(currentKeys),
+      keysToCreate: Array.from(keysToCreate),
+      keysToUpdate: Array.from(keysToUpdate),
+      keysToRemove: Array.from(keysToRemove)
     });
 
     // Native Set difference operations
@@ -537,7 +552,9 @@ export function bindReactiveArray<T>(
     keysToCreate.forEach((key) => {
       const item = items.find((item) => getItemKey(item) === key);
       if (item) {
+        console.debug('🏗️ Creating new element for key:', key, 'item:', item);
         const element = createElement(item, options);
+        console.debug('✅ Created array element:', element);
         newComponentsByKey.set(key, element);
         renderedElements.set(key, element);
       }

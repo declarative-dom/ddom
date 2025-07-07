@@ -6,46 +6,57 @@
 
 import { Signal } from '../../core/signals';
 import { processProperty } from '../../core/properties';
-import { PrototypeConfig, validateNamespaceConfig, createNamespaceHandler } from '../index';
+import { PrototypeConfig } from '../types';
+import { buildURLSearchParams } from './builder';
 
 /**
- * URLSearchParams configuration interface
+ * URLSearchParamsConfig Type Definition
+ * Local configuration interface for URLSearchParams namespace
  */
-interface URLSearchParamsConfig extends PrototypeConfig {
+export interface URLSearchParamsConfig extends PrototypeConfig {
   prototype: 'URLSearchParams';
   [key: string]: any;
 }
-import { buildURLSearchParams } from './builder';
+
+/**
+ * URLSearchParamsSignal Type Definition
+ * A Signal.Computed for reactive URLSearchParams objects.
+ * Automatically rebuilds URLSearchParams when source properties change.
+ */
+export interface URLSearchParamsSignal extends Signal.Computed<URLSearchParams> {
+  // Inherits all Signal.Computed methods
+}
 
 /**
  * Creates reactive URLSearchParams objects
  */
-export const createURLSearchParamsNamespace = createNamespaceHandler(
-  (config: any, key: string): config is URLSearchParamsConfig =>
-    validateNamespaceConfig(config, key),
-  
-  (config: URLSearchParamsConfig, key: string, element: any) => {
-    // Create computed signal that builds the URLSearchParams
-    const computedParams = new Signal.Computed(() => {
-      // Resolve all config properties
-      const resolvedConfig: any = {};
+export const createURLSearchParamsNamespace = (
+  config: URLSearchParamsConfig,
+  key: string,
+  element: any
+): URLSearchParamsSignal => {
+  // Config is already validated by the main namespace index
+
+  // Create computed signal that builds the URLSearchParams
+  const computedParams = new Signal.Computed(() => {
+    // Resolve all config properties
+    const resolvedConfig: any = {};
+    
+    Object.entries(config).forEach(([configKey, configValue]) => {
+      if (configKey === 'prototype') {
+        resolvedConfig[configKey] = configValue;
+        return;
+      }
       
-      Object.entries(config).forEach(([configKey, configValue]) => {
-        if (configKey === 'prototype') {
-          resolvedConfig[configKey] = configValue;
-          return;
-        }
-        
-        const processed = processProperty(configKey, configValue, element);
-        
-        if (processed.isValid) {
-          resolvedConfig[configKey] = processed.value;
-        }
-      });
+      const processed = processProperty(configKey, configValue, element);
       
-      return buildURLSearchParams(resolvedConfig);
+      if (processed.isValid) {
+        resolvedConfig[configKey] = processed.value;
+      }
     });
     
-    return computedParams;
-  }
-);
+    return buildURLSearchParams(resolvedConfig);
+  });
+  
+  return computedParams;
+};

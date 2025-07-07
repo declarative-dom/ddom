@@ -16,9 +16,13 @@ export function isSimpleProperty(str: string): boolean {
  * Gets a nested property from an object using dot notation
  */
 export function getNestedProperty(obj: any, path: string): any {
-  return path.split('.').reduce((current, key) => {
+  console.debug('🔍 getNestedProperty called with obj:', obj, 'path:', path);
+  const result = path.split('.').reduce((current, key) => {
+    console.debug('🔍 Looking for key:', key, 'in:', current);
     return current && typeof current === 'object' ? current[key] : undefined;
   }, obj);
+  console.debug('🔍 getNestedProperty result:', result);
+  return result;
 }
 
 /**
@@ -51,19 +55,69 @@ export function evaluateExpression(expression: string, item: any, context: any):
 }
 
 /**
+ * Evaluates JavaScript template literals using an object as context.
+ * Uses explicit .get() calls for signal access in templates.
+ *
+ * @param template - The template string to evaluate as a JavaScript template literal
+ * @param context - The object to use as context ('this') for template evaluation
+ * @returns The template string evaluated with the context
+ */
+export function parseTemplateLiteral(
+  template: string,
+  context: object
+): string {
+  try {
+    console.debug('🔧 parseTemplateLiteral called with template:', template, 'context:', context);
+    console.debug('🔧 Context properties:', Object.keys(context as any).filter(k => k.startsWith('$')));
+    
+    // Extract context variables to make them available as direct variables in template scope
+    const contextKeys = Object.keys(context as any);
+    const contextValues = Object.values(context as any);
+    
+    // Create function with context variables as parameters
+    const templateFunction = new Function(...contextKeys, `return \`${template}\`;`);
+    const result = templateFunction(...contextValues);
+    
+    console.debug('🔧 Template result:', result);
+    return result;
+  } catch (error) {
+    console.warn(`Template evaluation failed: ${error}, Template: ${template}`);
+    console.debug('🔧 Available context properties:', Object.keys(context as any).filter(k => k.startsWith('$')));
+    return template;
+  }
+}
+
+/**
  * Resolves an operand value (can be direct value, property path, or expression)
  */
-export function resolveOperand(operand: any, item: any, context: any): any {
+export function resolveOperand(operand: any, item: any, context?: any): any {
   // Direct values
   if (typeof operand !== 'string') {
     return operand;
   }
   
-  // Simple property access (e.g., "name", "rating")
+  console.debug('🔍 resolveOperand called with operand:', operand, 'item:', item, 'context:', context);
+  
+  // Simple property access (e.g., "item.name", "window.rating")
   if (isSimpleProperty(operand)) {
-    return getNestedProperty(item, operand);
+    const result = getNestedProperty(item, operand);
+    console.debug('🔍 getNestedProperty result:', result, 'for operand:', operand);
+    return result;
   }
   
   // Complex expressions - evaluate as JavaScript with item and context
   return evaluateExpression(operand, item, context);
+}
+
+
+
+/**
+ * Evaluates a property accessor string like 'item.id' or 'index' 
+ * with the given item and index values
+ */
+export function evaluateAccessor(accessor: string, item: any, index: number): any {
+  const context = { index, item };
+  
+  // Handle direct accessor resolution - the context object is what we search in
+  return resolveOperand(accessor, context, context);
 }

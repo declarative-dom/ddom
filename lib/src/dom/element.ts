@@ -35,29 +35,9 @@ import {
   DOMNode,
 } from '../types';
 
-import { isNamespacedProperty, processNamespacedProperty } from '../namespaces';
-import { createEffect, ComponentSignalWatcher, Signal } from '../core/signals';
-import { processScopedProperty, processNativeProperty } from '../core/properties';
-import { applyPropertyBinding, bindReactiveArray } from './binding';
-
-/**
- * Type definition for scope property injection data.
- * Maps property names to their reactive signal or function values.
- */
-export type ReactiveProperties = Record<string, Signal.State<any> | Signal.Computed<any> | Function>;
-
-/**
- * Options object for DOM specification functions.
- * Provides named arguments for common function parameters to improve API clarity.
- */
-export interface DOMSpecOptions {
-  /** Whether to process CSS styles (default: true) */
-  css?: boolean;
-  /** Array of property keys to ignore during adoption (default: []) */
-  ignoreKeys?: string[];
-  /** Reactive properties to inherit from parent scope */
-  scopeReactiveProperties?: ReactiveProperties;
-}
+import { processScopedProperty, processProperty } from '../core/properties';
+import { applyPropertyBinding } from './binding';
+import { DOMSpecOptions } from './types';
 
 /**
  * Adopts a DocumentSpec into the current document context.
@@ -117,8 +97,8 @@ export function adoptNode(
   console.debug('📝 Processing spec entries:', specEntries);
 
   // Inherit parent reactive properties directly (simple assignment)
-  if (options.scopeReactiveProperties) {
-    Object.assign(el, options.scopeReactiveProperties);
+  if (options.scopeProperties) {
+    Object.assign(el, options.scopeProperties);
   }
 
   // Filter reactive properties from spec for processing and child inheritance
@@ -129,9 +109,13 @@ export function adoptNode(
   // Process reactive properties directly on this element
   localReactiveProperties.forEach(([key, value]) => {
     console.debug('⚡ Processing reactive property:', key, '=', value);
-    // Use specialized scoped property processor
+    // skip if the property is already defined on the element
+    if (Object.hasOwn(el, key)) {
+      console.debug('⏭️ Skipping property', key, 'as it already exists on the element');
+      return;
+    }
     const processed = processScopedProperty(key, value, el);
-    console.debug('📦 processScopedProperty result:', { prototype: processed.prototype, value: processed.value, isValid: processed.isValid });
+    console.debug('📦 processScopedProperty result:', { type: processed.type, value: processed.value, isValid: processed.isValid });
     if (processed.isValid) {
       (el as any)[key] = processed.value;
       console.debug('✅ Assigned', key, 'to element. Element[' + key + ']:', (el as any)[key]);
@@ -142,8 +126,8 @@ export function adoptNode(
   });
 
   // Combine parent and local reactive properties for children
-  options.scopeReactiveProperties = {
-    ...options.scopeReactiveProperties,
+  options.scopeProperties = {
+    ...options.scopeProperties,
     ...Object.fromEntries(localReactiveProperties.map(([key]) => [key, (el as any)[key]]))
   };
 
@@ -154,7 +138,7 @@ export function adoptNode(
 
   // Handle protected properties first (id, tagName) - set once, never reactive
   if ('id' in spec && spec.id !== undefined && el instanceof HTMLElement) {
-    const processed = processNativeProperty('id', spec.id, el);
+    const processed = processProperty('id', spec.id, el);
     if (processed.isValid) {
       el.id = processed.value;
     }

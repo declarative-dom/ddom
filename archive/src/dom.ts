@@ -163,5 +163,5 @@ export interface DOMSpecOptions {
   /** Array of property keys to ignore during adoption (default: []) */
   ignoreKeys?: string[];
   /** Reactive properties to inherit from parent scope */
-  scopeReactiveProperties?: Record<string, any>;
+  scopeProperties?: Record<string, any>;
 }

@@ -8,41 +8,99 @@
 
 import { Signal } from '../../core/signals';
 import { processProperty } from '../../core/properties';
-import { PrototypeConfig, validateNamespaceConfig, createNamespaceHandler } from '../index';
-import { IndexedDBConfig } from '../../types/namespaces';
+import { PrototypeConfig, FilterCriteria, SortCriteria } from '../types';
+
+/**
+ * IndexedDBIndexConfig Type Definition
+ * Configuration for creating indexes on IndexedDB object stores.
+ */
+export interface IndexedDBIndexConfig extends IDBIndexParameters {
+  name: string;
+  keyPath: string | string[];
+}
+
+/**
+ * IndexedDBConfig Type Definition
+ * Local configuration interface for IndexedDB namespace
+ */
+export interface IndexedDBConfig extends PrototypeConfig, IDBObjectStoreParameters {
+  prototype: 'IndexedDB';
+  database: string;
+  store: string;
+  version?: number;
+  indexes?: IndexedDBIndexConfig[];
+  value?: any | any[];
+  
+  // Query configuration
+  operation?: 'getAll' | 'get' | 'query' | 'count';
+  key?: any;
+  query?: IDBKeyRange | any;
+  index?: string;
+  direction?: IDBCursorDirection;
+  limit?: number;
+  filter?: FilterCriteria<any>[];
+  sort?: SortCriteria<any>[];
+  
+  // Binding to existing database store
+  bind?: string;
+  
+  // Control options
+  manual?: boolean;
+  debounce?: number;
+}
+
+/**
+ * IndexedDB Query Signal - Signal for reactive database queries
+ */
+export interface IndexedDBQuerySignal<T = any> extends Signal.State<T[]> {
+  query(): Promise<T[]>;              // Manual query execution
+  add(value: any, key?: any): Promise<any>; // Add new record (triggers re-query)
+  put(value: any, key?: any): Promise<void>; // Update/insert record (triggers re-query)
+  delete(key: any): Promise<void>;    // Delete record (triggers re-query)
+  clear(): Promise<void>;             // Clear all records (triggers re-query)
+  count(): Promise<number>;           // Count records matching current query
+  getStore(mode?: IDBTransactionMode): IDBObjectStore; // Get fresh store reference
+}
 
 /**
  * Creates IndexedDB namespace with full functionality
  */
-export const createIndexedDBNamespace = createNamespaceHandler(
-  (config: any, key: string): config is IndexedDBConfig =>
-    validateNamespaceConfig(config, key, ['database', 'store']) &&
-    config.prototype === 'IndexedDB',
-  
-  (config: IndexedDBConfig, key: string, element: any) => {
-    // Check if IndexedDB is available
-    if (typeof indexedDB === 'undefined') {
-      console.warn(`IndexedDB not available for ${key}`);
-      return new Signal.State(null);
-    }
-
-    // Determine mode: Setup mode (no operation) vs Query mode (has operation)
-    const isQueryMode = Boolean(config.operation || config.filter || config.query);
-    
-    if (isQueryMode) {
-      // Query Mode: Return a reactive query signal
-      return createIndexedDBQuerySignal(config, key, element);
-    } else {
-      // Setup Mode: Return an object store interface
-      return createIndexedDBStore(config, key, element);
-    }
+export const createIndexedDBNamespace = (
+  config: IndexedDBConfig,
+  key: string,
+  element: any
+): IndexedDBQuerySignal => {
+  // Check if IndexedDB is available
+  if (typeof indexedDB === 'undefined') {
+    console.warn(`IndexedDB not available for ${key}`);
+    const emptySignal = new Signal.State(null) as unknown as IndexedDBQuerySignal;
+    // Add required methods to satisfy interface
+    emptySignal.query = async () => [];
+    emptySignal.add = async () => null;
+    emptySignal.put = async () => {};
+    emptySignal.delete = async () => {};
+    emptySignal.clear = async () => {};
+    emptySignal.count = async () => 0;
+    emptySignal.getStore = () => null as any;
+    return emptySignal;
   }
-);
+
+  // Determine mode: Setup mode (no operation) vs Query mode (has operation)
+  const isQueryMode = Boolean(config.operation || config.filter || config.query);
+  
+  if (isQueryMode) {
+    // Query Mode: Return a reactive query signal
+    return createIndexedDBQuerySignal(config, key, element);
+  } else {
+    // Setup Mode: Return an object store interface
+    return createIndexedDBStore(config, key, element);
+  }
+};
 
 /**
  * Creates a reactive IndexedDB store for setup mode
  */
-function createIndexedDBStore(config: IndexedDBConfig, key: string, element: any): Signal.State<any> {
+function createIndexedDBStore(config: IndexedDBConfig, key: string, element: any): IndexedDBQuerySignal {
   const processedDatabase = processProperty('database', config.database, element);
   const processedStore = processProperty('store', config.store, element);
   
@@ -173,13 +231,13 @@ function createIndexedDBStore(config: IndexedDBConfig, key: string, element: any
 /**
  * Creates a reactive IndexedDB query signal for query mode
  */
-function createIndexedDBQuerySignal(config: IndexedDBConfig, key: string, element: any): Signal.State<any[]> {
+function createIndexedDBQuerySignal(config: IndexedDBConfig, key: string, element: any): IndexedDBQuerySignal {
   // TODO: Implement reactive query functionality
   // For now, return an empty array signal to make tests pass
-  const querySignal = new Signal.State<any[]>([]);
+  const querySignal = new Signal.State<any[]>([]) as IndexedDBQuerySignal;
   
   // Add query methods
-  (querySignal as any).fetch = async () => {
+  querySignal.fetch = async () => {
     try {
       // TODO: Implement actual query logic
       return [];

@@ -1,5 +1,5 @@
 /**
- * Namespace Handler
+ * Request Namespace Handler
  * 
  * Creates reactive HTTP request signals with automatic fetching,
  * debouncing, and response handling.
@@ -7,13 +7,14 @@
 
 import { Signal, createEffect, ComponentSignalWatcher } from '../../core/signals';
 import { processProperty } from '../../core/properties';
-import { PrototypeConfig, validateNamespaceConfig, createNamespaceHandler } from '../index';
+import { PrototypeConfig } from '../types';
 import { performFetch } from './fetch';
 
 /**
- * Request configuration interface
+ * RequestConfig Type Definition
+ * Local configuration interface for Request namespace
  */
-interface RequestConfig extends PrototypeConfig, RequestInit {
+export interface RequestConfig extends PrototypeConfig, RequestInit {
   prototype: 'Request';
   url: string;
   manual?: boolean;
@@ -21,48 +22,54 @@ interface RequestConfig extends PrototypeConfig, RequestInit {
   responseType?: XMLHttpRequestResponseType;
 }
 
+/**
+ * RequestSignal Type Definition
+ * A Signal.State that extends with fetch capabilities for manual request triggering.
+ * Contains the parsed response data directly and provides a fetch method for manual execution.
+ */
+export interface RequestSignal<T = any> extends Signal.State<T> {
+  fetch(): Promise<void>;             // Manual fetch trigger
+}
 
 /**
  * Creates a reactive Request signal with fetch capabilities
  */
-export const createRequestNamespace = createNamespaceHandler(
-  (config: any, key: string): config is RequestConfig =>
-    validateNamespaceConfig(config, key, ['url']) &&
-    config.prototype === 'Request',
+export const createRequestNamespace = (
+  config: RequestConfig,
+  key: string,
+  element: any
+): RequestSignal => {
+  // Create the signal that will hold the response (can be data or error object)
+  const responseSignal = new Signal.State<any>(null);
   
-  (config: RequestConfig, key: string, element: any) => {
-    // Create the signal that will hold the response (can be data or error object)
-    const responseSignal = new Signal.State<any>(null);
-    
-    // Process the config to set up reactive dependencies
-    const resolvedConfig = resolveConfig(config, element);
-    
-    // Set up automatic fetching unless manual mode
-    if (!config.manual) {
-      createRequestEffect(responseSignal, resolvedConfig);
-    }
-    
-    // Add fetch method to the signal for manual triggering
-    (responseSignal as any).fetch = async (overrideConfig?: Partial<RequestConfig>) => {
-      const currentConfig = resolvedConfig;
-      if (!currentConfig) return null;
-      
-      const finalConfig = overrideConfig ? { ...currentConfig, ...overrideConfig } : currentConfig;
-      
-      try {
-        const response = await performFetch(finalConfig);
-        responseSignal.set(response);
-        return response;
-      } catch (error) {
-        const errorResponse = { error: error instanceof Error ? error.message : String(error) };
-        responseSignal.set(errorResponse);
-        throw error;
-      }
-    };
-    
-    return responseSignal;
+  // Process the config to set up reactive dependencies
+  const resolvedConfig = resolveConfig(config, element);
+  
+  // Set up automatic fetching unless manual mode
+  if (!config.manual) {
+    createRequestEffect(responseSignal, resolvedConfig);
   }
-);
+  
+  // Add fetch method to the signal for manual triggering
+  (responseSignal as any).fetch = async (overrideConfig?: Partial<RequestConfig>) => {
+    const currentConfig = resolvedConfig;
+    if (!currentConfig) return null;
+    
+    const finalConfig = overrideConfig ? { ...currentConfig, ...overrideConfig } : currentConfig;
+    
+    try {
+      const response = await performFetch(finalConfig);
+      responseSignal.set(response);
+      return response;
+    } catch (error) {
+      const errorResponse = { error: error instanceof Error ? error.message : String(error) };
+      responseSignal.set(errorResponse);
+      throw error;
+    }
+  };
+  
+  return responseSignal as RequestSignal;
+};
 
 /**
  * Processes a configuration object recursively using the unified property resolution.

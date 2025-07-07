@@ -2,12 +2,12 @@
 // No more $-prefixed properties! Uses transparent signal proxies and template literals.
 
 export default {
+  $items: ["Apple", "Banana", "Cherry"], // Initial items
   // $items: {
   //   prototype: "LocalStorage",
   //   key: "todo-list",
   //   value: ["Apple", "Banana", "Cherry"],
   // },
-  $items: ["Apple", "Banana", "Cherry"], // Initial items
 
   $newItemText: "",
 
@@ -81,7 +81,6 @@ export default {
             {
               tagName: "div",
               style: {
-                display: "flex",
                 gap: "0.5em",
                 marginBottom: "1.5em",
               },
@@ -94,7 +93,6 @@ export default {
                   },
                   value: "${window.$newItemText.get()}",
                   style: {
-                    flex: "1",
                     padding: "0.75em",
                     border: "2px solid #dee2e6",
                     borderRadius: "4px",
@@ -183,10 +181,9 @@ export default {
 
       children: {
         prototype: "Array",
-        items: "window.$items",
+        items: "this.$items",
         map: {
           tagName: "dynamic-list-item",
-          // These are also transparent signal proxies now
           $item: 'item',
           $index: 'index',
         },
@@ -221,7 +218,7 @@ export default {
             {
               tagName: "span",
               // Template literal automatically gets computed signal + effect!
-              textContent: "${window.$item.get()}",
+              textContent: "${this.$item.get()}",
               contentEditable: true,
               style: {
                 flex: "1",
@@ -235,8 +232,8 @@ export default {
               },
               onblur: function (_event) {
                 const newText = this.textContent.trim();
-                const index = window.$index.get();
-                const originalItem = window.$item.get();
+                const index = this.$index.get();
+                const originalItem = this.$item.get();
 
                 if (newText && newText !== originalItem) {
                   window.updateItem(index, newText);
@@ -249,7 +246,7 @@ export default {
                 }
                 if (event.key === "Escape") {
                   // Reset to original value
-                  this.textContent = window.$item.get();
+                  this.textContent = this.$item.get();
                   this.blur();
                 }
               },
@@ -271,8 +268,8 @@ export default {
                 },
               },
               onclick: function (_event) {
-                const index = window.$index.get();
-                const item = window.$item.get();
+                const index = this.$index.get();
+                const item = this.$item.get();
                 if (confirm(`Are you sure you want to remove "${item}"?`)) {
                   window.removeItem(index);
                 }

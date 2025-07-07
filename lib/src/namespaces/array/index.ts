@@ -8,55 +8,93 @@
  */
 
 import { Signal } from '../../core/signals';
-import { processProperty } from '../../core/properties';
-import { PrototypeConfig, validateNamespaceConfig, createNamespaceHandler } from '../index';
-import { ArrayConfig, FilterCriteria, SortCriteria } from '../../types';
+import { resolveOperand } from '../../utils/evaluation';
+import { PrototypeConfig, FilterCriteria, SortCriteria } from '../types';
 import { detectMutableProps } from '../../utils';
 import { applyFilters } from './filter';
 import { applyMapping } from './map';
 import { applySorting } from './sort';
 
 /**
- * Map of prototype names to their constructors
+ * ArrayConfig Type Definition
+ * Local configuration interface for Array namespace
  */
-const ARRAY_CONSTRUCTORS = {
-  'Array': Array,
-  'Set': Set,
-  'Map': Map,
-  'Int8Array': Int8Array,
-  'Uint8Array': Uint8Array,
-  'Int16Array': Int16Array,
-  'Uint16Array': Uint16Array,
-  'Int32Array': Int32Array,
-  'Uint32Array': Uint32Array,
-  'Float32Array': Float32Array,
-  'Float64Array': Float64Array,
-} as const;
+export interface ArrayConfig<T = any, R = any> extends PrototypeConfig {
+  prototype: 'Array' | 'Set' | 'Map' | 'Int8Array' | 'Uint8Array' | 'Int16Array' | 'Uint16Array' | 'Int32Array' | 'Uint32Array' | 'Float32Array' | 'Float64Array';
+  items: string | T[];
+  map?: R;
+  filter?: FilterCriteria<T>[];
+  sort?: SortCriteria<T>[];
+  debounce?: number;
+}
+
+/**
+ * Array Signal - Signal.Computed for processed arrays  
+ */
+export interface ArraySignal<T = any[]> extends Signal.Computed<T> {
+  // Enhanced signal that includes mutable props metadata
+  getMutableProps?(): string[];
+}
+
+/**
+ * Resolves source signal from different input types with comprehensive support.
+ * Handles arrays, signals, property accessors, and functions from production code.
+ */
+function resolveSourceSignal(items: string | any[], parentElement?: Element): Signal.State<any[]> | Signal.Computed<any[]> {
+  // Handle different source types
+  if (Array.isArray(items)) {
+    return new Signal.State(items);
+  } else if (typeof items === 'string') {
+    // Handle property accessor resolution
+    const resolved = resolveOperand(items, parentElement || document.body);
+    if (resolved !== null) {
+      // Check if it's a signal
+      if (Signal.isState(resolved) || Signal.isComputed(resolved)) {
+        return resolved;
+      } else if (Array.isArray(resolved)) {
+        // Static array - wrap in a signal
+        return new Signal.State(resolved);
+      } else {
+        console.error('ArrayNamespace: Property accessor resolved to non-array value:', resolved);
+        throw new Error(`Property accessor "${items}" must resolve to an array or Signal containing an array`);
+      }
+    } else {
+      console.error('ArrayNamespace: Failed to resolve property accessor:', items);
+      throw new Error(`Cannot resolve property accessor: ${items}`);
+    }
+  } else {
+    throw new Error('ArrayNamespace items must be an array, or property accessor string');
+  }
+}
 
 /**
  * Creates a reactive Array-like collection with filtering, mapping, and sorting
  */
-export const createArrayNamespace = createNamespaceHandler(
-  (config: any, key: string): config is ArrayConfig =>
-    validateNamespaceConfig(config, key, ['items']) &&
-    config.prototype in ARRAY_CONSTRUCTORS,
+export const createArrayNamespace = (
+  config: ArrayConfig,
+  key: string,
+  element: any
+): ArraySignal => {
+  // Config is already validated by the main namespace index
+
+  // Detect mutable properties from the map template
+  const mutableProps = config.map ? detectMutableProps(config.map) : [];
   
-  (config: ArrayConfig, key: string, element: any) => {
-    // Detect mutable properties from the map template
-    const mutableProps = config.map ? detectMutableProps(config.map) : [];
-    
-    // Create computed signal that processes the array
-    const computedArray = new Signal.Computed(() => {
-      // Resolve the source items
-      const processed = processProperty('items', config.items, element);
+  // Resolve the source signal with comprehensive property accessor support
+  const sourceSignal = resolveSourceSignal(config.items, element);
+  
+  // Create computed signal that processes the array
+  const computedArray = new Signal.Computed(() => {
+      // Get the source array from the resolved signal
+      const sourceArray = sourceSignal.get();
       
-      if (!processed.isValid || !Array.isArray(processed.value)) {
-        // Return empty array of the appropriate type
+      if (!Array.isArray(sourceArray)) {
+        console.warn('ArrayNamespace: Source signal does not contain an array:', sourceArray);
         return createEmptyCollection(config.prototype);
       }
       
       // Process the array through the pipeline
-      let processedArray = [...processed.value];
+      let processedArray = [...sourceArray];
       
       // Apply filters
       if (config.filter && config.filter.length > 0) {
@@ -84,8 +122,7 @@ export const createArrayNamespace = createNamespaceHandler(
     result.getSignal = () => computedArray;
     
     return result;
-  }
-);
+};
 
 /**
  * Creates an empty collection of the specified type

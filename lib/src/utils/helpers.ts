@@ -86,11 +86,12 @@ export function isMutableProp(value: any): boolean {
   if (typeof value === 'string') {
     // Check for property accessor patterns like 'item.id', 'item.name', 'index'
     return (
+      value === 'item' ||
       value.includes('item.') || 
       value === 'index' ||
       value.includes('index.') ||
       // Also check template literals like '${item.name}'
-      (value.includes('${') && (value.includes('item.') || value.includes('index')))
+      (value.includes('${') && (value.includes('item')) || value.includes('index'))
     );
   }
   return false;
@@ -149,47 +150,6 @@ export function analyzeMutableProperties(template: any): string[] {
 
   analyze(template);
   return mutableProps;
-}
-
-import { getNestedProperty } from './evaluation';
-
-/**
- * Evaluates a property accessor string like 'item.id' or 'index' 
- * with the given item and index values
- */
-export function evaluateAccessor(accessor: string, item: any, index: number): any {
-  if (accessor === 'index') {
-    return index;
-  }
-  
-  if (accessor.startsWith('item.')) {
-    const propertyPath = accessor.substring(5); // Remove 'item.'
-    return getNestedProperty(item, propertyPath);
-  }
-  
-  // Handle template literals
-  if (accessor.includes('${')) {
-    try {
-      // Simple template evaluation - replace item. and index references
-      let evaluated = accessor;
-      evaluated = evaluated.replace(/\$\{item\.([^}]+)\}/g, (_, path) => {
-        const value = getNestedProperty(item, path);
-        return JSON.stringify(value);
-      });
-      evaluated = evaluated.replace(/\$\{index\}/g, String(index));
-      
-      // Remove template literal syntax if it was purely templated
-      if (evaluated.startsWith('${') && evaluated.endsWith('}')) {
-        return JSON.parse(evaluated.slice(2, -1));
-      }
-      
-      return evaluated;
-    } catch {
-      return accessor; // Fallback to original string
-    }
-  }
-  
-  return accessor;
 }
 
 /**

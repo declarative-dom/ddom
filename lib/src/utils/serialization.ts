@@ -1,130 +1,63 @@
 /**
  * Serialization Utilities
  * 
- * Handles safe serialization and deserialization for localStorage, sessionStorage,
- * and other persistence mechanisms. Provides consistent error handling and
- * fallback behavior across all namespaces.
+ * Simplified serialization using typia validation with Date support.
  */
 
+import typia from 'typia';
+
+export type JSONValue = string | number | boolean | null | JSONValue[] | {[key: string]: JSONValue}
+
+export type SerializableValue = JSONValue | Date | SerializableValue[] | {[key: string]: SerializableValue}
+
+// Date marker to identify serialized dates
+const DATE_MARKER = '__DATE__';
+
 /**
- * Safely serializes a value to JSON string
+ * Replacer function for JSON.stringify - converts Date objects to marked format
  */
-export function safeSerialize(value: any): string {
+function replacer(key: string, value: any): any {
+  if (value instanceof Date) {
+    return { [DATE_MARKER]: value.toISOString() };
+  }
+  return value;
+}
+
+/**
+ * Reviver function for JSON.parse - converts marked date strings back to Date objects
+ */
+function reviver(key: string, value: any): any {
+  if (value && typeof value === 'object' && value[DATE_MARKER]) {
+    return new Date(value[DATE_MARKER]);
+  }
+  return value;
+}
+
+/**
+ * Serializes a value to JSON string with Date support
+ */
+export function serialize(value: SerializableValue): string {
+  return JSON.stringify(value, replacer);
+}
+
+/**
+ * Deserializes a JSON string with Date support and fallback
+ */
+export function deserialize<T = SerializableValue>(jsonString: string): T {
+  // Use JSON.parse with reviver to handle Date objects
   try {
-    return JSON.stringify(value);
+    return JSON.parse(jsonString, reviver);
   } catch (error) {
-    console.warn('Serialization failed, falling back to string conversion:', error);
-    return String(value);
+    console.error('Deserialization error:', error);
+    return {} as T; // Return empty object or handle as needed
   }
 }
 
 /**
- * Safely deserializes a JSON string back to its original value
+ * Validates if a value is serializable using typia
  */
-export function safeDeserialize<T = any>(jsonString: string, fallbackValue: T): T {
-  if (!jsonString || typeof jsonString !== 'string') {
-    return fallbackValue;
-  }
-  
-  try {
-    return JSON.parse(jsonString);
-  } catch (error) {
-    console.warn('Deserialization failed, using fallback value:', error);
-    return fallbackValue;
-  }
-}
-
-/**
- * Checks if a value can be safely serialized
- */
-export function isSerializable(value: any): boolean {
-  try {
-    JSON.stringify(value);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Safely converts a value for storage (handles complex types)
- */
-export function prepareForStorage(value: any): string {
-  // Handle already-string values
-  if (typeof value === 'string') {
-    return value;
-  }
-  
-  // Handle primitive types that can be safely converted
-  if (value === null || value === undefined) {
-    return JSON.stringify(value);
-  }
-  
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return JSON.stringify(value);
-  }
-  
-  // Handle arrays and objects
-  if (Array.isArray(value) || (typeof value === 'object')) {
-    return safeSerialize(value);
-  }
-  
-  // Handle functions and other complex types
-  if (typeof value === 'function') {
-    console.warn('Cannot serialize function, converting to string');
-    return String(value);
-  }
-  
-  // Fallback to string conversion
-  return String(value);
-}
-
-/**
- * Safely restores a value from storage
- */
-export function restoreFromStorage<T = any>(storedValue: string | null, fallbackValue: T = null as T): T {
-  if (storedValue === null || storedValue === undefined) {
-    return fallbackValue;
-  }
-  
-  // For strings, first check if it looks like JSON (starts with { [ " or is a number/boolean)
-  const trimmed = storedValue.trim();
-  const isJson = trimmed.startsWith('{') || trimmed.startsWith('[') || 
-                 trimmed.startsWith('"') || trimmed === 'true' || 
-                 trimmed === 'false' || trimmed === 'null' || 
-                 !isNaN(Number(trimmed));
-  
-  if (isJson) {
-    // Try to parse as JSON
-    const deserialized = safeDeserialize(storedValue, null);
-    if (deserialized !== null) {
-      return deserialized;
-    }
-  }
-  
-  // If it's not JSON or JSON parsing failed, handle as plain string
-  // For string values, return as-is
-  if (typeof fallbackValue === 'string' || fallbackValue === null || fallbackValue === undefined) {
-    return storedValue as T;
-  }
-  
-  // If JSON parsing failed, try type-specific restoration
-  if (typeof fallbackValue === 'number') {
-    const num = Number(storedValue);
-    return isNaN(num) ? fallbackValue : num as T;
-  }
-  
-  if (typeof fallbackValue === 'boolean') {
-    return (storedValue === 'true') as T;
-  }
-  
-  if (Array.isArray(fallbackValue)) {
-    // Try to parse as array, fallback to original array
-    return safeDeserialize(storedValue, fallbackValue);
-  }
-  
-  // For objects and others, return as string since JSON parsing failed
-  return storedValue as T;
+export function isSerializable(value: unknown): value is SerializableValue {
+  return typia.is<SerializableValue>(value);
 }
 
 /**
@@ -140,6 +73,6 @@ export function createStorageKey(key: string, prefix?: string): string {
 /**
  * Validates that a storage key is safe to use
  */
-export function isValidStorageKey(key: any): key is string {
+export function isValidStorageKey(key: JSONValue): key is string {
   return typeof key === 'string' && key.length > 0 && key.trim() === key;
 }

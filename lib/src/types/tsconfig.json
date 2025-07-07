@@ -9,14 +9,14 @@
     "module": "CommonJS",
     "moduleResolution": "node",
     "outDir": "./dist",
-    "rootDir": ".",
+    "rootDir": "../",
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2022"
   },
   "include": [
     "*.ts"
-  ],
+, "../dom/types.ts"  ],
   "exclude": [
     "node_modules",
     "dist"

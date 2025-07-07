@@ -1,186 +1,112 @@
 /**
- * Namespace Registry & Detection
+ * Centralized Namespace Registry with DRY Validation
  * 
- * Unified namespace system using prototype-based configuration.
- * All namespaces follow the pattern: { prototype: 'TypeName', ...config }
+ * Imports handlers and config types from each namespace module,
+ * validates with typia once, and delegates to appropriate handlers.
  */
 
-import { Signal } from '../core/signals';
-import { 
-  isNamespacedProperty, 
-  validateNamespaceConfig, 
-  SUPPORTED_PROTOTYPES,
-  type PrototypeName 
-} from '../utils';
+import typia from 'typia';
 
-// Import namespace handlers
-import { createArrayNamespace } from './array';
-import { createRequestNamespace } from './request';
-import { createFormDataNamespace } from './form-data';
-import { createURLSearchParamsNamespace } from './url-search-params';
-import { createBlobNamespace } from './blob';
-import { createArrayBufferNamespace } from './array-buffer';
-import { createReadableStreamNamespace } from './readable-stream';
-import { createCookieNamespace } from './cookie';
-import { createSessionStorageNamespace } from './session-storage';
-import { createLocalStorageNamespace } from './local-storage';
-import { createIndexedDBNamespace } from './indexed-db';
-// import { createWebSocketNamespace } from './web-socket';
+// Import namespace handlers and their config types
+import { type PrototypeConfig } from './types';
+import { createArrayNamespace, type ArrayConfig } from './array';
+import { createRequestNamespace, type RequestConfig } from './request';
+import { createFormDataNamespace, type FormDataConfig } from './form-data';
+import { createURLSearchParamsNamespace, type URLSearchParamsConfig } from './url-search-params';
+import { createBlobNamespace, type BlobConfig } from './blob';
+import { createArrayBufferNamespace, type ArrayBufferConfig } from './array-buffer';
+import { createReadableStreamNamespace, type ReadableStreamConfig } from './readable-stream';
+import { createCookieNamespace, type CookieConfig } from './cookie';
+import { createStorageNamespace, type StorageConfig } from './storage';
+import { createIndexedDBNamespace, type IndexedDBConfig } from './indexed-db';
+import { createWebSocketNamespace, type WebSocketConfig } from './web-socket';
+
 
 /**
- * Options for namespace processing (avoid circular import)
- */
-export interface DOMSpecOptions {
-  css?: boolean;
-  ignoreKeys?: string[];
-}
-
-/**
- * Base prototype configuration interface
- */
-export interface PrototypeConfig {
-  prototype: PrototypeName;
-}
-
-/**
- * Base interface for all prototype-based configurations
- */
-export interface PrototypeConfig {
-  prototype: PrototypeName;
-  [key: string]: any;
-}
-
-/**
- * Namespace handler function type
+ * Namespace handler function type (without validation)
  */
 export type NamespaceHandler = (
-  config: PrototypeConfig,
+  config: any, // Already validated config
   key: string,
   element: any
 ) => any;
 
 /**
- * Registry mapping prototype names to their handlers
+ * Config type validator function type
  */
-const NAMESPACE_HANDLERS: Record<string, NamespaceHandler> = {
+export type ConfigValidator = (config: any) => boolean;
+
+/**
+ * Registry entry with handler and validator
+ */
+interface NamespaceEntry {
+  handler: NamespaceHandler;
+  validator: ConfigValidator;
+}
+
+
+/**
+ * Registry mapping prototype names to their handlers and validators
+ */
+
+const arrayConfigValidator = typia.createIs<ArrayConfig>();
+const storageConfigValidator = typia.createIs<StorageConfig>();
+
+const NAMESPACE_REGISTRY: Record<string, NamespaceEntry> = {
   // Collection types (Array-like)
-  'Array': createArrayNamespace,
-  'Set': createArrayNamespace,
-  'Map': createArrayNamespace,
-  'Int8Array': createArrayNamespace,
-  'Uint8Array': createArrayNamespace,
-  'Int16Array': createArrayNamespace,
-  'Uint16Array': createArrayNamespace,
-  'Int32Array': createArrayNamespace,
-  'Uint32Array': createArrayNamespace,
-  'Float32Array': createArrayNamespace,
-  'Float64Array': createArrayNamespace,
+  'Array': { handler: createArrayNamespace, validator: arrayConfigValidator },
+  'Set': { handler: createArrayNamespace, validator: arrayConfigValidator },
+  'Map': { handler: createArrayNamespace, validator: arrayConfigValidator },
+  'Int8Array': { handler: createArrayNamespace, validator: arrayConfigValidator },
+  'Uint8Array': { handler: createArrayNamespace, validator: arrayConfigValidator },
+  'Int16Array': { handler: createArrayNamespace, validator: arrayConfigValidator },
+  'Uint16Array': { handler: createArrayNamespace, validator: arrayConfigValidator },
+  'Int32Array': { handler: createArrayNamespace, validator: arrayConfigValidator },
+  'Uint32Array': { handler: createArrayNamespace, validator: arrayConfigValidator },
+  'Float32Array': { handler: createArrayNamespace, validator: arrayConfigValidator },
+  'Float64Array': { handler: createArrayNamespace, validator: arrayConfigValidator },
   
   // Web API types
-  'Request': createRequestNamespace,
-  'FormData': createFormDataNamespace,
-  'URLSearchParams': createURLSearchParamsNamespace,
-  'Blob': createBlobNamespace,
-  'ArrayBuffer': createArrayBufferNamespace,
-  'ReadableStream': createReadableStreamNamespace,
+  'Request': { handler: createRequestNamespace, validator: typia.createIs<RequestConfig>() },
+  'FormData': { handler: createFormDataNamespace, validator: typia.createIs<FormDataConfig>() },
+  'URLSearchParams': { handler: createURLSearchParamsNamespace, validator: typia.createIs<URLSearchParamsConfig>() },
+  'Blob': { handler: createBlobNamespace, validator: typia.createIs<BlobConfig>() },
+  'ArrayBuffer': { handler: createArrayBufferNamespace, validator: typia.createIs<ArrayBufferConfig>() },
+  'ReadableStream': { handler: createReadableStreamNamespace, validator: typia.createIs<ReadableStreamConfig>() },
   
   // Storage API types
-  'Cookie': createCookieNamespace,
-  'SessionStorage': createSessionStorageNamespace,
-  'LocalStorage': createLocalStorageNamespace,
-  'IndexedDB': createIndexedDBNamespace,
-  // 'WebSocket': createWebSocketNamespace,
+  'Cookie': { handler: createCookieNamespace, validator: typia.createIs<CookieConfig>() },
+  'SessionStorage': { handler: createStorageNamespace, validator: storageConfigValidator },
+  'LocalStorage': { handler: createStorageNamespace, validator: storageConfigValidator },
+  'IndexedDB': { handler: createIndexedDBNamespace, validator: typia.createIs<IndexedDBConfig>() },
+  'WebSocket': { handler: createWebSocketNamespace, validator: typia.createIs<WebSocketConfig>() },
 };
 
 /**
- * Extract namespace information from a prototype-based configuration
- * Legacy function for backward compatibility with old tests
+ * Processes a namespaced property with centralized validation
  */
-export function extractNamespace(config: any): { namespace: string; config: any } | null {
-  if (!config || typeof config !== 'object') {
+export function processNamespacedProperty(
+  config: PrototypeConfig,
+  key: string,
+  element: any
+): any {
+  const entry = NAMESPACE_REGISTRY[config.prototype];
+  
+  if (!entry) {
+    console.warn(`No handler found for prototype: ${config.prototype}. Skipping.`);
     return null;
   }
   
-  if (config.prototype && typeof config.prototype === 'string') {
-    // New prototype-based syntax
-    return {
-      namespace: config.prototype,
-      config: config
-    };
-  }
-  
-  // Legacy syntax - look for a single namespace key
-  const keys = Object.keys(config);
-  if (keys.length === 1 && SUPPORTED_PROTOTYPES.includes(keys[0] as any)) {
-    return {
-      namespace: keys[0],
-      config: config[keys[0]]
-    };
-  }
-  
-  return null;
-}
-
-// Export the handlers registry
-export { NAMESPACE_HANDLERS };
-
-/**
- * Processes a namespaced property using the appropriate handler
- */
-export function processNamespacedProperty(
-  spec: DOMSpec,
-  el: any,
-  key: string,
-  value: PrototypeConfig,
-  options: DOMSpecOptions = {}
-): any {
-  const handler = NAMESPACE_HANDLERS[value.prototype];
-  
-  if (!handler) {
-    console.warn(`No handler found for prototype: ${value.prototype}`);
+  // Centralized validation using typia
+  if (!entry.validator(config)) {
+    console.warn(`Invalid ${config.prototype}Config for ${key}:`, config);
     return null;
   }
   
   try {
-    const signal = handler(value, key, el);
-    
-    return signal;
+    return entry.handler(config, key, element);
   } catch (error) {
-    console.error(`Namespace handler failed for ${value.prototype}:`, error);
+    console.error(`Namespace handler failed for ${config.prototype}:`, error);
     return null;
   }
 }
-
-/**
- * Creates a standardized namespace handler with validation and error handling
- */
-export function createNamespaceHandler<T extends PrototypeConfig>(
-  validator: (config: any, key: string) => config is T,
-  handler: (config: T, key: string, element: any) => any
-): NamespaceHandler {
-  return (config: PrototypeConfig, key: string, element: any) => {
-    if (!validator(config, key)) {
-      return null;
-    }
-    
-    try {
-      return handler(config as T, key, element);
-    } catch (error) {
-      console.error(`Namespace handler failed for ${key}:`, error);
-      return null;
-    }
-  };
-}
-
-/**
- * DOMNode types (avoid circular import)
- */
-export type DOMNode = HTMLElement | HTMLBodyElement | HTMLHeadElement | Document | ShadowRoot | DocumentFragment | Window;
-
-/**
- * DOMSpec types (avoid circular import) 
- */
-export type DOMSpec = any;
-
-// Re-export utilities for namespace files to use
-export { isNamespacedProperty, validateNamespaceConfig, SUPPORTED_PROTOTYPES } from '../utils';

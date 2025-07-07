@@ -6,10 +6,7 @@
  */
 
 // Re-export all DOM types
-export * from './dom';
+export * from '../dom/types';
 
 // Re-export all namespace types  
-export * from './namespaces';
-
-// Re-export all signal types
-export * from './signals';
+export * from '../namespaces/types';

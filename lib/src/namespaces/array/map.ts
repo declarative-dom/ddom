@@ -5,6 +5,10 @@
  * Follows the Rule of Least Power - no imperative functions, only declarative templates.
  */
 
+import { evaluateAccessor, parseTemplateLiteral } from '../../utils/evaluation';
+
+const ACCESSOR_REGEX = /^(item|index|window|document)$/;
+
 /**
  * Applies a mapping template to items
  * Supports only declarative templates: object templates and string templates
@@ -33,16 +37,15 @@ export function applyMapping(items: any[], mapTemplate: any): any[] {
 function transformStringTemplate(template: string, item: any, index: number): string {
   try {
     // Create evaluation context with item, index, and common globals
-    const evalContext = {
+    const context = {
       item,
       index,
       window: globalThis.window,
       document: globalThis.document
     };
     
-    // Use template literal evaluation with context
-    return new Function('item', 'index', 'window', 'document', `return \`${template}\`;`)
-      .call(null, item, index, evalContext.window, evalContext.document);
+    // Use shared evaluation function for consistency
+    return parseTemplateLiteral(template, context);
   } catch (error) {
     console.warn(`String template evaluation failed: "${template}"`, error);
     return String(template);
@@ -65,11 +68,20 @@ function transformObjectTemplate(template: any, item: any, index: number): any {
   
   // Transform object properties
   const result: any = {};
-  
+
   Object.entries(template).forEach(([key, value]) => {
-    if (typeof value === 'string' && value.includes('${')) {
-      // String template properties - evaluate with item context
-      result[key] = transformStringTemplate(value, item, index);
+    if (typeof value === 'string') {
+      if (value.includes('${')) {
+        // String template properties - evaluate with item context
+        result[key] = transformStringTemplate(value, item, index);
+      } else if (ACCESSOR_REGEX.test(value)) {
+        // Use shared operand resolution for naked accessors like 'item', 'index'
+        console.debug('🔍 Evaluating accessor:', value, 'with item:', item, 'index:', index);
+        result[key] = evaluateAccessor(value, item, index);
+      } else {
+        // Direct value string
+        result[key] = value;
+      }
     } else if (typeof value === 'object' && value !== null) {
       // Nested objects - recurse
       result[key] = transformObjectTemplate(value, item, index);

@@ -62,13 +62,13 @@ export function adoptNode(
   el: DOMNode,
   options: DOMSpecOptions = {}
 ): void {
-  const { css = true, ignoreKeys = [], scopeReactiveProperties } = options;
+  const { css = true, ignoreKeys = [], scopeProperties } = options;
   // Process all properties using key/value pairs
   const specEntries = Object.entries(spec);
 
   // Inherit parent reactive properties directly (simple assignment)
-  if (options.scopeReactiveProperties) {
-    Object.assign(el, options.scopeReactiveProperties);
+  if (options.scopeProperties) {
+    Object.assign(el, options.scopeProperties);
   }
 
   // Filter reactive properties from spec for processing and child inheritance
@@ -82,8 +82,8 @@ export function adoptNode(
   });
 
   // Combine parent and local reactive properties for children
-  options.scopeReactiveProperties = {
-    ...options.scopeReactiveProperties,
+  options.scopeProperties = {
+    ...options.scopeProperties,
     ...Object.fromEntries(localReactiveProperties.map(([key]) => [key, (el as any)[key]]))
   };
 

@@ -6,12 +6,13 @@
 
 import { Signal } from '../../core/signals';
 import { processProperty } from '../../core/properties';
-import { PrototypeConfig, validateNamespaceConfig, createNamespaceHandler } from '../index';
+import { PrototypeConfig } from '../types';
 
 /**
- * Configuration interface for Blob
+ * BlobConfig Type Definition
+ * Local configuration interface for Blob namespace
  */
-interface BlobConfig extends PrototypeConfig {
+export interface BlobConfig extends PrototypeConfig {
   prototype: 'Blob';
   content?: any[];
   type?: string;
@@ -19,40 +20,48 @@ interface BlobConfig extends PrototypeConfig {
 }
 
 /**
+ * BlobSignal Type Definition
+ * A Signal.Computed for reactive Blob objects.
+ * Automatically rebuilds Blob when content or options change.
+ */
+export interface BlobSignal extends Signal.Computed<Blob> {
+  // Inherits all Signal.Computed methods
+}
+
+/**
  * Creates reactive Blob objects
  */
-export const createBlobNamespace = createNamespaceHandler(
-  (config: any, key: string): config is BlobConfig =>
-    validateNamespaceConfig(config, key) &&
-    config.prototype === 'Blob',
-  
-  (config: BlobConfig, key: string, element: any) => {
-    const computedBlob = new Signal.Computed(() => {
-      const resolvedConfig: any = {};
+export const createBlobNamespace = (
+  config: BlobConfig,
+  key: string,
+  element: any
+): BlobSignal => {
+  // Config is already validated by the main namespace index
+  const computedBlob = new Signal.Computed(() => {
+    const resolvedConfig: any = {};
+    
+    Object.entries(config).forEach(([configKey, configValue]) => {
+      if (configKey === 'prototype') {
+        resolvedConfig[configKey] = configValue;
+        return;
+      }
       
-      Object.entries(config).forEach(([configKey, configValue]) => {
-        if (configKey === 'prototype') {
-          resolvedConfig[configKey] = configValue;
-          return;
-        }
-        
-        const processed = processProperty(configKey, configValue, element);
-        
-        if (processed.isValid) {
-          resolvedConfig[configKey] = processed.value;
-        }
-      });
+      const processed = processProperty(configKey, configValue, element);
       
-      // Build Blob from resolved config
-      const content = resolvedConfig.content || [];
-      const blobParts = Array.isArray(content) ? content : [content];
-      const blobOptions: BlobPropertyBag = {};
-      if (resolvedConfig.type) blobOptions.type = resolvedConfig.type;
-      if (resolvedConfig.endings) blobOptions.endings = resolvedConfig.endings as EndingType;
-      
-      return new Blob(blobParts, blobOptions);
+      if (processed.isValid) {
+        resolvedConfig[configKey] = processed.value;
+      }
     });
     
-    return computedBlob;
-  }
-);
+    // Build Blob from resolved config
+    const content = resolvedConfig.content || [];
+    const blobParts = Array.isArray(content) ? content : [content];
+    const blobOptions: BlobPropertyBag = {};
+    if (resolvedConfig.type) blobOptions.type = resolvedConfig.type;
+    if (resolvedConfig.endings) blobOptions.endings = resolvedConfig.endings as EndingType;
+    
+    return new Blob(blobParts, blobOptions);
+  });
+  
+  return computedBlob;
+};

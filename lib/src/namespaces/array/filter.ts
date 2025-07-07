@@ -8,7 +8,7 @@
  */
 
 import { FilterCriteria } from '../../types';
-import { resolveOperand, isValidOperator } from '../../utils';
+import { resolveOperand } from '../../utils';
 
 /**
  * Valid comparison operators for filtering
