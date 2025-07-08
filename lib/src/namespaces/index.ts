@@ -9,6 +9,8 @@ import typia from 'typia';
 
 // Import namespace handlers and their config types
 import { type PrototypeConfig } from './types';
+import { processProperty } from '../core/properties';
+
 import { createArrayNamespace, type ArrayConfig } from './array';
 import { createRequestNamespace, type RequestConfig } from './request';
 import { createFormDataNamespace, type FormDataConfig } from './form-data';
@@ -109,4 +111,42 @@ export function processNamespacedProperty(
     console.error(`Namespace handler failed for ${config.prototype}:`, error);
     return null;
   }
+}
+
+
+/**
+ * Processes a configuration object recursively using the unified property resolution.
+ * Extracts the actual values from ProcessedProperty objects for use in fetch operations.
+ */
+export function resolveConfig(config: any, contextNode: any): any {
+  console.debug(`🎯 resolveConfig called with contextNode:`, contextNode, 'available $-props:', Object.keys(contextNode || {}).filter(k => k.startsWith('$')));
+  const processed: any = { ...config };
+
+  Object.keys(processed).forEach(key => {
+    const value = processed[key];
+
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      // Recursively process nested objects (like headers)
+      processed[key] = resolveConfig(value, contextNode);
+    } else {
+      // Use the unified property resolution from properties.ts
+      const processedProp = processProperty(key, value, contextNode);
+      console.debug(`🔍 Processing config property: ${key}`, processedProp);
+      // Extract the actual value if valid, otherwise use undefined
+      if (processedProp.isValid) {
+        // If it's a Signal.Computed (template), get its current value
+        if (processedProp.type === 'Signal.Computed' && processedProp.value?.get) {
+          const resolvedValue = processedProp.value.get();
+          console.debug(`🎯 Resolved template value for ${key}:`, resolvedValue);
+          processed[key] = resolvedValue;
+        } else {
+          processed[key] = processedProp.value;
+        }
+      } else {
+        processed[key] = undefined;
+      }
+    }
+  });
+
+  return processed;
 }

@@ -1,6 +1,8 @@
 export default {
 	// State signals for the app
 	$selectedLocation: 'NYC',    // Currently selected location key
+	$isLoading: false,           // Loading state
+	$lastUpdated: null,          // Last update timestamp
 
 	// Location coordinate mapping (static data)
 	$locations: {
@@ -23,18 +25,16 @@ export default {
 
 	// Auto-fetch weather data when location changes
 	$weatherForecastAPI: {
-		Request: {
-			url: 'https://api.weather.gov/points/${this.$currentCoords().lat},${this.$currentCoords().lon}',
-			delay: 500 // Delay to prevent rapid API calls
-		}
+		prototype: 'Request',
+		url: 'https://api.weather.gov/points/${this.$currentCoords().lat},${this.$currentCoords().lon}',
+		delay: 500 // Delay to prevent rapid API calls
 	},
 
 	// Auto-fetch weather data when location changes
 	$weatherData: {
-		Request: {
-			url: '${this.$weatherForecastAPI.get()?.properties?.forecast}',
-			delay: 500 // Delay to prevent rapid API calls
-		}
+		prototype: 'Request',
+		url: '${this.$weatherForecastAPI.get()?.properties?.forecast}',
+		delay: 500 // Delay to prevent rapid API calls
 	},
 
 	// Auto-update loading state when weather data changes
@@ -47,7 +47,7 @@ export default {
 	},
 
 	// Get current weather period (first period from forecast)
-	$currentWeather: function() {
+	$currentWeather: function () {
 		const data = this.$weatherData.get();
 		return data?.properties?.periods?.[0] || null;
 	},
@@ -120,8 +120,8 @@ export default {
 							},
 							onchange: function (event) {
 								const location = event.target.value;
-								this.$selectedLocation.set(location);
-								this.$isLoading.set(true);
+								window.$selectedLocation.set(location);
+								window.$isLoading.set(true);
 							},
 							children: [
 								{ tagName: 'option', value: 'NYC', textContent: 'New York City' },
@@ -155,7 +155,7 @@ export default {
 								},
 							},
 							onclick: function () {
-								this.$weatherData.fetch();
+								window.$weatherData.fetch();
 							},
 						},
 					],
@@ -171,7 +171,7 @@ export default {
 					},
 					attributes: {
 						hidden: function () {
-							return !!(this.$currentWeather());
+							return !window.$currentWeather();
 						}
 					},
 					children: [
@@ -205,7 +205,7 @@ export default {
 								boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
 								overflow: 'hidden',
 								border: '1px solid #334155',
-								display: '${this.$weatherData.get() ? "block" : "none"}',
+								display: '${window.$weatherData ? "block" : "none"}',
 							},
 							children: [
 								// Airport header
@@ -219,7 +219,7 @@ export default {
 									children: [
 										{
 											tagName: 'h2',
-											textContent: '${this.$selectedLocation.get()} - ${this.$currentWeather()?.name || "Current Forecast"}',
+											textContent: '${window.$selectedLocation} - ${window.$currentWeather()?.name || "Current Forecast"}',
 											style: {
 												margin: '0 0 0.5rem 0',
 												color: '#f1f5f9',
@@ -452,7 +452,7 @@ export default {
 					style: {
 						textAlign: 'center',
 						padding: '3rem',
-						display: '${this.$weatherData.get() ? "none" : "block"}',
+						display: '${this.$weatherData ? "none" : "block"}',
 					},
 					children: [
 						{

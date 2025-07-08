@@ -195,33 +195,33 @@ function createErrorProperty(error: string, originalValue?: any): ProcessedPrope
 // === SPECIALIZED PROPERTY PROCESSORS ===
 
 /**
- * Processes scoped/reactive properties ($name, $count, etc.).
+ * Processes scope/reactive properties ($name, $count, etc.).
  * These ALWAYS become signals unless they're functions or namespaced objects.
  * Called during the reactive property initialization phase.
  * 
- * @param key - The scoped property name (starts with $)
+ * @param key - The scope property name (starts with $)
  * @param value - The property value to process
  * @param contextNode - Context for template/accessor evaluation
- * @returns ProcessedProperty optimized for scoped property handling
+ * @returns ProcessedProperty optimized for scope property handling
  */
-export function processScopedProperty(
+export function processScopeProperty(
   key: string,
   value: any,
   contextNode: any
 ): ProcessedProperty {
   try {
-    console.debug('🔍 processScopedProperty:', key, '=', value, 'typeof:', typeof value);
+    console.debug('🔍 processScopeProperty:', key, '=', value, 'typeof:', typeof value);
     const pattern = classifyProperty(value);
     console.debug('🎯 Classified', key, 'as:', pattern);
     let processed: ProcessedProperty;
 
     switch (pattern) {
       case 'function':
-        // Scoped functions remain as functions (unusual but valid)
+        // Scope functions remain as functions (unusual but valid)
         return ValueProcessors.function(key, value, contextNode);
 
       case 'namespaced':
-        // Scoped namespaced objects
+        // Scope namespaced objects
         return ValueProcessors.namespaced(key, value, contextNode);
 
       case 'template':
@@ -249,7 +249,7 @@ export function processScopedProperty(
     }
 
   } catch (error) {
-    return createErrorProperty(`Scoped property processing failed for "${key}": ${error}`, value);
+    return createErrorProperty(`Scope property processing failed for "${key}": ${error}`, value);
   }
 }
 

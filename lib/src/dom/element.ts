@@ -35,7 +35,7 @@ import {
   DOMNode,
 } from '../types';
 
-import { processScopedProperty, processProperty } from '../core/properties';
+import { processScopeProperty, processProperty } from '../core/properties';
 import { applyPropertyBinding } from './binding';
 import { DOMSpecOptions } from './types';
 
@@ -114,12 +114,12 @@ export function adoptNode(
       console.debug('⏭️ Skipping property', key, 'as it already exists on the element');
       return;
     }
-    const processed = processScopedProperty(key, value, el);
-    console.debug('📦 processScopedProperty result:', { type: processed.type, value: processed.value, isValid: processed.isValid });
+    const processed = processScopeProperty(key, value, el);
+    console.debug('📦 processScopeProperty result:', { type: processed.type, value: processed.value, isValid: processed.isValid });
     if (processed.isValid) {
       (el as any)[key] = processed.value;
     } else {
-      console.warn(`❌ Invalid scoped property ${key}:`, processed.error);
+      console.warn(`❌ Invalid scope property ${key}:`, processed.error);
     }
   });
 

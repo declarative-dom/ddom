@@ -6,7 +6,7 @@
  */
 
 import { Signal, createEffect, ComponentSignalWatcher } from '../../core/signals';
-import { processProperty } from '../../core/properties';
+import { resolveConfig } from '../';
 import { PrototypeConfig } from '../types';
 import { performFetch } from './fetch';
 
@@ -70,30 +70,6 @@ export const createRequestNamespace = (
   
   return responseSignal as RequestSignal;
 };
-
-/**
- * Processes a configuration object recursively using the unified property resolution.
- * Extracts the actual values from ProcessedProperty objects for use in fetch operations.
- */
-function resolveConfig(config: any, contextNode: any): any {
-  const processed: any = { ...config };
-
-  Object.keys(processed).forEach(key => {
-    const value = processed[key];
-
-    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-      // Recursively process nested objects (like headers)
-      processed[key] = resolveConfig(value, contextNode);
-    } else {
-      // Use the unified property resolution from properties.ts
-      const processedProp = processProperty(key, value, contextNode);
-      // Extract the actual value if valid, otherwise use undefined
-      processed[key] = processedProp.isValid ? processedProp.value : undefined;
-    }
-  });
-
-  return processed;
-}
 
 /**
  * Sets up automatic request triggering based on reactive dependencies.
