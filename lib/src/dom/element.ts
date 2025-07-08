@@ -91,7 +91,7 @@ export function adoptNode(
   options: DOMSpecOptions = {}
 ): void {
   console.debug('🔧 adoptNode called with spec:', spec, 'el:', el, 'options:', options);
-  
+
   // Process all properties using key/value pairs
   const specEntries = Object.entries(spec);
   console.debug('📝 Processing spec entries:', specEntries);
@@ -132,7 +132,7 @@ export function adoptNode(
   };
 
   options.ignoreKeys = [
-    ...(options.ignoreKeys? options.ignoreKeys : []),
+    ...(options.ignoreKeys ? options.ignoreKeys : []),
     ...localReactiveProperties.map(([key]) => key),
   ];
 
@@ -199,7 +199,7 @@ export function createElement(
   console.debug('🎯 createElement called with spec:', spec, 'options:', options);
   const el = document.createElement(spec.tagName) as HTMLElement;
   console.debug('✅ Created element:', el);
-  
+
   // Apply all properties using the unified adoption system
   adoptNode(
     spec,
@@ -209,7 +209,7 @@ export function createElement(
       ignoreKeys: [...(options.ignoreKeys || []), 'id', 'parentNode', 'tagName']
     }
   );
-  
+
   return el;
 }
 
@@ -238,7 +238,7 @@ export function appendChild(
   options: DOMSpecOptions = {}
 ): HTMLElement {
   console.debug('🔗 appendChild called with spec:', spec, 'parentNode:', parentNode);
-  const el = createElement(spec, options);
+  const el = document.createElement(spec.tagName) as HTMLElement;
 
   // Append the element to the provided parent node
   if ('appendChild' in parentNode) {
@@ -247,6 +247,16 @@ export function appendChild(
   } else {
     console.warn('❌ parentNode does not support appendChild:', parentNode);
   }
+
+  // Apply all properties using the unified adoption system
+  adoptNode(
+    spec,
+    el,
+    {
+      ...options,
+      ignoreKeys: [...(options.ignoreKeys || []), 'tagName']
+    }
+  );
 
   return el;
 }

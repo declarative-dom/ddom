@@ -2,12 +2,12 @@
 // No more $-prefixed properties! Uses transparent signal proxies and template literals.
 
 export default {
-  $items: ["Apple", "Banana", "Cherry"], // Initial items
-  // $items: {
-  //   prototype: "LocalStorage",
-  //   key: "todo-list",
-  //   value: ["Apple", "Banana", "Cherry"],
-  // },
+  // $items: ["Apple", "Banana", "Cherry"], // Initial items
+  $items: {
+    prototype: "LocalStorage",
+    key: "todo-list",
+    value: ["Apple", "Banana", "Cherry"],
+  },
 
   $newItemText: "",
 
@@ -81,6 +81,7 @@ export default {
             {
               tagName: "div",
               style: {
+                display: "flex",
                 gap: "0.5em",
                 marginBottom: "1.5em",
               },
@@ -93,6 +94,7 @@ export default {
                   },
                   value: "${window.$newItemText.get()}",
                   style: {
+                    flex: "1",
                     padding: "0.75em",
                     border: "2px solid #dee2e6",
                     borderRadius: "4px",
