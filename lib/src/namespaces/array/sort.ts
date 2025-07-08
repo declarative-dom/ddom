@@ -9,7 +9,7 @@
  */
 
 import { SortCriteria } from '../../types';
-import { getNestedProperty } from '../../utils/evaluation';
+import { resolveProperty } from '../../utils/evaluation';
 
 /**
  * Applies an array of sort expressions to items
@@ -86,7 +86,7 @@ function getSortValue(item: any, sortBy: string | ((item: any) => any)): any {
   
   if (typeof sortBy === 'string') {
     // Property path (e.g., "name", "user.profile.age")
-    return getNestedProperty(item, sortBy);
+    return resolveProperty(item, sortBy);
   }
   
   return item;

@@ -184,31 +184,11 @@ function applyStandardPropertyBinding(
   switch (processed.type) {
     case 'Signal.State':
     case 'Signal.Computed':
-      if (key.startsWith('$')) {
-        // Reactive property: assign signal directly
-        console.debug('📡 Assigning signal to reactive property:', key);
-        (el as any)[key] = processed.value;
-      } else {
-        // DOM property: set up reactive binding
-        console.debug('🔗 Setting up reactive binding for DOM property:', key);
-        setupReactiveProperty(el, key, processed.value);
-      }
+      bindSignalToProperty(el, key, processed.value);
       break;
       
     case 'function':
-      if (key.startsWith('on') || key.includes('Event')) {
-        // Event handler: assign function directly
-        console.debug('🎯 Assigning event handler:', key);
-        (el as any)[key] = processed.value;
-      } else if (key.startsWith('$')) {
-        // Scoped function: assign directly (they're already processed correctly)
-        console.debug('📡 Assigning scoped function:', key);
-        (el as any)[key] = processed.value;
-      } else {
-        // Regular function: assign directly
-        console.debug('📝 Assigning regular function:', key);
-        (el as any)[key] = processed.value;
-      }
+      (el as any)[key] = processed.value;
       break;
 
     case 'namespaced':
@@ -225,58 +205,6 @@ function applyStandardPropertyBinding(
       console.debug('📝 Direct assignment of primitive:', key, '=', processed.value);
       (el as any)[key] = processed.value;
       break;
-  }
-}
-
-/**
- * Sets up reactive property binding for signals and computed values.
- * Automatically detects if a value is a signal and establishes reactive updates,
- * otherwise performs a direct assignment. This function handles the reactive
- * data binding core of DDOM's reactivity system.
- * 
- * @param el - The DOM node to bind the property to
- * @param key - The property name to bind (e.g., 'textContent', 'value', 'checked')
- * @param value - The value to bind, can be a signal, computed value, or static value
- * @returns void - This function performs side effects by setting up reactive bindings
- * 
- * @example
- * ```typescript
- * // Binding a signal to textContent
- * const textSignal = new Signal.State('Hello');
- * setupReactiveProperty(element, 'textContent', textSignal);
- * ```
- * 
- * @example
- * ```typescript
- * // Binding a computed value to disabled property
- * const isDisabled = new Signal.Computed(() => count.get() > 10);
- * setupReactiveProperty(button, 'disabled', isDisabled);
- * ```
- * 
- * @example
- * ```typescript
- * // Static value binding (no reactivity)
- * setupReactiveProperty(element, 'id', 'my-element');
- * ```
- */
-export function setupReactiveProperty(el: DOMNode, key: string, value: any): void {
-  if (value && typeof value === 'object' && typeof value.get === 'function') {
-    // This is a signal - set up reactive binding
-    const updateProperty = () => {
-      const currentValue = value.get();
-      (el as any)[key] = currentValue;
-    };
-
-    // Set initial value
-    updateProperty();
-
-    // Set up reactive effect for future updates
-    createEffect(() => {
-      updateProperty();
-    });
-  } else {
-    // Not a signal, just assign directly
-    (el as any)[key] = value;
   }
 }
 

@@ -18,7 +18,7 @@
  */
 
 import { Signal } from './signals';
-import { resolveOperand, evaluateExpression, getNestedProperty, isSimpleProperty } from '../utils/evaluation';
+import { resolveOperand, evaluateExpression, resolveProperty, isNestedProperty } from '../utils/evaluation';
 
 
 // === UNIVERSAL PROPERTY RETURN FORMAT ===

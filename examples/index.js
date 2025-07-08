@@ -42,11 +42,11 @@ export default {
   // Computed properties for iframe content generation
   currentExampleConfig: function () {
     // Return the config for the current example
-    return this.$examples.get()[window.$currentExample.get()]?.config;
+    return window.$examples.get()[window.$currentExample.get()]?.config;
   },
 
   currentExampleURL: function () {
-    return this.$examples.get()[window.$currentExample.get()]?.path;
+    return window.$examples.get()[window.$currentExample.get()]?.path;
   },
 
   currentExampleJSON: function () {
@@ -150,12 +150,13 @@ export default {
                 flexWrap: 'wrap',
               },
               children: {
-                items: () => Object.entries(window.$examples.get()),
+                prototype: 'Array',
+                items: 'Object.entries(window.$examples.get())',
                 map: {
                   tagName: 'nav-button',
-                  id: (item) => `nav-${item[0]}`,
-                  $label: (item) => item[1].name,
-                  $example: (item) => item[0],
+                  id: 'nav-${item[0]}',
+                  $label: 'item[1].name',
+                  $example: 'item[0]',
                 },
               },
             },

@@ -5,9 +5,7 @@
  * Follows the Rule of Least Power - no imperative functions, only declarative templates.
  */
 
-import { evaluateAccessor, parseTemplateLiteral } from '../../utils/evaluation';
-
-const ACCESSOR_REGEX = /^(item|index|window|document)$/;
+import { resolveOperand, resolveTemplate, isNestedProperty } from '../../utils/evaluation';
 
 /**
  * Applies a mapping template to items
@@ -17,10 +15,10 @@ export function applyMapping(items: any[], mapTemplate: any): any[] {
   try {
     if (typeof mapTemplate === 'string') {
       // String template mapping
-      return items.map((item, index) => transformStringTemplate(mapTemplate, item, index));
+      return items.map((item, index) => transformTemplate(mapTemplate, item, index));
     } else if (typeof mapTemplate === 'object' && mapTemplate !== null) {
       // Object template mapping
-      return items.map((item, index) => transformObjectTemplate(mapTemplate, item, index));
+      return items.map((item, index) => transformObject(mapTemplate, item, index));
     } else {
       // Direct value mapping (primitive values)
       return items.map(() => mapTemplate);
@@ -34,7 +32,7 @@ export function applyMapping(items: any[], mapTemplate: any): any[] {
 /**
  * Transforms a string template with item context
  */
-function transformStringTemplate(template: string, item: any, index: number): string {
+function transformTemplate(template: string, item: any, index: number): string {
   try {
     // Create evaluation context with item, index, and common globals
     const context = {
@@ -45,7 +43,7 @@ function transformStringTemplate(template: string, item: any, index: number): st
     };
     
     // Use shared evaluation function for consistency
-    return parseTemplateLiteral(template, context);
+    return resolveTemplate(template, context);
   } catch (error) {
     console.warn(`String template evaluation failed: "${template}"`, error);
     return String(template);
@@ -55,10 +53,10 @@ function transformStringTemplate(template: string, item: any, index: number): st
 /**
  * Transforms an object template with item context
  */
-function transformObjectTemplate(template: any, item: any, index: number): any {
+function transformObject(template: object, item: any, index: number): any {
   if (Array.isArray(template)) {
     // Handle arrays recursively
-    return template.map(element => transformObjectTemplate(element, item, index));
+    return template.map(element => transformObject(element, item, index));
   }
   
   if (typeof template !== 'object' || template === null) {
@@ -73,10 +71,10 @@ function transformObjectTemplate(template: any, item: any, index: number): any {
     if (typeof value === 'string') {
       if (value.includes('${')) {
         // String template properties - evaluate with item context
-        result[key] = transformStringTemplate(value, item, index);
-      } else if (ACCESSOR_REGEX.test(value)) {
-        // Use shared operand resolution for naked accessors like 'item', 'index'
-        console.debug('🔍 Evaluating accessor:', value, 'with item:', item, 'index:', index);
+        result[key] = transformTemplate(value, item, index);
+      } else if (isNestedProperty(value)) {
+        // Use shared operand resolution for property accessors like 'item[0]', 'item[1].name'
+        console.debug('🔍 Evaluating property accessor:', value, 'with item:', item, 'index:', index);
         result[key] = evaluateAccessor(value, item, index);
       } else {
         // Direct value string
@@ -84,7 +82,7 @@ function transformObjectTemplate(template: any, item: any, index: number): any {
       }
     } else if (typeof value === 'object' && value !== null) {
       // Nested objects - recurse
-      result[key] = transformObjectTemplate(value, item, index);
+      result[key] = transformObject(value, item, index);
     } else {
       // Direct values (strings, numbers, booleans, etc.)
       result[key] = value;
@@ -92,4 +90,16 @@ function transformObjectTemplate(template: any, item: any, index: number): any {
   });
   
   return result;
+}
+
+
+/**
+ * Evaluates a property accessor string like 'item.id' or 'index' 
+ * with the given item and index values
+ */
+export function evaluateAccessor(accessor: string, item: any, index: number): any {
+  const context = { index, item };
+  
+  // Handle direct accessor resolution - the context object is what we search in
+  return resolveOperand(accessor, context, context);
 }

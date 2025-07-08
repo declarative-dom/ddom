@@ -8,21 +8,28 @@
 /**
  * Checks if a string is a simple property name (no dots, no function calls)
  */
-export function isSimpleProperty(str: string): boolean {
-  return /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(str);
+export function isNestedProperty(str: string): boolean {
+  return /^[a-zA-Z_$][a-zA-Z0-9_$]*(\.[a-zA-Z_$][a-zA-Z0-9_$]*|\[\d+\])*$/.test(str);
 }
 
 /**
- * Gets a nested property from an object using dot notation
+ * Gets a nested property from an object using dot notation and bracket notation.
+ * Supports both dots (obj.prop.subprop) and brackets (obj[0], obj['key'], obj[0].name)
+ * 
+ * @param obj - The object to traverse
+ * @param path - Property path (e.g., 'user.name', 'items[0]', 'data[0].name')
+ * @returns The resolved value or null if not found
  */
-export function getNestedProperty(obj: any, path: string): any {
-  console.debug('🔍 getNestedProperty called with obj:', obj, 'path:', path);
-  const result = path.split('.').reduce((current, key) => {
-    console.debug('🔍 Looking for key:', key, 'in:', current);
-    return current && typeof current === 'object' ? current[key] : undefined;
-  }, obj);
-  console.debug('🔍 getNestedProperty result:', result);
-  return result;
+export function resolveProperty(obj: any, path: string): any {
+  if (!obj || !path) return null;
+  
+  try {
+    // Simple and elegant path resolution supporting both dots and brackets
+    return path.split(/[.\[\]]+/).filter(Boolean).reduce((o, k) => o?.[k], obj);
+  } catch (error) {
+    console.warn('resolveProperty failed for path:', path, error);
+    return null;
+  }
 }
 
 /**
@@ -62,12 +69,12 @@ export function evaluateExpression(expression: string, item: any, context: any):
  * @param context - The object to use as context ('this') for template evaluation
  * @returns The template string evaluated with the context
  */
-export function parseTemplateLiteral(
+export function resolveTemplate(
   template: string,
   context: object
 ): string {
   try {
-    console.debug('🔧 parseTemplateLiteral called with template:', template, 'context:', context);
+    console.debug('🔧 resolveTemplate called with template:', template, 'context:', context);
     console.debug('🔧 Context properties:', Object.keys(context as any).filter(k => k.startsWith('$')));
     
     // Extract context variables to make them available as direct variables in template scope
@@ -99,25 +106,12 @@ export function resolveOperand(operand: any, item: any, context?: any): any {
   console.debug('🔍 resolveOperand called with operand:', operand, 'item:', item, 'context:', context);
   
   // Simple property access (e.g., "item.name", "window.rating")
-  if (isSimpleProperty(operand)) {
-    const result = getNestedProperty(item, operand);
-    console.debug('🔍 getNestedProperty result:', result, 'for operand:', operand);
+  if (isNestedProperty(operand)) {
+    const result = resolveProperty(item, operand);
+    console.debug('🔍 resolveProperty result:', result, 'for operand:', operand);
     return result;
   }
   
   // Complex expressions - evaluate as JavaScript with item and context
   return evaluateExpression(operand, item, context);
-}
-
-
-
-/**
- * Evaluates a property accessor string like 'item.id' or 'index' 
- * with the given item and index values
- */
-export function evaluateAccessor(accessor: string, item: any, index: number): any {
-  const context = { index, item };
-  
-  // Handle direct accessor resolution - the context object is what we search in
-  return resolveOperand(accessor, context, context);
 }

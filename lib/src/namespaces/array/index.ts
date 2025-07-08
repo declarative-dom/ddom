@@ -38,14 +38,14 @@ export interface ArraySignal<T = any[]> extends Signal.Computed<T> {
 
 /**
  * Resolves source signal from different input types with comprehensive support.
- * Handles arrays, signals, property accessors, and functions from production code.
+ * Handles arrays, signals, property accessors, expressions, and functions from production code.
  */
 function resolveSourceSignal(items: string | any[], parentElement?: Element): Signal.State<any[]> | Signal.Computed<any[]> {
   // Handle different source types
   if (Array.isArray(items)) {
     return new Signal.State(items);
   } else if (typeof items === 'string') {
-    // Handle property accessor resolution
+    // Handle property accessor resolution and expression evaluation
     const resolved = resolveOperand(items, parentElement || document.body);
     if (resolved !== null) {
       // Check if it's a signal

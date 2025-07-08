@@ -12,7 +12,7 @@ import {
 
 import {
   isPropertyAccessor,
-  parseTemplateLiteral,
+  resolveTemplate,
   resolvePropertyAccessor
 } from './properties';
 
@@ -446,7 +446,7 @@ function applyMap(mapTemplate: any, processedArray: any[], el: Node): any[] {
     // String template mapping
     return processedArray.map((item: any, _index) => {
       if (typeof item === 'object' && item !== null) {
-        return parseTemplateLiteral(mapTemplate, item);
+        return resolveTemplate(mapTemplate, item);
       }
       return item;
     });

@@ -36,6 +36,7 @@ import {
 } from '../types';
 
 import { processScopedProperty, processProperty } from '../core/properties';
+import { processNamespacedProperty } from '../namespaces/index';
 import { applyPropertyBinding } from './binding';
 import { DOMSpecOptions } from './types';
 
@@ -102,12 +103,12 @@ export function adoptNode(
   }
 
   // Filter reactive properties from spec for processing and child inheritance
-  const localReactiveProperties = specEntries.filter(([key]) =>
+  const localScopeProperties = specEntries.filter(([key]) =>
     key.startsWith('$')
   );
 
   // Process reactive properties directly on this element
-  localReactiveProperties.forEach(([key, value]) => {
+  localScopeProperties.forEach(([key, value]) => {
     console.debug('⚡ Processing reactive property:', key, '=', value);
     // skip if the property is already defined on the element
     if (Object.hasOwn(el, key)) {
@@ -117,9 +118,18 @@ export function adoptNode(
     const processed = processScopedProperty(key, value, el);
     console.debug('📦 processScopedProperty result:', { type: processed.type, value: processed.value, isValid: processed.isValid });
     if (processed.isValid) {
-      (el as any)[key] = processed.value;
-      console.debug('✅ Assigned', key, 'to element. Element[' + key + ']:', (el as any)[key]);
-      console.debug('✅ Is signal?', typeof (el as any)[key]?.get === 'function');
+      // Handle namespaced properties specially - they need to be processed through the namespace system
+      if (processed.type === 'namespaced') {
+        const signal = processNamespacedProperty(processed.value, key, el);
+        if (signal) {
+          (el as any)[key] = signal;
+        } else {
+          console.warn(`❌ Failed to create namespaced signal for ${key}`);
+        }
+      } else {
+        // Regular scoped property - assign the processed value directly
+        (el as any)[key] = processed.value;
+      }
     } else {
       console.warn(`❌ Invalid scoped property ${key}:`, processed.error);
     }
@@ -128,12 +138,12 @@ export function adoptNode(
   // Combine parent and local reactive properties for children
   options.scopeProperties = {
     ...options.scopeProperties,
-    ...Object.fromEntries(localReactiveProperties.map(([key]) => [key, (el as any)[key]]))
+    ...Object.fromEntries(localScopeProperties.map(([key]) => [key, (el as any)[key]]))
   };
 
   options.ignoreKeys = [
     ...(options.ignoreKeys ? options.ignoreKeys : []),
-    ...localReactiveProperties.map(([key]) => key),
+    ...localScopeProperties.map(([key]) => key),
   ];
 
   // Handle protected properties first (id, tagName) - set once, never reactive
