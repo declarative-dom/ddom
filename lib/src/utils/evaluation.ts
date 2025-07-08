@@ -209,8 +209,9 @@ export function resolveTemplate(
     const result = template.replace(/\$\{([^}]+)\}/g, (match, expr) => {
       const trimmed = expr.trim();
       
-      // Handle safe expressions (ternary, logical operators)
-      if (trimmed.includes('?') || trimmed.includes('||') || trimmed.includes('&&')) {
+      // Handle safe expressions (ternary, logical operators, comparisons)
+      // Single regex to detect any operator: ?, ||, &&, ===, !==, ==, !=, <=, >=, <, >
+      if (/\?|(\|\|)|(\&\&)|(===)|(!=)|(==)|(<=)|(>=)|(<)|(>)/.test(trimmed)) {
         const evaluated = evaluateSafeExpression(trimmed, context);
         return String(evaluated ?? match);
       }
@@ -349,6 +350,7 @@ function evaluateSafeExpression(expr: string, context: any): any {
     return comparisonResult;
   }
   
+  // Simple property access
   return resolveTemplateProperty(context, expr);
 }
 
