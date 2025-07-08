@@ -141,7 +141,7 @@ export function applyPropertyBinding(
       } else if (value && typeof value === 'object' && value.prototype === 'Array') {
         // Reactive children array - use our enhanced reactive array binding
         console.debug('📋 Binding reactive children array');
-        const signal = processNamespacedProperty(value, key, el);
+        const signal = processNamespacedProperty(key, value, el);
         if (signal) {
           bindReactiveArray(signal, el as Element, options);
         }
@@ -188,16 +188,8 @@ function applyStandardPropertyBinding(
       break;
       
     case 'function':
-      (el as any)[key] = processed.value;
-      break;
-
     case 'namespaced':
-      // Namespaced property: process using namespace system
-      console.debug('🌐 Processing namespaced property:', key);
-      const signal = processNamespacedProperty(processed.value, key, el);
-      if (signal) {
-        (el as any)[key] = signal;
-      }
+      (el as any)[key] = processed.value;
       break;
       
     default:

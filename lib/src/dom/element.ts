@@ -36,7 +36,6 @@ import {
 } from '../types';
 
 import { processScopedProperty, processProperty } from '../core/properties';
-import { processNamespacedProperty } from '../namespaces/index';
 import { applyPropertyBinding } from './binding';
 import { DOMSpecOptions } from './types';
 
@@ -118,18 +117,7 @@ export function adoptNode(
     const processed = processScopedProperty(key, value, el);
     console.debug('📦 processScopedProperty result:', { type: processed.type, value: processed.value, isValid: processed.isValid });
     if (processed.isValid) {
-      // Handle namespaced properties specially - they need to be processed through the namespace system
-      if (processed.type === 'namespaced') {
-        const signal = processNamespacedProperty(processed.value, key, el);
-        if (signal) {
-          (el as any)[key] = signal;
-        } else {
-          console.warn(`❌ Failed to create namespaced signal for ${key}`);
-        }
-      } else {
-        // Regular scoped property - assign the processed value directly
-        (el as any)[key] = processed.value;
-      }
+      (el as any)[key] = processed.value;
     } else {
       console.warn(`❌ Invalid scoped property ${key}:`, processed.error);
     }

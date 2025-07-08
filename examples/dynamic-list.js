@@ -92,7 +92,7 @@ export default {
                     type: "text",
                     placeholder: "Add a new item...",
                   },
-                  value: "${window.$newItemText.get()}",
+                  value: "${window.$newItemText}",
                   style: {
                     flex: "1",
                     padding: "0.75em",
@@ -183,7 +183,7 @@ export default {
 
       children: {
         prototype: "Array",
-        items: "this.$items",
+        items: "window.$items",
         map: {
           tagName: "dynamic-list-item",
           $item: 'item',
@@ -220,7 +220,7 @@ export default {
             {
               tagName: "span",
               // Template literal automatically gets computed signal + effect!
-              textContent: "${this.$item.get()}",
+              textContent: "${this.$item}",
               contentEditable: true,
               style: {
                 flex: "1",

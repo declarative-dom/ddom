@@ -8,17 +8,18 @@
  * - Signal type detection and creation
  * - Value evaluation and extraction
  *
- * This module is COMPLETELY PURE - it performs NO side effects:
+ * This module is mostly pure:
  * - No DOM mutations
  * - No element property assignments
  * - No effect creation or binding
- * - No calls to external modules that cause side effects
+ * - Calls to namespaced properties could cause side effects
  *
  * All DOM mutations and bindings are handled in the DOM modules (element.ts, binding.ts, etc.)
  */
 
 import { Signal } from './signals';
-import { resolveOperand, evaluateExpression, resolveProperty, isNestedProperty } from '../utils/evaluation';
+import { resolveProperty, resolveTemplate } from '../utils/evaluation';
+import { processNamespacedProperty } from '../namespaces/index';
 
 
 // === UNIVERSAL PROPERTY RETURN FORMAT ===
@@ -49,49 +50,17 @@ export const IMMUTABLE_PROPERTIES = new Set(['id', 'tagName']);
 // === TEMPLATE LITERAL PROCESSING ===
 
 /**
- * Creates a template function bound to a specific context.
- *
- * @param template - The template string to bind
- * @returns A function that evaluates the template
+ * Creates a reactive computed signal for template strings.
+ * Uses safe template resolution with automatic signal dependency tracking.
  */
-export const bindTemplate = (template: string) => (context: any) => {
-  try {
-    console.debug('🔧 bindTemplate called with template:', template, 'context:', context);
-    console.debug('🔧 Context properties:', Object.keys(context).filter((k: string) => k.startsWith('$')));
-    const result = new Function('return `' + template + '`').call(context);
-    console.debug('🔧 Template result:', result);
-    return result;
-  } catch (error) {
-    console.warn(`Template binding failed: ${error}, Template: ${template}`);
-    console.debug('🔧 Available context properties:', Object.keys(context).filter((k: string) => k.startsWith('$')));
-    return template;
-  }
-};
-
-/**
- * Creates a Computed Signal that automatically re-evaluates a template
- * when its dependencies change. Uses explicit .get() calls for signal access.
- *
- * @param template - The template string to make reactive
- * @param contextNode - The DOM node to use as context
- * @returns A Computed Signal that re-evaluates the template when dependencies change
- */
-export function computedTemplate(
-  template: string,
-  contextNode: Node
-): Signal.Computed<string> {
-  const templateFn = bindTemplate(template);
-
-  return new Signal.Computed(() => {
-    try {
-      return templateFn(contextNode);
-    } catch (error) {
-      console.warn(
-        `Computed template evaluation failed: ${error}, Template: ${template}`
-      );
-      return template;
-    }
-  });
+function createTemplateSignal(template: string, contextNode: any): Signal.Computed<string> {
+  // Create context from the node's signal properties
+  const context = {
+    this: contextNode,
+    window: globalThis.window,
+    document: globalThis.document
+  };
+  return new Signal.Computed(() => resolveTemplate(template, context));
 }
 
 // === PROPERTY PATTERN CLASSIFICATION ===
@@ -149,9 +118,9 @@ export function classifyProperty(value: any): string {
  * These handle the common patterns without caring about scope context.
  */
 const ValueProcessors = {
-  template: (value: string, contextNode: any): ProcessedProperty => {
+  template: (_key: string, value: string, contextNode: any): ProcessedProperty => {
     try {
-      const computed = computedTemplate(value, contextNode);
+      const computed = createTemplateSignal(value, contextNode);
       return {
         type: 'Signal.Computed',
         value: computed,
@@ -162,9 +131,9 @@ const ValueProcessors = {
     }
   },
 
-  accessor: (value: string, contextNode: any): ProcessedProperty => {
+  accessor: (_key: string, value: string, contextNode: any): ProcessedProperty => {
     try {
-      const resolved = resolveOperand(value, contextNode);
+      const resolved = resolveProperty(value, contextNode);
       if (resolved !== null) {
         return {
           type: getValueType(resolved),
@@ -182,19 +151,19 @@ const ValueProcessors = {
     }
   },
 
-  function: (value: Function): ProcessedProperty => ({
+  function: (_key: string, value: Function): ProcessedProperty => ({
     type: 'function',
     value: value,
     isValid: true
   }),
 
-  namespaced: (value: any): ProcessedProperty => ({
+  namespaced: (key: string, value: any, contextNode: any): ProcessedProperty => ({
     type: 'namespaced',
-    value: value,
+    value: processNamespacedProperty(key, value, contextNode),
     isValid: true
   }),
 
-  primitive: (value: any): ProcessedProperty => ({
+  primitive: (_key: string, value: any): ProcessedProperty => ({
     type: getValueType(value),
     value: value,
     isValid: true  // All primitive values are valid for signals
@@ -238,19 +207,19 @@ export function processScopedProperty(
     switch (pattern) {
       case 'function':
         // Scoped functions remain as functions (unusual but valid)
-        return ValueProcessors.function(value);
+        return ValueProcessors.function(key, value);
 
       case 'namespaced':
         // Scoped namespaced objects
-        return ValueProcessors.namespaced(value);
+        return ValueProcessors.namespaced(key, value, contextNode);
 
       case 'template':
         // Template → Computed Signal
-        return ValueProcessors.template(value, contextNode);
+        return ValueProcessors.template(key, value, contextNode);
 
       case 'accessor':
         // Accessor → Resolve then wrap in signal if needed
-        const processed = ValueProcessors.accessor(value, contextNode);
+        const processed = ValueProcessors.accessor(key, value, contextNode);
         // If resolution succeeded, wrap in signal for reactivity
         if (processed.isValid && processed.type !== 'Signal.State' && processed.type !== 'Signal.Computed') {
           return {
@@ -306,20 +275,20 @@ export function processProperty(
     switch (pattern) {
       case 'function':
         // Functions stay as functions (events, callbacks)
-        return ValueProcessors.function(value);
+        return ValueProcessors.function(key, value);
 
       case 'namespaced':
         // Namespaced objects for complex behaviors
-        return ValueProcessors.namespaced(value);
+        return ValueProcessors.namespaced(key, value, contextNode);
 
       case 'template':
         // Templates become computed for reactivity
         console.debug('🎨 Processing template:', value);
-        return ValueProcessors.template(value, contextNode);
+        return ValueProcessors.template(key, value, contextNode);
 
       case 'accessor':
         // Accessors get resolved
-        return ValueProcessors.accessor(value, contextNode);
+        return ValueProcessors.accessor(key, value, contextNode);
 
       case 'string':
       case 'primitive':
@@ -327,7 +296,7 @@ export function processProperty(
       case 'object':
       default:
         // Everything else stays as primitive values
-        return ValueProcessors.primitive(value);
+        return ValueProcessors.primitive(key, value);
     }
 
   } catch (error) {
@@ -357,11 +326,11 @@ export function processAttributeValue(
     switch (pattern) {
       case 'template':
         // Templates always become computed for reactive attributes
-        return ValueProcessors.template(value, contextNode);
+        return ValueProcessors.template(attributeName, value, contextNode);
 
       case 'accessor':
         // Accessors get resolved
-        return ValueProcessors.accessor(value, contextNode);
+        return ValueProcessors.accessor(attributeName, value, contextNode);
 
       case 'function':
         // Functions become computed signals for reactive attribute updates
@@ -383,7 +352,7 @@ export function processAttributeValue(
       case 'namespaced':
       default:
         // Everything else stays as primitive (will be stringified for attributes)
-        return ValueProcessors.primitive(value);
+        return ValueProcessors.primitive(attributeName, value);
     }
 
   } catch (error) {

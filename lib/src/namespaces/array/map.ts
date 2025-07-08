@@ -5,7 +5,7 @@
  * Follows the Rule of Least Power - no imperative functions, only declarative templates.
  */
 
-import { resolveOperand, resolveTemplate, isNestedProperty } from '../../utils/evaluation';
+import { resolveProperty, resolveTemplate, isNestedProperty } from '../../utils/evaluation';
 
 /**
  * Applies a mapping template to items
@@ -101,5 +101,5 @@ export function evaluateAccessor(accessor: string, item: any, index: number): an
   const context = { index, item };
   
   // Handle direct accessor resolution - the context object is what we search in
-  return resolveOperand(accessor, context, context);
+  return resolveProperty(context, accessor);
 }

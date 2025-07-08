@@ -79,49 +79,49 @@ export const createArrayNamespace = (
 
   // Detect mutable properties from the map template
   const mutableProps = config.map ? detectMutableProps(config.map) : [];
-  
+
   // Resolve the source signal with comprehensive property accessor support
   const sourceSignal = resolveSourceSignal(config.items, element);
-  
+
   // Create computed signal that processes the array
   const computedArray = new Signal.Computed(() => {
-      // Get the source array from the resolved signal
-      const sourceArray = sourceSignal.get();
-      
-      if (!Array.isArray(sourceArray)) {
-        console.warn('ArrayNamespace: Source signal does not contain an array:', sourceArray);
-        return createEmptyCollection(config.prototype);
-      }
-      
-      // Process the array through the pipeline
-      let processedArray = [...sourceArray];
-      
-      // Apply filters
-      if (config.filter && config.filter.length > 0) {
-        processedArray = applyFilters(processedArray, config.filter, element);
-      }
-      
-      // Apply mapping
-      if (config.map) {
-        processedArray = applyMapping(processedArray, config.map);
-      }
-      
-      // Apply sorting
-      if (config.sort && config.sort.length > 0) {
-        processedArray = applySorting(processedArray, config.sort);
-      }
-      
-      // Convert to the target type
-      return convertToTargetType(processedArray, config.prototype);
-    });
-    
-    // Return an object with both the signal and mutable props info
-    // This preserves the Signal interface while adding metadata
-    const result = computedArray as any;
-    result.getMutableProps = () => mutableProps;
-    result.getSignal = () => computedArray;
-    
-    return result;
+    // Get the source array from the resolved signal
+    const sourceArray = sourceSignal.get();
+
+    if (!Array.isArray(sourceArray)) {
+      console.warn('ArrayNamespace: Source signal does not contain an array:', sourceArray);
+      return createEmptyCollection(config.prototype);
+    }
+
+    // Process the array through the pipeline
+    let processedArray = [...sourceArray];
+
+    // Apply filters
+    if (config.filter && config.filter.length > 0) {
+      processedArray = applyFilters(processedArray, config.filter, element);
+    }
+
+    // Apply mapping
+    if (config.map) {
+      processedArray = applyMapping(processedArray, config.map);
+    }
+
+    // Apply sorting
+    if (config.sort && config.sort.length > 0) {
+      processedArray = applySorting(processedArray, config.sort);
+    }
+
+    // Convert to the target type
+    return convertToTargetType(processedArray, config.prototype);
+  });
+
+  // Return an object with both the signal and mutable props info
+  // This preserves the Signal interface while adding metadata
+  const result = computedArray as any;
+  result.getMutableProps = () => mutableProps;
+  result.getSignal = () => computedArray;
+
+  return result;
 };
 
 /**
@@ -163,14 +163,14 @@ function convertToTargetType(items: any[], prototype: ArrayConfig['prototype']):
   switch (prototype) {
     case 'Set':
       return new Set(items);
-      
+
     case 'Map':
       // Items should be [key, value] pairs for Map
       return new Map(items);
-      
+
     case 'Array':
       return items;
-      
+
     case 'Int8Array':
       return new Int8Array(items.map(item => Number(item)).filter(n => !isNaN(n)));
     case 'Uint8Array':
@@ -187,7 +187,7 @@ function convertToTargetType(items: any[], prototype: ArrayConfig['prototype']):
       return new Float32Array(items.map(item => Number(item)).filter(n => !isNaN(n)));
     case 'Float64Array':
       return new Float64Array(items.map(item => Number(item)).filter(n => !isNaN(n)));
-      
+
     default:
       return items;
   }

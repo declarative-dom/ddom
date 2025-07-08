@@ -86,8 +86,8 @@ const NAMESPACE_REGISTRY: Record<string, NamespaceEntry> = {
  * Processes a namespaced property with centralized validation
  */
 export function processNamespacedProperty(
-  config: PrototypeConfig,
   key: string,
+  config: PrototypeConfig,
   element: any
 ): any {
   const entry = NAMESPACE_REGISTRY[config.prototype];

@@ -69,11 +69,11 @@ export default {
       },
 
       attributes: {
-        'data-valid': '${this.$isValid()}',
-        'data-show-error': '${this.$shouldShowError()}',
-        'data-field-type': '${this.$type.get()}',
-        'data-is-input': '${this.$isInputField()}',
-        'data-is-textarea': '${this.$isTextareaField()}',
+        'data-valid': '${this.$isValid}',
+        'data-show-error': '${this.$shouldShowError}',
+        'data-field-type': '${this.$type}',
+        'data-is-input': '${this.$isInputField}',
+        'data-is-textarea': '${this.$isTextareaField}',
       },
 
       style: {
@@ -113,7 +113,7 @@ export default {
       children: [
         {
           tagName: 'label',
-          textContent: 'this.$label.get()',
+          textContent: '${this.$label}',
           style: {
             display: 'block',
             marginBottom: '0.5em',
@@ -122,10 +122,10 @@ export default {
         },
         {
           tagName: 'input',
-          name: 'this.$label.get()',
-          type: 'this.$type.get()',
-          placeholder: 'this.$placeholder.get()',
-          value: '${this.$value.get()}',
+          name: '${this.$label}',
+          type: '${this.$type}',
+          placeholder: '${this.$placeholder}',
+          value: '${this.$value}',
           className: 'field-input input-field',
           style: {
             width: '-webkit-fill-available',
@@ -140,10 +140,10 @@ export default {
         },
         {
           tagName: 'textarea',
-          name: 'this.$label.get()',
-          placeholder: 'this.$placeholder.get()',
-          value: '${this.$value.get()}',
-          rows: 'this.$rows.get()',
+          name: '${this.$label}',
+          placeholder: '${this.$placeholder}',
+          value: '${this.$value}',
+          rows: '${this.$rows}',
           className: 'field-input textarea-field',
           style: {
             width: '-webkit-fill-available',
@@ -158,7 +158,7 @@ export default {
         },
         {
           tagName: 'div',
-          textContent: '${this.$currentErrorMessage()}',
+          textContent: '${this.$currentErrorMessage}',
           className: 'error-message',
           style: {
             color: '#dc3545',
@@ -245,7 +245,7 @@ export default {
 
       // Set reactive data attributes
       attributes: {
-        'data-form-valid':  '${this.$isFormValid()}',
+        'data-form-valid': '${this.$isFormValid}',
       },
 
       children: [
@@ -353,19 +353,19 @@ export default {
               children: [
                 {
                   tagName: 'div',
-                  textContent: 'Name: ${this.$name.get()}',
+                  textContent: 'Name: ${this.$name}',
                 },
                 {
                   tagName: 'div',
-                  textContent: 'Email: ${this.$email.get()}',
+                  textContent: 'Email: ${this.$email}',
                 },
                 {
                   tagName: 'div',
-                  textContent: 'Message: ${this.$message.get()}',
+                  textContent: 'Message: ${this.$message}',
                 },
                 {
                   tagName: 'div',
-                  textContent: 'Valid: ${this.$isFormValid() ? "Yes" : "No"}',
+                  textContent: 'Valid: ${this.$isFormValid ? "Yes" : "No"}',
                   className: 'form-status',
                   style: {
                     marginTop: '0.5em',
