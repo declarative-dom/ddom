@@ -9,9 +9,9 @@ export default {
 	$todoList: ['Learn DDOM', 'Build awesome apps'],
 
 	// Computed properties using template literals
-	$fullGreeting: '${this.$greeting.get()} ${this.$userName.get()}!',
-	$counterDisplay: 'Count: ${this.$counter.get()}',
-	$todoCount: '${this.$todoList.get().length}',
+	$fullGreeting: '${this.$greeting} ${this.$userName}!',
+	$counterDisplay: 'Count: ${this.$counter}',
+	$todoCount: '${this.$todoList.length}',
 
 	// Demo methods that operate on the reactive state
 	incrementCounter: function() {
@@ -222,7 +222,7 @@ export default {
 										}, {
 											tagName: 'div',
 											className: 'reactive-display',
-											textContent: '${this.$counterDisplay.get()}',
+											textContent: '${this.$counterDisplay}',
 											style: {
 												fontSize: '1.2em',
 												fontWeight: 'bold',
@@ -330,7 +330,7 @@ export default {
 										},
 										{
 											tagName: 'div',
-											className: 'reactive-display', textContent: '${this.$fullGreeting.get()}',
+											className: 'reactive-display', textContent: '${this.$fullGreeting}',
 											style: {
 												fontSize: '1.2em',
 												fontWeight: 'bold',
@@ -597,17 +597,17 @@ export default {
 											children: [
 												{
 													tagName: 'div',
-													textContent: '${this.$counterDisplay.get()}',
+													textContent: '${this.$counterDisplay}',
 													style: { color: '#2196F3', marginBottom: '5px' }
 												},
 												{
 													tagName: 'div',
-													textContent: 'Name: ${this.$userName.get()}',
+													textContent: 'Name: ${this.$userName}',
 													style: { color: '#28a745', marginBottom: '5px' }
 												},
 												{
 													tagName: 'div',
-													textContent: 'Greeting: ${this.$greeting.get()}',
+													textContent: 'Greeting: ${this.$greeting}',
 													style: { color: '#ff9800' }
 												}
 											]

@@ -68,7 +68,7 @@ export default {
       $example: '',
 
       attributes: {
-        'data-active': '${window.$currentExample.get() === this.$example.get()}',
+        'data-active': '${window.$currentExample === this.$example}',
       },
 
       style: {
@@ -88,7 +88,7 @@ export default {
       children: [
         {
           tagName: 'button',
-          textContent: '${this.$label.get()}', // Use the reactive label property
+          textContent: '${this.$label}', // Use the reactive label property
           style: {
             padding: '0.5em 1em',
             border: '1px solid #007bff',
@@ -151,7 +151,7 @@ export default {
               },
               children: {
                 prototype: 'Array',
-                items: 'Object.entries(window.$examples.get())',
+                items: 'Object.entries(window.$examples)',
                 map: {
                   tagName: 'nav-button',
                   id: 'nav-${item[0]}',

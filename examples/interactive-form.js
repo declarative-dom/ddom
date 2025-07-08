@@ -69,11 +69,11 @@ export default {
       },
 
       attributes: {
-        'data-valid': '${this.$isValid}',
-        'data-show-error': '${this.$shouldShowError}',
+        'data-valid': '${this.$isValid()}',
+        'data-show-error': '${this.$shouldShowError()}',
         'data-field-type': '${this.$type}',
-        'data-is-input': '${this.$isInputField}',
-        'data-is-textarea': '${this.$isTextareaField}',
+        'data-is-input': '${this.$isInputField()}',
+        'data-is-textarea': '${this.$isTextareaField()}',
       },
 
       style: {
@@ -153,12 +153,12 @@ export default {
             fontSize: '1em',
           },
           oninput: function (e) {
-            this.parentNode.$value.set(e.target.value);
+            this.$value.set(e.target.value);
           },
         },
         {
           tagName: 'div',
-          textContent: '${this.$currentErrorMessage}',
+          textContent: '${this.$currentErrorMessage()}',
           className: 'error-message',
           style: {
             color: '#dc3545',
@@ -245,7 +245,7 @@ export default {
 
       // Set reactive data attributes
       attributes: {
-        'data-form-valid': '${this.$isFormValid}',
+        'data-form-valid': '${this.$isFormValid()}',
       },
 
       children: [
@@ -255,7 +255,7 @@ export default {
           $type: 'text',
           $placeholder: 'Enter your name (minimum 2 characters)',
           $errorMessage: 'Name must be at least 2 characters',
-          $validator: (value) => value.trim().length >= 2,
+          $validator: (value) => value && value.trim().length >= 2,
           // Inherit the value signal from parent
           $value: 'this.$name',
         },
@@ -365,7 +365,7 @@ export default {
                 },
                 {
                   tagName: 'div',
-                  textContent: 'Valid: ${this.$isFormValid ? "Yes" : "No"}',
+                  textContent: 'Valid: ${this.$isFormValid() ? "Yes" : "No"}',
                   className: 'form-status',
                   style: {
                     marginTop: '0.5em',

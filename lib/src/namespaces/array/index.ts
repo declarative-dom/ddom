@@ -8,7 +8,7 @@
  */
 
 import { Signal } from '../../core/signals';
-import { resolveOperand } from '../../utils/evaluation';
+import { isSignal, resolveOperand } from '../../utils/evaluation';
 import { PrototypeConfig, FilterCriteria, SortCriteria } from '../types';
 import { detectMutableProps } from '../../utils';
 import { applyFilters } from './filter';
@@ -49,7 +49,7 @@ function resolveSourceSignal(items: string | any[], parentElement?: Element): Si
     const resolved = resolveOperand(items, parentElement || document.body);
     if (resolved !== null) {
       // Check if it's a signal
-      if (Signal.isState(resolved) || Signal.isComputed(resolved)) {
+      if (isSignal(resolved)) {
         return resolved;
       } else if (Array.isArray(resolved)) {
         // Static array - wrap in a signal

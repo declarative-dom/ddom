@@ -54,13 +54,16 @@ export const IMMUTABLE_PROPERTIES = new Set(['id', 'tagName']);
  * Uses safe template resolution with automatic signal dependency tracking.
  */
 function createTemplateSignal(template: string, contextNode: any): Signal.Computed<string> {
-  // Create context from the node's signal properties
+  // Clean context - all contextNode properties accessible via 'this'
   const context = {
     this: contextNode,
     window: globalThis.window,
     document: globalThis.document
   };
-  return new Signal.Computed(() => resolveTemplate(template, context));
+  return new Signal.Computed(() => {
+    // Synchronously resolve template for computed signal
+    return resolveTemplate(template, context);
+  });
 }
 
 // === PROPERTY PATTERN CLASSIFICATION ===
@@ -133,7 +136,14 @@ const ValueProcessors = {
 
   accessor: (_key: string, value: string, contextNode: any): ProcessedProperty => {
     try {
-      const resolved = resolveProperty(value, contextNode);
+      const context = {
+        this: contextNode,
+        window: globalThis.window,
+        document: globalThis.document,
+        // ...contextNode
+      };
+      const resolved = resolveProperty(context, value);
+      console.debug('🔍 Accessor resolved:', value, '→', resolved);
       if (resolved !== null) {
         return {
           type: getValueType(resolved),
@@ -151,9 +161,9 @@ const ValueProcessors = {
     }
   },
 
-  function: (_key: string, value: Function): ProcessedProperty => ({
+  function: (_key: string, value: Function, contextNode: any): ProcessedProperty => ({
     type: 'function',
-    value: value,
+    value: value.bind(contextNode), // ← Pre-bind to the element
     isValid: true
   }),
 
@@ -203,11 +213,12 @@ export function processScopedProperty(
     console.debug('🔍 processScopedProperty:', key, '=', value, 'typeof:', typeof value);
     const pattern = classifyProperty(value);
     console.debug('🎯 Classified', key, 'as:', pattern);
+    let processed: ProcessedProperty;
 
     switch (pattern) {
       case 'function':
         // Scoped functions remain as functions (unusual but valid)
-        return ValueProcessors.function(key, value);
+        return ValueProcessors.function(key, value, contextNode);
 
       case 'namespaced':
         // Scoped namespaced objects
@@ -219,16 +230,7 @@ export function processScopedProperty(
 
       case 'accessor':
         // Accessor → Resolve then wrap in signal if needed
-        const processed = ValueProcessors.accessor(key, value, contextNode);
-        // If resolution succeeded, wrap in signal for reactivity
-        if (processed.isValid && processed.type !== 'Signal.State' && processed.type !== 'Signal.Computed') {
-          return {
-            type: 'Signal.State',
-            value: new Signal.State(processed.value),
-            isValid: processed.isValid
-          };
-        }
-        return processed;
+        return ValueProcessors.accessor(key, value, contextNode);
 
       case 'string':
       case 'primitive':
@@ -275,7 +277,7 @@ export function processProperty(
     switch (pattern) {
       case 'function':
         // Functions stay as functions (events, callbacks)
-        return ValueProcessors.function(key, value);
+        return ValueProcessors.function(key, value, contextNode);
 
       case 'namespaced':
         // Namespaced objects for complex behaviors
@@ -335,7 +337,7 @@ export function processAttributeValue(
       case 'function':
         // Functions become computed signals for reactive attribute updates
         try {
-          const computed = new Signal.Computed(value);
+          const computed = new Signal.Computed(value.bind(contextNode));
           return {
             type: 'Signal.Computed',
             value: computed,
@@ -365,8 +367,8 @@ export function processAttributeValue(
  */
 function validateComputedValue(computed: Signal.Computed<any>): boolean {
   try {
-    const evaluated = computed.get();
-    return evaluated != null && evaluated !== '';
+    computed.get();
+    return true;
   } catch (error) {
     return false;
   }

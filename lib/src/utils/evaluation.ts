@@ -13,6 +13,114 @@ export function isNestedProperty(str: string): boolean {
 }
 
 /**
+ * Checks if a string is a function call with arguments (e.g., "Object.entries(arg)", "method()")
+ */
+export function isFunctionCallWithArgs(str: string): boolean {
+  return /^[a-zA-Z_$][a-zA-Z0-9_$]*(\.[a-zA-Z_$][a-zA-Z0-9_$]*)*\([^)]*\)$/.test(str);
+}
+
+/**
+ * Checks if a string is a simple function call (e.g., "this.method()", "obj.func()")
+ */
+export function isFunctionCall(str: string): boolean {
+  return /^[a-zA-Z_$][a-zA-Z0-9_$]*(\.[a-zA-Z_$][a-zA-Z0-9_$]*)*\(\)$/.test(str);
+}
+
+/**
+ * Checks if a string represents a literal value (string, number, boolean, null, undefined)
+ */
+function isLiteral(str: string): boolean {
+  return /^(['"`]).*\1$|^\d+$|^(true|false|null|undefined)$/.test(str.trim());
+}
+
+/**
+ * Checks if an object is a signal
+ */
+export function isSignal(obj: any): boolean {
+  return obj && typeof obj === 'object' && typeof obj.get === 'function';
+}
+
+/**
+ * Enhanced function call evaluator with support for safe global functions.
+ * Supports Object.*, Array.*, JSON.*, and context method calls.
+ * 
+ * @param expr - Function call expression (e.g., "Object.entries(window.$examples)")
+ * @param context - The context object for resolving arguments and methods
+ * @returns The result of the function call
+ */
+function evaluateFunction(expr: string, context: any): any {
+  const functionMatch = expr.match(/^([a-zA-Z_$][a-zA-Z0-9_$]*(?:\.[a-zA-Z_$][a-zA-Z0-9_$]*)*)\(([^)]*)\)$/);
+  if (!functionMatch) {
+    return null;
+  }
+  
+  const [, functionPath, argsString] = functionMatch;
+  console.debug('🔧 Evaluating function call:', functionPath, 'with args:', argsString);
+  
+  // Parse arguments safely
+  const args = argsString.trim() ? argsString.split(',').map(arg => {
+    const trimmed = arg.trim();
+    if (!trimmed) return undefined;
+    
+    // Handle literals
+    if (isLiteral(trimmed)) {
+      return parseLiteral(trimmed);
+    }
+    
+    // Resolve from context with automatic signal resolution
+    return resolveTemplateProperty(context, trimmed);
+  }).filter(arg => arg !== undefined) : [];
+  
+  console.debug('🔧 Parsed function args:', args);
+  
+  // Handle safe global functions
+  try {
+    switch (functionPath) {
+      case 'Object.entries':
+        return Object.entries(args[0] || {});
+      case 'Object.keys':
+        return Object.keys(args[0] || {});
+      case 'Object.values':
+        return Object.values(args[0] || {});
+      case 'Array.from':
+        return Array.from(args[0] || []);
+      case 'Array.isArray':
+        return Array.isArray(args[0]);
+      case 'JSON.stringify':
+        return JSON.stringify(args[0], args[1], args[2]);
+      case 'JSON.parse':
+        return JSON.parse(args[0]);
+      default:
+        // Handle method calls on context objects
+        const pathParts = functionPath.split('.');
+        const methodName = pathParts.pop();
+        const objectPath = pathParts.join('.');
+        
+        if (objectPath) {
+          const obj = resolveTemplateProperty(context, objectPath);
+          if (obj && typeof obj[methodName!] === 'function') {
+            console.debug('🔧 Calling method:', methodName, 'on object:', obj);
+            return obj[methodName!](...args);
+          }
+        } else {
+          // Direct function call from context
+          const fn = resolveTemplateProperty(context, functionPath);
+          if (typeof fn === 'function') {
+            console.debug('🔧 Calling function:', functionPath, 'from context');
+            return fn(...args);
+          }
+        }
+        
+        console.warn('Function not found or not callable:', functionPath);
+        return null;
+    }
+  } catch (error) {
+    console.warn('Function call failed:', functionPath, error);
+    return null;
+  }
+}
+
+/**
  * Safe property resolver with fallback support
  * Supports both dots (obj.prop.subprop) and brackets (obj[0], obj['key'], obj[0].name)
  * 
@@ -34,21 +142,42 @@ export function resolveProperty(obj: any, path: string, fallback: any = null): a
 }
 
 /**
- * Property resolver with automatic signal resolution.
+ * Property resolver with automatic signal resolution and function call support.
  * 
  * @param obj - The object to traverse
- * @param path - Property path (e.g., 'user.name', 'items[0]', 'data[0].name')
+ * @param path - Property path (e.g., 'user.name', 'items[0]', 'data[0].name') or function call ('this.method()')
  * @param fallback - Value to return if path resolution fails
- * @returns The resolved value, auto-resolved signal value, or fallback
+ * @returns The resolved value, auto-resolved signal value, function call result, or fallback
  */
 export function resolveTemplateProperty(obj: any, path: string, fallback: any = null): any {
   if (!obj || !path) return fallback;
   
   try {
+    // Check if it's a function call with arguments
+    if (isFunctionCallWithArgs(path)) {
+      return evaluateFunction(path, obj);
+    }
+    
+    // Check if it's a simple function call
+    if (isFunctionCall(path)) {
+      const functionPath = path.replace(/\(\)$/, ''); // Remove the ()
+      const resolved = resolveProperty(obj, functionPath, fallback);
+      
+      // Call the function if it exists
+      if (typeof resolved === 'function') {
+        console.debug('🎯 Calling function:', path, 'on context');
+        return resolved.call(obj); // Use call to preserve 'this' context
+      } else {
+        console.warn('Attempted to call non-function:', path, 'resolved to:', resolved);
+        return fallback;
+      }
+    }
+    
+    // Regular property resolution
     const resolved = resolveProperty(obj, path, fallback);
     
-    // 🎯 AUTO-RESOLVE SIGNALS! No more .get() needed
-    if (resolved && typeof resolved === 'object' && typeof resolved.get === 'function') {
+    // 🎯 AUTO-RESOLVE SIGNALS! No explicit .get() needed
+    if (isSignal(resolved)) {
       console.debug('🎯 Auto-resolving signal:', path, '→', resolved.get());
       return resolved.get();
     }
@@ -224,13 +353,6 @@ function evaluateSafeExpression(expr: string, context: any): any {
 }
 
 /**
- * Checks if a string represents a literal value (string, number, boolean, null, undefined)
- */
-function isLiteral(str: string): boolean {
-  return /^(['"`]).*\1$|^\d+$|^(true|false|null|undefined)$/.test(str.trim());
-}
-
-/**
  * Parses a literal string into its actual value
  */
 function parseLiteral(str: string): any {
@@ -280,6 +402,20 @@ export function resolveOperand(operand: any, item: any, additionalContext?: any)
     const resolvedOperand = operand === 'item' ? 'this' : operand;
     const result = resolveProperty(context, resolvedOperand);
     console.debug('🔍 resolveProperty result:', result, 'for operand:', operand);
+    return result;
+  }
+  
+  // Function call with arguments (e.g., "Object.entries(window.$examples)", "this.method(arg)")
+  if (isFunctionCallWithArgs(operand)) {
+    const result = resolveTemplateProperty(context, operand);
+    console.debug('🔍 Function call with args result:', result, 'for operand:', operand);
+    return result;
+  }
+  
+  // Function call (e.g., "this.method()", "window.helper()")
+  if (isFunctionCall(operand)) {
+    const result = resolveTemplateProperty(context, operand);
+    console.debug('🔍 Function call result:', result, 'for operand:', operand);
     return result;
   }
   

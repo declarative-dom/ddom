@@ -58,8 +58,8 @@ import { DOMSpecOptions } from './types';
  * });
  * ```
  */
-export function adoptDocument(spec: DocumentSpec): void {
-  adoptNode(spec, document);
+export function adoptDocument(spec: DocumentSpec, options: DOMSpecOptions = {}): void {
+  adoptNode(spec, document, options);
 }
 
 /**

@@ -81,7 +81,7 @@ export function applyPropertyBinding(
       // Special handling for document property - adopt into existing document instead of replacing
       if (value && typeof value === 'object' && el === window) {
         // Apply the document spec directly to the document object
-        adoptDocument(value);
+        adoptDocument(value, options);
         return;
       }
       break;
