@@ -226,7 +226,12 @@ const operators = {
   '>=': (a: any, b: any) => a >= b,
   '<=': (a: any, b: any) => a <= b,
   '>': (a: any, b: any) => a > b,
-  '<': (a: any, b: any) => a < b
+  '<': (a: any, b: any) => a < b,
+  'includes': (a: any, b: any) => String(a).includes(String(b)),
+  'startsWith': (a: any, b: any) => String(a).startsWith(String(b)),
+  'endsWith': (a: any, b: any) => String(a).endsWith(String(b)),
+  'in': (a: any, b: any) => String(a) in Object(b),
+  'matches': (a: any, b: any) => new RegExp(String(b)).test(String(a))
 } as const;
 
 export type Operator = keyof typeof operators;
@@ -275,13 +280,26 @@ const evaluateExpression = (expr: string, context: any): any => {
   console.debug('🔍 evaluateExpression called with:', expr, 'context keys:', Object.keys(context));
   
   // Ternary: condition ? true : false
-  const ternaryMatch = expr.match(/^(.+?)\s*\?\s*(.+?)\s*:\s*(.+)$/);
+  const ternaryMatch = expr.match(/^(.+?)\s*(?<!\?)\?\s*(?!\.)(.+?)\s*:\s*(.+)$/);
   if (ternaryMatch) {
     const [, condition, truthy, falsy] = ternaryMatch;
-    const conditionResult = evaluateComparison(condition.trim(), context) ?? 
-                           unwrapSignal(resolveProperty(context, condition.trim()));
+    let conditionResult: any;
+    console.debug('🔍 Ternary expression detected');
+    if (condition.trim().includes(' ')) {
+      // Likely a comparison expression
+      const comparisonResult = evaluateComparison(condition, context);
+      conditionResult = comparisonResult !== null ? comparisonResult : unwrapSignal(resolveProperty(context, condition));
+    } else {
+      // Simple property/function call - check truthiness
+      conditionResult = !!unwrapSignal(resolveProperty(context, condition));
+      console.debug('🔍 Condition result:', conditionResult, 'for condition:', condition);
+    }
+    // const conditionResult = evaluateComparison(condition.trim(), context) ?? 
+    //                        unwrapSignal(resolveProperty(context, condition.trim()));
     const resultPath = conditionResult ? truthy.trim() : falsy.trim();
-    return isLiteral(resultPath) ? parseLiteral(resultPath) : unwrapSignal(resolveProperty(context, resultPath));
+    const result = isLiteral(resultPath) ? parseLiteral(resultPath) : unwrapSignal(resolveProperty(context, resultPath));
+    console.debug('🔍 Ternary result:', result, 'for condition:', resultPath)
+    return result;
   }
 
   // Logical OR: fallback chaining
