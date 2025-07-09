@@ -9,7 +9,7 @@
  */
 
 import { SortCriteria } from '../../types';
-import { resolveProperty } from '../../utils/evaluation';
+import { resolveTemplateProperty } from '../../utils/evaluation';
 
 /**
  * Applies an array of sort expressions to items
@@ -86,7 +86,7 @@ function getSortValue(item: any, sortBy: string | ((item: any) => any)): any {
   
   if (typeof sortBy === 'string') {
     // Property path (e.g., "name", "user.profile.age")
-    return resolveProperty(item, sortBy);
+    return resolveTemplateProperty(item, sortBy);
   }
   
   return item;

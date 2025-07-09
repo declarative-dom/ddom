@@ -42,23 +42,18 @@ export const createRequestNamespace = (
   // Create the signal that will hold the response (can be data or error object)
   const responseSignal = new Signal.State<any>(null);
   
-  // Process the config to set up reactive dependencies
-  const resolvedConfig = resolveConfig(config, element);
-  
   // Set up automatic fetching unless manual mode
   if (!config.manual) {
-    createRequestEffect(responseSignal, resolvedConfig);
+    createRequestEffect(responseSignal, config, element);
   }
   
   // Add fetch method to the signal for manual triggering
-  (responseSignal as any).fetch = async (overrideConfig?: Partial<RequestConfig>) => {
-    const currentConfig = resolvedConfig;
-    if (!currentConfig) return null;
-    
-    const finalConfig = overrideConfig ? { ...currentConfig, ...overrideConfig } : currentConfig;
+  (responseSignal as any).fetch = async () => {
+    const { value: resolvedConfig, isValid } = resolveConfig(config, element);
+    if (!resolvedConfig || !isValid) return {};
     
     try {
-      const response = await performFetch(finalConfig);
+      const response = await performFetch(resolvedConfig);
       responseSignal.set(response);
       return response;
     } catch (error) {
@@ -78,7 +73,8 @@ export const createRequestNamespace = (
  */
 function createRequestEffect(
   requestSignal: Signal.State<any>,
-  resolvedConfig: RequestConfig,
+  config: RequestConfig,
+  element: any
 ): void {
   let debounceTimer: any = null;
 
@@ -88,10 +84,10 @@ function createRequestEffect(
 
   const cleanup = createEffect(() => {
     try {
-      // Evaluate config to trigger reactive dependencies and check validity
-      const finalConfig = resolvedConfig;
+      // Reactively resolve config - this will create dependencies on signals
+      const { value: resolvedConfig, isValid } = resolveConfig(config, element);
 
-      if (!finalConfig) {
+      if (!resolvedConfig || !isValid) {
         // Don't execute if config is invalid
         return;
       }
@@ -102,12 +98,12 @@ function createRequestEffect(
       }
 
       // Execute with debounce if specified
-      if (finalConfig.debounce && finalConfig.debounce > 0) {
+      if (resolvedConfig.debounce && resolvedConfig.debounce > 0) {
         debounceTimer = setTimeout(() => {
-          executeRequest(requestSignal, finalConfig);
-        }, finalConfig.debounce);
+          executeRequest(requestSignal, resolvedConfig);
+        }, resolvedConfig.debounce);
       } else {
-        executeRequest(requestSignal, finalConfig);
+        executeRequest(requestSignal, resolvedConfig);
       }
     } catch (error) {
       // If there's an error resolving config, don't execute
@@ -128,16 +124,16 @@ function createRequestEffect(
  */
 async function executeRequest(
   requestSignal: Signal.State<any>,
-  finalConfig: any
+  resolvedConfig: any
 ): Promise<void> {
   try {
     // URL is required and must be valid
-    if (!finalConfig.url || finalConfig.url === '' || finalConfig.url === 'undefined') {
+    if (!resolvedConfig.url || resolvedConfig.url === '' || resolvedConfig.url === 'undefined') {
       // Don't log an error for empty/undefined URLs - just skip silently
       return;
     }
 
-    const response = await performFetch(finalConfig);
+    const response = await performFetch(resolvedConfig);
     requestSignal.set(response);
   } catch (error) {
     console.warn('Request failed:', error);

@@ -18,7 +18,7 @@
  */
 
 import { Signal } from './signals';
-import { resolveProperty, resolveTemplate } from '../utils/evaluation';
+import { resolveTemplateProperty, resolveTemplate } from '../utils/evaluation';
 import { processNamespacedProperty } from '../namespaces/index';
 
 
@@ -142,7 +142,7 @@ const ValueProcessors = {
         document: globalThis.document,
         // ...contextNode
       };
-      const resolved = resolveProperty(context, value);
+      const resolved = resolveTemplateProperty(context, value);
       console.debug('🔍 Accessor resolved:', value, '→', resolved);
       if (resolved !== null) {
         return {

@@ -5,7 +5,9 @@
  * Follows the Rule of Least Power - no imperative functions, only declarative templates.
  */
 
-import { resolveProperty, resolveTemplate, isNestedProperty } from '../../utils/evaluation';
+import { resolveProperty, resolveTemplate, isValidAccessor, resolveOperand } from '../../utils/evaluation';
+
+const ACCESSOR_REGEX = /^(item|index|window|document)$/;
 
 /**
  * Applies a mapping template to items
@@ -36,12 +38,12 @@ function transformTemplate(template: string, item: any, index: number): string {
   try {
     // Create evaluation context with item, index, and common globals
     const context = {
-      item,
-      index,
+      item: item,
+      index: index,
       window: globalThis.window,
       document: globalThis.document
     };
-    
+
     // Use shared evaluation function for consistency
     return resolveTemplate(template, context);
   } catch (error) {
@@ -58,12 +60,12 @@ function transformObject(template: object, item: any, index: number): any {
     // Handle arrays recursively
     return template.map(element => transformObject(element, item, index));
   }
-  
+
   if (typeof template !== 'object' || template === null) {
     // Handle primitive values
     return template;
   }
-  
+
   // Transform object properties
   const result: any = {};
 
@@ -72,11 +74,14 @@ function transformObject(template: object, item: any, index: number): any {
       if (value.includes('${')) {
         // String template properties - evaluate with item context
         result[key] = transformTemplate(value, item, index);
-      } else if (isNestedProperty(value)) {
+      } else if (ACCESSOR_REGEX.test(value)) {
         // Use shared operand resolution for property accessors like 'item[0]', 'item[1].name'
         console.debug('🔍 Evaluating property accessor:', value, 'with item:', item, 'index:', index);
-        result[key] = evaluateAccessor(value, item, index);
+        const resolved = evaluateAccessor(value, item, index);
+        console.debug('🔧 Accessor resolved to:', resolved);
+        result[key] = resolved;
       } else {
+        console.debug('🔍 isValidAccessor returned false for:', value);
         // Direct value string
         result[key] = value;
       }
@@ -88,7 +93,7 @@ function transformObject(template: object, item: any, index: number): any {
       result[key] = value;
     }
   });
-  
+
   return result;
 }
 
@@ -98,8 +103,14 @@ function transformObject(template: object, item: any, index: number): any {
  * with the given item and index values
  */
 export function evaluateAccessor(accessor: string, item: any, index: number): any {
-  const context = { index, item };
-  
-  // Handle direct accessor resolution - the context object is what we search in
-  return resolveProperty(context, accessor);
+  // Special cases for array mapping context
+  if (accessor === 'item') return item;
+  if (accessor === 'index') return index;
+  const context = {
+    item: item,
+    index: index,
+    window: globalThis.window,
+    document: globalThis.document
+  };
+  return resolveProperty(context, accessor, accessor);
 }

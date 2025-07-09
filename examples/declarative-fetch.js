@@ -33,7 +33,7 @@ export default {
 	// Auto-fetch weather data when location changes
 	$weatherData: {
 		prototype: 'Request',
-		url: '${this.$weatherForecastAPI.get()?.properties?.forecast}',
+		url: '${this.$weatherForecastAPI?.properties?.forecast}',
 		delay: 500 // Delay to prevent rapid API calls
 	},
 
@@ -228,7 +228,7 @@ export default {
 										},
 										{
 											tagName: 'p',
-											textContent: 'Forecast start time: ${this.$currentWeather()?.startTime ? new Date(this.$currentWeather().startTime).toLocaleString() : "N/A"}',
+											textContent: 'Forecast start time: ${window.$currentWeather()?.startTime ? new Date(window.$currentWeather().startTime).toLocaleString() : "N/A"}',
 											style: {
 												margin: 0,
 												color: '#94a3b8',
@@ -268,7 +268,7 @@ export default {
 												},
 												{
 													tagName: 'div',
-													textContent: '${this.$currentWeather()?.temperature ? this.$currentWeather().temperature + "°F" : "N/A"}',
+													textContent: '${window.$currentWeather()?.temperature ? window.$currentWeather().temperature + "°F" : "N/A"}',
 													style: {
 														fontSize: '1.5rem',
 														fontWeight: 'bold',
@@ -307,7 +307,7 @@ export default {
 												},
 												{
 													tagName: 'div',
-													textContent: '${this.$currentWeather()?.windSpeed || "N/A"}',
+													textContent: '${window.$currentWeather()?.windSpeed || "N/A"}',
 													style: {
 														fontSize: '1.5rem',
 														fontWeight: 'bold',
@@ -346,7 +346,7 @@ export default {
 												},
 												{
 													tagName: 'div',
-													textContent: '${this.$currentWeather()?.shortForecast || "N/A"}',
+													textContent: '${window.$currentWeather()?.shortForecast || "N/A"}',
 													style: {
 														fontSize: '1.2rem',
 														fontWeight: 'bold',
@@ -385,7 +385,7 @@ export default {
 												},
 												{
 													tagName: 'div',
-													textContent: '${this.$currentWeather()?.windDirection || "N/A"}',
+													textContent: '${window.$currentWeather()?.windDirection || "N/A"}',
 													style: {
 														fontSize: '1.5rem',
 														fontWeight: 'bold',
@@ -426,7 +426,7 @@ export default {
 										},
 										{
 											tagName: 'p',
-											textContent: '${this.$currentWeather()?.detailedForecast || "No detailed forecast available"}',
+											textContent: '${window.$currentWeather()?.detailedForecast || "No detailed forecast available"}',
 											style: {
 												display: 'block',
 												padding: '1rem',
