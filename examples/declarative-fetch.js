@@ -52,6 +52,13 @@ export default {
 		return data?.properties?.periods?.[0] || null;
 	},
 
+	// Format forecast start time for display
+	$forecastStartTime: function () {
+		const weather = this.$currentWeather();
+		if (!weather?.startTime) return "N/A";
+		return new Date(weather.startTime).toLocaleString();
+	},
+
 	// Define the document structure
 	document: {
 		title: 'Aviation Weather - Declarative DOM',
@@ -171,7 +178,7 @@ export default {
 					},
 					attributes: {
 						hidden: function () {
-							return !window.$currentWeather();
+							return !!window.$currentWeather();
 						}
 					},
 					children: [
@@ -228,7 +235,7 @@ export default {
 										},
 										{
 											tagName: 'p',
-											textContent: 'Forecast start time: ${window.$currentWeather()?.startTime ? new Date(window.$currentWeather().startTime).toLocaleString() : "N/A"}',
+											textContent: 'Forecast start time: ${window.$forecastStartTime()}',
 											style: {
 												margin: 0,
 												color: '#94a3b8',

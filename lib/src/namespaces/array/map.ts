@@ -5,9 +5,9 @@
  * Follows the Rule of Least Power - no imperative functions, only declarative templates.
  */
 
-import { resolveProperty, resolveTemplate, isValidAccessor, resolveOperand } from '../../utils/evaluation';
+import { resolveAccessor, resolveTemplate, resolveOperand } from '../../utils/evaluation';
 
-const ACCESSOR_REGEX = /^(item|index|window|document)$/;
+const ACCESSOR_REGEX = /^(item|index|window|document)/;
 
 /**
  * Applies a mapping template to items
@@ -106,11 +106,13 @@ export function evaluateAccessor(accessor: string, item: any, index: number): an
   // Special cases for array mapping context
   if (accessor === 'item') return item;
   if (accessor === 'index') return index;
+
   const context = {
     item: item,
     index: index,
     window: globalThis.window,
     document: globalThis.document
   };
-  return resolveProperty(context, accessor, accessor);
+
+  return resolveAccessor(context, accessor, accessor);
 }

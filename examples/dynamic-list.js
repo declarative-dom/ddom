@@ -12,10 +12,19 @@ export default {
   $newItemText: "",
 
   $addItem: function () {
+    console.log("🔥 $addItem called");
     const newItem = this.$newItemText.get().trim();
+    console.log("🔥 New item text:", newItem);
     if (newItem) {
-      this.$items.set([...this.$items.get(), newItem]);
+      const currentItems = this.$items.get();
+      console.log("🔥 Current items:", currentItems);
+      const updatedItems = [...currentItems, newItem];
+      console.log("🔥 Updated items:", updatedItems);
+      this.$items.set(updatedItems);
+      console.log("🔥 Items set successfully");
+      console.log("🔥 Items after set:", this.$items.get());
       this.$newItemText.set(""); // Clear the input
+      console.log("🔥 Input cleared");
     }
   },
 
@@ -141,6 +150,7 @@ export default {
                     },
                   },
                   onclick: function () {
+                    console.log("🚀 Add button clicked!");
                     window.$addItem();
                   },
                 },

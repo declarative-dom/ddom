@@ -21,27 +21,29 @@
  * unwrapSignal(signal); // 42
  * unwrapSignal("hello"); // "hello"
  */
-const unwrapSignal = (value: any): any => 
+const unwrapSignal = (value: any): any =>
   value?.get && typeof value.get === 'function' ? value.get() : value;
 
 /**
- * Core property resolver that preserves signals and handles function calls.
- * Traverses object property paths while maintaining signal objects.
+ * Simple accessor expression resolver that preserves signals and handles function calls.
+ * Used for direct property access, namespace configs, and maintaining reactivity.
+ * Does NOT unwrap signals - returns them as-is for manual .get()/.set() operations.
  * 
  * @param {any} obj - The root object to traverse
- * @param {string} path - Property path to resolve (e.g., 'user.name', 'items[0]')
+ * @param {string} path - Property path to resolve (e.g., 'user.name', 'this.$coords().lat')
  * @param {any} [fallback=null] - Value to return if resolution fails
- * @returns {any} The resolved value, preserving signals
+ * @returns {any} The resolved value, preserving signal objects
  * 
  * @example
- * resolveProperty(obj, 'user.name'); // Returns user.name (may be a signal)
- * resolveProperty(obj, 'this.$coords().lat'); // Calls function, accesses property
+ * resolveAccessor(obj, 'user.$name'); // Returns Signal object
+ * resolveAccessor(obj, 'this.$coords().lat'); // Calls function, accesses property
+ * resolveAccessor(obj, 'items[0].data'); // Array access with property
  */
-export const resolveProperty = (obj: any, path: string, fallback: any = null): any => {
+export const resolveAccessor = (obj: any, path: string, fallback: any = null): any => {
   try {
     return evaluateChain(obj, path) ?? fallback;
   } catch (error) {
-    console.warn('Property resolution failed:', path, error);
+    console.warn('Accessor expression resolution failed:', path, error);
     return fallback;
   }
 };
@@ -60,28 +62,44 @@ export const resolveProperty = (obj: any, path: string, fallback: any = null): a
  * evaluateChain(obj, 'this.$currentCoords()?.lat'); // Mixed optional chaining
  */
 const evaluateChain = (obj: any, path: string): any => {
-  // Enhanced regex to capture optional chaining markers
-  const segments = path.match(/(\?\.)?\s*([a-zA-Z_$][\w$]*(?:\([^)]*\))?|\[\d+\])/g) || [];
-  
-  return segments.reduce((current, segment) => {
-    // Check for optional chaining marker
-    const isOptional = segment.startsWith('?.');
-    const cleanSegment = segment.replace(/^\?\./, '').trim();
+  console.debug('🔍 evaluateChain called with:', path);
+
+  // Split on dots first, then handle array indices within each part
+  const parts = path.split('.');
+  console.debug('🔍 evaluateChain parts:', parts);
+
+  return parts.reduce((current, part, index) => {
+    console.debug('🔍 evaluateChain processing part:', part, 'current:', current);
     
-    // Return undefined for optional chaining if current is null/undefined
-    if (isOptional && current == null) return undefined;
-    
+    // Handle optional chaining - check for ? at the END of the part (from ?.split)
+    const isOptional = part.endsWith('?');
+    const cleanPart = part.replace(/\?$/, '').trim();
+    console.debug('🔍 evaluateChain isOptional:', isOptional, 'cleanPart:', cleanPart);
+
+    if (isOptional && current == null) {
+      console.debug('🔍 evaluateChain optional chain stopped at null');
+      return undefined;
+    }
+
     // Always unwrap signals before accessing properties
     if (current?.get && typeof current.get === 'function') {
+      console.debug('🔍 evaluateChain unwrapping signal');
       current = current.get();
-      // For optional chaining, return undefined if unwrapped signal is null
       if (isOptional && current == null) return undefined;
     }
-    
+
     if (!current) return current;
-    
-    // Function call: name(args)
-    const funcMatch = cleanSegment.match(/^([a-zA-Z_$][\w$]*)\(([^)]*)\)$/);
+
+    // Handle array access with property: item[1]
+    const arrayMatch = cleanPart.match(/^([a-zA-Z_$][\w$]*)\[(\d+)\]$/);
+    if (arrayMatch) {
+      const [, baseName, indexStr] = arrayMatch;
+      const base = current[baseName];
+      return base ? base[parseInt(indexStr)] : undefined;
+    }
+
+    // Handle function call: method()
+    const funcMatch = cleanPart.match(/^([a-zA-Z_$][\w$]*)\(([^)]*)\)$/);
     if (funcMatch) {
       const [, name, argsStr] = funcMatch;
       const func = current[name];
@@ -89,17 +107,13 @@ const evaluateChain = (obj: any, path: string): any => {
         const args = parseArgs(argsStr, current);
         return func.call(current, ...args);
       }
-      return isOptional ? undefined : undefined; // Consistent behavior
+      return undefined;
     }
-    
-    // Array index: [123]
-    const indexMatch = cleanSegment.match(/^\[(\d+)\]$/);
-    if (indexMatch) {
-      return current[parseInt(indexMatch[1])];
-    }
-    
-    // Property access: name
-    return current[cleanSegment];
+
+    // Simple property access
+    const result = current[cleanPart];
+    console.debug('🔍 evaluateChain property access result:', result);
+    return result;
   }, obj);
 };
 
@@ -117,35 +131,53 @@ const evaluateChain = (obj: any, path: string): any => {
  */
 const parseArgs = (argsStr: string, context: any): any[] => {
   if (!argsStr.trim()) return [];
-  
+
   // Regex to split on commas while respecting quotes and nested parens/brackets
   const args = argsStr.match(/(?:[^,"'()\[\]]+|"[^"]*"|'[^']*'|\([^)]*\)|\[[^\]]*\])+/g) || [];
-  
+
   return args.map(arg => {
     const trimmed = arg.replace(/^,+|,+$/g, '').trim(); // Remove leading/trailing commas
-    return isLiteral(trimmed) ? parseLiteral(trimmed) : resolveProperty(context, trimmed);
+    console.debug('🔍 parseArgs processing:', trimmed);
+    const result = isLiteral(trimmed) ? parseLiteral(trimmed) : resolveAccessor(context, trimmed);
+    console.debug('🔍 parseArgs result:', trimmed, '→', result);
+    return result;
   });
 };
 
 /**
- * Detects if a string represents a literal value.
- * Supports strings, numbers, booleans, null, and undefined.
- * 
- * @param {string} str - The string to test
- * @returns {boolean} True if the string is a literal value
- * 
- * @example
- * isLiteral('"hello"'); // true
- * isLiteral('42'); // true
- * isLiteral('true'); // true
- * isLiteral('user.name'); // false
+ * Value type classification with regex patterns and functions.
+ * Simplified for template display and concatenation use cases.
  */
-const isLiteral = (str: string): boolean => 
-  /^(['"`]).*\1$|^\d+(\.\d+)?$|^(true|false|null|undefined)$/.test(str.trim());
+const VALUE_PATTERNS = {
+  TEMPLATE: /\$\{/,           // Template literals: 'Hello ${name}'
+  ACCESSOR: /^(window\.|document\.|this\.)/,  // Property accessors: 'window.data'
+  // ACCESSOR: /^[a-zA-Z_$][\w$]*(\.[a-zA-Z_$][\w$]*|\[\d+\](\.[a-zA-Z_$][\w$]*)*)*(\(\))?$/,  // more complex property accessors detection (not used currently)
+  FUNCTION_CALL: /^[a-zA-Z_$][\w.$]*\([^)]*\)$/,  // Function calls: 'getData()', 'user.getName()'
+  LITERAL_STRING: /^(['"`]).*\1$/,  // Quoted strings: '"hello"', "'world'"
+  LITERAL_NUMBER: /^\d+(\.\d+)?$/,  // Numbers: '42', '3.14'
+  LITERAL_BOOLEAN: /^(true|false)$/,  // Booleans: 'true', 'false'
+  LITERAL_NULL: /^(null|undefined)$/,  // Null values: 'null', 'undefined'
+  HAS_OPERATORS: /(\|\||&&|===|!==|==|!=|>=|<=|>|<|\+|includes|startsWith|endsWith|matches|in)/,
+  TERNARY: /^(.+?)\s*(?<!\?)\?\s*(?!\.)(.+?)\s*:\s*(.+)$/,
+  SIGNAL: (v: any) => v?.get && typeof v.get === 'function',
+  FUNCTION: (v: any) => typeof v === 'function'
+} as const;
+
+/**
+ * Detects if a string represents a literal value.
+ * Uses VALUE_PATTERNS for consistent classification.
+ */
+const isLiteral = (str: string): boolean => {
+  const trimmed = str.trim();
+  return VALUE_PATTERNS.LITERAL_STRING.test(trimmed) ||
+    VALUE_PATTERNS.LITERAL_NUMBER.test(trimmed) ||
+    VALUE_PATTERNS.LITERAL_BOOLEAN.test(trimmed) ||
+    VALUE_PATTERNS.LITERAL_NULL.test(trimmed);
+};
 
 /**
  * Parses a literal string into its actual JavaScript value.
- * Handles strings, numbers, booleans, null, and undefined.
+ * Uses VALUE_PATTERNS for consistent classification.
  * 
  * @param {string} str - The literal string to parse
  * @returns {any} The parsed JavaScript value
@@ -158,8 +190,8 @@ const isLiteral = (str: string): boolean =>
  */
 const parseLiteral = (str: string): any => {
   const trimmed = str.trim();
-  if (/^(['"`])/.test(trimmed)) return trimmed.slice(1, -1);
-  if (/^\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed);
+  if (VALUE_PATTERNS.LITERAL_STRING.test(trimmed)) return trimmed.slice(1, -1);
+  if (VALUE_PATTERNS.LITERAL_NUMBER.test(trimmed)) return Number(trimmed);
   if (trimmed === 'true') return true;
   if (trimmed === 'false') return false;
   if (trimmed === 'null') return null;
@@ -169,24 +201,23 @@ const parseLiteral = (str: string): any => {
 
 /**
  * Function call evaluator with safe global function support.
- * Provides access to common JavaScript globals while preventing arbitrary code execution.
+ * Uses VALUE_PATTERNS for consistent pattern matching.
  * 
  * @param {string} expr - The function call expression to evaluate
  * @param {any} context - Context object for resolving function and arguments
  * @returns {any} The result of the function call, or null if function not found/safe
- * 
- * @example
- * evaluateFunction('Object.entries(data)', context);
- * evaluateFunction('user.getName()', context);
- * evaluateFunction('Math.max(1, 2, 3)', context);
  */
 const evaluateFunction = (expr: string, context: any): any => {
+  if (!VALUE_PATTERNS.FUNCTION_CALL.test(expr)) return null;
+
   const match = expr.match(/^([a-zA-Z_$][\w.$]*)\(([^)]*)\)$/);
   if (!match) return null;
-  
+
   const [, funcPath, argsStr] = match;
-  const args = parseArgs(argsStr, context).map(arg => 
-    arg?._resolveLater ? resolveProperty(context, arg._resolveLater) : arg
+
+  // Parse arguments with the same context that has access to window, etc.
+  const args = parseArgs(argsStr, context).map(arg =>
+    arg?._resolveLater ? resolveAccessor(context, arg._resolveLater) : arg
   );
 
   // Safe globals - prevents arbitrary code execution
@@ -203,42 +234,26 @@ const evaluateFunction = (expr: string, context: any): any => {
   };
 
   if (globals[funcPath]) {
-    return globals[funcPath](...args);
+    console.debug('🔍 Calling global function:', funcPath, 'with args:', args);
+    // Unwrap any signal arguments for global functions
+    const unwrappedArgs = args.map(arg => unwrapSignal(arg));
+    console.debug('🔍 Unwrapped args:', unwrappedArgs);
+    return globals[funcPath](...unwrappedArgs);
   }
 
   // Context method calls - resolve object path and call method
-  const obj = resolveProperty(context, funcPath.split('.').slice(0, -1).join('.')) || context;
+  const obj = resolveAccessor(context, funcPath.split('.').slice(0, -1).join('.')) || context;
   const methodName = funcPath.split('.').pop()!;
   const method = obj?.[methodName];
-  
+
   return typeof method === 'function' ? method.call(obj, ...args) : null;
 };
 
-/**
- * Comparison operators for safe expression evaluation.
- * Maps operator strings to their corresponding functions.
- */
-const operators = {
-  '===': (a: any, b: any) => a === b,
-  '!==': (a: any, b: any) => a !== b,
-  '==': (a: any, b: any) => a == b,
-  '!=': (a: any, b: any) => a != b,
-  '>=': (a: any, b: any) => a >= b,
-  '<=': (a: any, b: any) => a <= b,
-  '>': (a: any, b: any) => a > b,
-  '<': (a: any, b: any) => a < b,
-  'includes': (a: any, b: any) => String(a).includes(String(b)),
-  'startsWith': (a: any, b: any) => String(a).startsWith(String(b)),
-  'endsWith': (a: any, b: any) => String(a).endsWith(String(b)),
-  'in': (a: any, b: any) => String(a) in Object(b),
-  'matches': (a: any, b: any) => new RegExp(String(b)).test(String(a))
-} as const;
 
-export type Operator = keyof typeof operators;
 
 /**
- * Evaluates comparison expressions safely without eval().
- * Supports all common comparison operators with proper precedence.
+ * Simple comparison evaluator - no tokenization, just basic operators.
+ * Handles both property-based and value-based comparisons for filter.ts compatibility.
  * 
  * @param {string} expr - The comparison expression to evaluate
  * @param {any} context - Context for resolving operand values
@@ -249,98 +264,178 @@ export type Operator = keyof typeof operators;
  * evaluateComparison('count < 10', context); // true/false
  * evaluateComparison('status === "active"', context); // true/false
  */
+export type Operator = '===' | '!==' | '==' | '!=' | '>=' | '<=' | '>' | '<' | 'includes' | 'startsWith' | 'endsWith';
+
+/**
+ * Simple comparison evaluator - no tokenization, just basic operators.
+ * Handles both property-based and value-based comparisons for filter.ts compatibility.
+ * 
+ * @param {string} expr - The comparison expression to evaluate
+ * @param {any} context - Context for resolving operand values
+ * @returns {any} The comparison result, or null if not a comparison expression
+ */
 export const evaluateComparison = (expr: string, context: any): any => {
-  for (const [op, fn] of Object.entries(operators)) {
-    const regex = new RegExp(`\\s+${op.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+`);
-    if (regex.test(expr)) {
-      const [left, right] = expr.split(regex).map(s => s.trim());
-      const leftVal = isLiteral(left) ? parseLiteral(left) : unwrapSignal(resolveProperty(context, left));
-      const rightVal = isLiteral(right) ? parseLiteral(right) : unwrapSignal(resolveProperty(context, right));
-      return fn(leftVal, rightVal);
+  const operators = ['===', '!==', '==', '!=', '>=', '<=', '>', '<', 'includes', 'startsWith', 'endsWith'];
+
+  for (const op of operators) {
+    if (expr.includes(` ${op} `)) {
+      const [left, right] = expr.split(` ${op} `).map(s => s.trim());
+
+      // Handle both property resolution and direct values (for filter.ts)
+      let leftVal, rightVal;
+
+      if (context.hasOwnProperty('leftValue') && context.hasOwnProperty('rightValue')) {
+        // Direct values from filter.ts
+        leftVal = context.leftValue;
+        rightVal = context.rightValue;
+      } else {
+        // Property resolution for templates
+        leftVal = isLiteral(left) ? parseLiteral(left) : (() => {
+          const resolved = resolveAccessor(context, left);
+          return VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+        })();
+
+        rightVal = isLiteral(right) ? parseLiteral(right) : (() => {
+          const resolved = resolveAccessor(context, right);
+          return VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+        })();
+      }
+
+      switch (op) {
+        case '===': return leftVal === rightVal;
+        case '!==': return leftVal !== rightVal;
+        case '==': return leftVal == rightVal;
+        case '!=': return leftVal != rightVal;
+        case '>=': return leftVal >= rightVal;
+        case '<=': return leftVal <= rightVal;
+        case '>': return leftVal > rightVal;
+        case '<': return leftVal < rightVal;
+        case 'includes': return String(leftVal).includes(String(rightVal));
+        case 'startsWith': return String(leftVal).startsWith(String(rightVal));
+        case 'endsWith': return String(leftVal).endsWith(String(rightVal));
+      }
     }
   }
+
   return null;
 };
 
 /**
- * Safe expression evaluator with operator precedence support.
- * Handles ternary operators, logical operators, comparisons, and function calls
- * without using eval() or Function constructor.
+ * Template expression evaluator using simple sequential parsing.
+ * Handles the core template use cases without complex tokenization.
  * 
- * @param {string} expr - The expression to evaluate
+ * @param {string} expr - The template expression to evaluate
  * @param {any} context - Context object for variable resolution
- * @returns {any} The evaluated result
- * 
- * @example
- * evaluateExpression('user.age >= 18 ? "adult" : "minor"', context);
- * evaluateExpression('name || "Unknown"', context);
- * evaluateExpression('isActive && user.name', context);
+ * @returns {any} The evaluated result with signals unwrapped
  */
-const evaluateExpression = (expr: string, context: any): any => {
-  console.debug('🔍 evaluateExpression called with:', expr, 'context keys:', Object.keys(context));
-  
+const evaluateTemplateExpression = (expr: string, context: any): any => {
+  console.debug('🔍 evaluateTemplateExpression called with:', expr);
+
+  // String concatenation: operand + operand (simple case)
+  if (expr.includes(' + ') && !expr.includes('?')) {
+    console.debug('🔍 String concatenation detected');
+    const parts = expr.split(' + ').map(part => {
+      const trimmed = part.trim();
+      if (isLiteral(trimmed)) return parseLiteral(trimmed);
+
+      // Handle function calls in concatenation
+      if (VALUE_PATTERNS.FUNCTION_CALL.test(trimmed)) {
+        const result = evaluateFunction(trimmed, context);
+        return VALUE_PATTERNS.SIGNAL(result) ? result.get() : result;
+      }
+
+      // Resolve and unwrap automatically
+      const resolved = resolveAccessor(context, trimmed);
+      return VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+    });
+    return parts.join('');
+  }
+
   // Ternary: condition ? true : false
-  const ternaryMatch = expr.match(/^(.+?)\s*(?<!\?)\?\s*(?!\.)(.+?)\s*:\s*(.+)$/);
-  if (ternaryMatch) {
-    const [, condition, truthy, falsy] = ternaryMatch;
-    let conditionResult: any;
-    console.debug('🔍 Ternary expression detected');
-    if (condition.trim().includes(' ')) {
-      // Likely a comparison expression
-      const comparisonResult = evaluateComparison(condition, context);
-      conditionResult = comparisonResult !== null ? comparisonResult : unwrapSignal(resolveProperty(context, condition));
-    } else {
-      // Simple property/function call - check truthiness
-      conditionResult = !!unwrapSignal(resolveProperty(context, condition));
-      console.debug('🔍 Condition result:', conditionResult, 'for condition:', condition);
+  if (VALUE_PATTERNS.TERNARY.test(expr)) {
+    const ternaryMatch = expr.match(VALUE_PATTERNS.TERNARY);
+    if (ternaryMatch) {
+      const [, condition, truthy, falsy] = ternaryMatch;
+      console.debug('🔍 Ternary detected - condition:', condition, 'truthy:', truthy, 'falsy:', falsy);
+
+      // Evaluate condition: spaces = comparison, no spaces = truthiness
+      let conditionResult;
+      if (condition.trim().includes(' ')) {
+        conditionResult = evaluateComparison(condition.trim(), context);
+        if (conditionResult === null) {
+          const resolved = resolveAccessor(context, condition.trim());
+          conditionResult = VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+        }
+      } else {
+        const resolved = resolveAccessor(context, condition.trim());
+        conditionResult = VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+      }
+
+      console.debug('🔍 Condition result:', conditionResult);
+
+      const resultPath = conditionResult ? truthy.trim() : falsy.trim();
+
+      // IMPORTANT: If the result branch contains operators, evaluate it as an expression!
+      if (isLiteral(resultPath)) {
+        return parseLiteral(resultPath);
+      } else if (resultPath.includes(' + ') || resultPath.includes('(')) {
+        // It's an expression, evaluate it recursively
+        return evaluateTemplateExpression(resultPath, context);
+      } else {
+        // Simple property access
+        const resolved = resolveAccessor(context, resultPath);
+        return VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+      }
     }
-    // const conditionResult = evaluateComparison(condition.trim(), context) ?? 
-    //                        unwrapSignal(resolveProperty(context, condition.trim()));
-    const resultPath = conditionResult ? truthy.trim() : falsy.trim();
-    const result = isLiteral(resultPath) ? parseLiteral(resultPath) : unwrapSignal(resolveProperty(context, resultPath));
-    console.debug('🔍 Ternary result:', result, 'for condition:', resultPath)
+  }
+
+  // Logical OR: first || second || third
+  if (expr.includes(' || ')) {
+    for (const part of expr.split(' || ')) {
+      const trimmed = part.trim();
+      const value = isLiteral(trimmed) ? parseLiteral(trimmed) : (() => {
+        const resolved = resolveAccessor(context, trimmed);
+        return VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+      })();
+      if (value) return value;
+    }
+    return undefined;
+  }
+
+  // Logical AND: first && second && third
+  if (expr.includes(' && ')) {
+    let result = true;
+    for (const part of expr.split(' && ')) {
+      const trimmed = part.trim();
+      const value = isLiteral(trimmed) ? parseLiteral(trimmed) : (() => {
+        const resolved = resolveAccessor(context, trimmed);
+        return VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+      })();
+      result = result && value;
+      if (!result) return false;
+    }
     return result;
   }
 
-  // Logical OR: fallback chaining
-  if (expr.includes('||')) {
-    return expr.split('||')
-      .map(p => p.trim())
-      .reduce((result, path) => result ?? 
-        (isLiteral(path) ? parseLiteral(path) : unwrapSignal(resolveProperty(context, path))), undefined);
-  }
-
-  // Logical AND: truthy chaining
-  if (expr.includes('&&')) {
-    return expr.split('&&')
-      .map(p => p.trim())
-      .reduce((result, path) => result && 
-        (isLiteral(path) ? parseLiteral(path) : unwrapSignal(resolveProperty(context, path))), true);
-  }
-
-  // Comparison
+  // Simple comparison - use existing evaluateComparison
   const comparisonResult = evaluateComparison(expr, context);
   if (comparisonResult !== null) return comparisonResult;
 
   // Function call - only if the entire expression is a function call
-  if (/^[a-zA-Z_$][\w.$]*\([^)]*\)$/.test(expr)) {
-    const result = unwrapSignal(evaluateFunction(expr, context));
-    console.debug('🔍 Function call in evaluateExpression:', expr, '→', result);
-    return result;
+  if (VALUE_PATTERNS.FUNCTION_CALL.test(expr)) {
+    const result = evaluateFunction(expr, context);
+    console.debug('🔍 Function call:', expr, '→', result);
+    return VALUE_PATTERNS.SIGNAL(result) ? result.get() : result;
   }
 
-  // Complex property chain (may include function calls) - use chain evaluator
-  if (expr.includes('(') || expr.includes('.')) {
-    const result = unwrapSignal(resolveProperty(context, expr));
-    console.debug('🔍 Property chain in evaluateExpression:', expr, '→', result);
-    return result;
-  }
-
-  // Simple property access - unwrap for template context
-  const result = unwrapSignal(resolveProperty(context, expr));
-  console.debug('🔍 Property access in evaluateExpression:', expr, '→', result);
+  // Simple property access - resolve and unwrap
+  const resolved = resolveAccessor(context, expr);
+  const result = VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+  console.debug('🔍 Property access:', expr, '→', result);
   return result;
 };
+
+
 
 /**
  * Main template literal resolver with automatic signal unwrapping.
@@ -358,7 +453,7 @@ const evaluateExpression = (expr: string, context: any): any => {
 export const resolveTemplate = (template: string, context: any): string =>
   template.replace(/\$\{([^}]+)\}/g, (match, expr) => {
     try {
-      const result = evaluateExpression(expr.trim(), context);
+      const result = evaluateTemplateExpression(expr.trim(), context);
       return String(result ?? match);
     } catch (error) {
       console.warn('Template evaluation failed:', error);
@@ -387,19 +482,19 @@ export const resolveTemplateProperty = (context: any, path: string, fallback: an
     if (typeof path === 'string' && !path.includes('${') && !path.includes('(')) {
       // Special case: 'this.$name' as a string should resolve to the signal
       if (path.startsWith('this.') || path.startsWith('window.') || path.startsWith('document.')) {
-        return resolveProperty(context, path, fallback);
+        return resolveAccessor(context, path, fallback);
       }
       // Regular strings are returned as-is
       return path;
     }
-    
+
     // Function call with args - return result directly
     if (path.includes('(') && path.includes(')')) {
       return evaluateFunction(path, context);
     }
-    
+
     // Property access - preserve signals
-    return resolveProperty(context, path, fallback);
+    return resolveAccessor(context, path, fallback);
   } catch (error) {
     console.warn('Property resolution failed:', path, error);
     return fallback;
@@ -438,9 +533,8 @@ export const resolveOperand = (operand: any, item: any, additionalContext?: any)
 
   // Property access - preserve signals unless explicitly unwrapping
   const result = resolveTemplateProperty(context, operand);
-  
-  // For array operations, we usually want the unwrapped value
-  return unwrapSignal(result);
+
+  return result;
 };
 
 /**
@@ -457,10 +551,11 @@ export const resolveOperand = (operand: any, item: any, additionalContext?: any)
  * isValidAccessor('user..name'); // false
  */
 export const isValidAccessor = (str: string): boolean =>
-  /^[a-zA-Z_$][\w$]*(\.[a-zA-Z_$][\w$]*|\[\d+\])*(\(\))?$/.test(str);
+  VALUE_PATTERNS.ACCESSOR.test(str)
 
 /**
  * Detects if a string represents a function call with arguments.
+ * Uses VALUE_PATTERNS for consistent pattern matching.
  * 
  * @param {string} str - The string to test
  * @returns {boolean} True if the string is a function call pattern
@@ -471,10 +566,11 @@ export const isValidAccessor = (str: string): boolean =>
  * isFunctionCall('user.name'); // false
  */
 export const isFunctionCall = (str: string): boolean =>
-  /^[a-zA-Z_$][\w.$]*\([^)]*\)$/.test(str);
+  VALUE_PATTERNS.FUNCTION_CALL.test(str);
 
 /**
  * Detects if an object is a Signal.
+ * Uses VALUE_PATTERNS for consistent pattern matching.
  * 
  * @param {any} obj - The object to test
  * @returns {boolean} True if the object is a Signal
@@ -484,7 +580,7 @@ export const isFunctionCall = (str: string): boolean =>
  * isSignal({}); // false
  */
 export const isSignal = (obj: any): boolean =>
-  obj && typeof obj === 'object' && typeof obj.get === 'function';
+  VALUE_PATTERNS.SIGNAL(obj);
 
 
 /**
@@ -519,7 +615,7 @@ export default {
   evaluateComparison,
   resolveTemplate,
   resolveTemplateProperty,
-  resolveProperty,
+  resolveAccessor,
   resolveOperand,
   buildContext,
   isValidAccessor,
