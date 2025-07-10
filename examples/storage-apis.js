@@ -1,6 +1,6 @@
 /**
  * Storage APIs Example
- * Demonstrates the use of Cookie, SessionStorage, LocalStorage, and IndexedDB namespaces
+ * Demonstrates the use of Cookie, SessionStor  },
  * with automatic serialization for objects and arrays
  * 
  * IndexedDB Design Pattern:
@@ -15,74 +15,65 @@ export default {
   $newDocTitle: "",
   $newDocContent: "",
   
-  // Documents array for reactive display (manual reactivity pattern)
-  $documents: [],
-
-  // Methods for document management
-  addDocument: async function() {
-    const title = this.$newDocTitle.get().trim();
-    const content = this.$newDocContent.get().trim();
-    
-    if (title && content) {
-      const newDoc = {
-        title: title,
-        content: content,
-        created: new Date().toISOString()
-      };
-      
-      try {
-        // Use the store factory to get a fresh transaction
-        const store = await this.$appDataStore.get().getStore('readwrite');
-        const id = await new Promise((resolve, reject) => {
-          const request = store.add(newDoc);
-          request.onsuccess = () => resolve(request.result);
-          request.onerror = () => reject(request.error);
-        });
-        
-        // Manual reactivity: update the documents array
-        const currentDocs = this.$documents.get();
-        this.$documents.set([...currentDocs, { ...newDoc, id }]);
-        
-        // Clear inputs
-        this.$newDocTitle.set("");
-        this.$newDocContent.set("");
-      } catch (error) {
-        console.error('Failed to add document:', error);
+  // IndexedDB for complex application data - returns actual IDBObjectStore
+  $appDataStore: {
+    prototype: 'IndexedDB',
+    database: 'AppDataDB',
+    store: 'documents',
+    version: 1,
+    keyPath: 'id',
+    autoIncrement: true,
+    indexes: [
+      {
+        name: 'by-title',
+        keyPath: 'title',
+        unique: false
+      },
+      {
+        name: 'by-created',
+        keyPath: 'created',
+        unique: false
       }
+    ]
+  },
+  
+  // Reactive documents from IndexedDB using IDBRequest
+  $documents: {
+    prototype: 'IDBRequest',
+    objectStore: "this.$appDataStore",
+    operation: "getAll",
+    debounce: 100, // Small debounce for smooth UI updates
+    manual: false  // Auto-update when database changes
+  },
+
+   // Combined new document object for declarative operations
+  $newDoc: null,
+
+  // Declarative document addition using IDBRequest
+  $addDocument: {
+    prototype: 'IDBRequest',
+    objectStore: "this.$appDataStore",
+    operation: "add",
+    value: "this.$newDoc",
+    onsuccess: function() {
+      // Clear inputs after successful addition
+      this.$newDocTitle.set("");
+      this.$newDocContent.set("");
     }
   },
 
-  removeDocument: async function(docId) {
-    try {
-      // Use the store factory to get a fresh transaction
-      const store = await this.$appDataStore.get().getStore('readwrite');
-      await new Promise((resolve, reject) => {
-        const request = store.delete(docId);
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
-      
-      // Manual reactivity: update the documents array
-      const currentDocs = this.$documents.get();
-      this.$documents.set(currentDocs.filter(doc => doc.id !== docId));
-    } catch (error) {
-      console.error('Failed to remove document:', error);
-    }
-  },
-
-  // Load all documents from database (called on init)
-  loadDocuments: async function() {
-    try {
-      const store = await this.$appDataStore.get().getStore('readonly');
-      const docs = await new Promise((resolve, reject) => {
-        const request = store.getAll();
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
-      this.$documents.set(docs);
-    } catch (error) {
-      console.error('Failed to load documents:', error);
-      this.$documents.set([]);
+  // Document to remove (triggered by user action)
+  $docToRemove: null,
+  
+  // Declarative document removal using IDBRequest  
+  $removeDocument: {
+    prototype: 'IDBRequest',
+    objectStore: "this.$appDataStore", 
+    operation: "delete",
+    key: "this.$docToRemove",
+    onsuccess: function() {
+      // Clear the removal trigger
+      this.$docToRemove.set(null);
     }
   },
 
@@ -123,28 +114,6 @@ export default {
       autoSave: true,
       fontSize: 14
     }
-  },
-  
-  // IndexedDB for complex application data - returns actual IDBObjectStore
-  $appDataStore: {
-    prototype: 'IndexedDB',
-    database: 'AppDataDB',
-    store: 'documents',
-    version: 1,
-    keyPath: 'id',
-    autoIncrement: true,
-    indexes: [
-      {
-        name: 'by-title',
-        keyPath: 'title',
-        unique: false
-      },
-      {
-        name: 'by-created',
-        keyPath: 'created',
-        unique: false
-      }
-    ]
   },
 
   document: {
@@ -223,7 +192,7 @@ export default {
                   children: [
                     {
                       tagName: 'button',
-                      textContent: 'Toggle Theme (${this.$userPreferences.get().theme})',
+                      textContent: 'Toggle Theme (${this.$userPreferences.theme})',
                       style: {
                         padding: '0.75rem 1rem',
                         backgroundColor: '#007bff',
@@ -248,7 +217,7 @@ export default {
                     },
                     {
                       tagName: 'button',
-                      textContent: 'Action Count: ${this.$uiState.get().actionCount} (+1)',
+                      textContent: 'Action Count: ${this.$uiState.actionCount} (+1)',
                       style: {
                         padding: '0.75rem 1rem',
                         backgroundColor: '#28a745',
@@ -272,7 +241,7 @@ export default {
                     },
                     {
                       tagName: 'button',
-                      textContent: 'Toggle Sidebar (${this.$uiState.get().sidebarOpen ? "Open" : "Closed"})',
+                      textContent: 'Toggle Sidebar (${this.$uiState.sidebarOpen ? "Open" : "Closed"})',
                       style: {
                         padding: '0.75rem 1rem',
                         backgroundColor: '#ffc107',
@@ -296,7 +265,7 @@ export default {
                     },
                     {
                       tagName: 'button',
-                      textContent: 'Notifications: ${this.$userPreferences.get().notifications ? "ON" : "OFF"}',
+                      textContent: 'Notifications: ${this.$userPreferences.notifications ? "ON" : "OFF"}',
                       style: {
                         padding: '0.75rem 1rem',
                         backgroundColor: '#17a2b8',
@@ -421,7 +390,7 @@ export default {
                         type: 'text',
                         placeholder: 'Document title...'
                       },
-                      value: '${this.$newDocTitle.get()}',
+                      value: '${this.$newDocTitle}',
                       style: {
                         padding: '0.75rem',
                         border: '2px solid #dee2e6',
@@ -444,7 +413,7 @@ export default {
                         placeholder: 'Document content...',
                         rows: '4'
                       },
-                      value: '${this.$newDocContent.get()}',
+                      value: '${this.$newDocContent}',
                       style: {
                         padding: '0.75rem',
                         border: '2px solid #dee2e6',
@@ -492,7 +461,17 @@ export default {
                     }
                   },
                   onclick: function() {
-                    window.addDocument();
+                    // Create document object directly - this will trigger $addDocument
+                    const title = this.$newDocTitle.get().trim();
+                    const content = this.$newDocContent.get().trim();
+                    
+                    if (title && content) {
+                      this.$newDoc.set({
+                        title: title,
+                        content: content,
+                        created: new Date().toISOString()
+                      });
+                    }
                   }
                 }
               ]
@@ -550,7 +529,7 @@ export default {
                         },
                         {
                           tagName: 'pre',
-                          textContent: '${JSON.stringify(this.$authCookie.get(), null, 2)}',
+                          textContent: '${JSON.stringify(this.$authCookie)}',
                           style: {
                             backgroundColor: '#f8f9fa',
                             padding: '1rem',
@@ -596,7 +575,7 @@ export default {
                         },
                         {
                           tagName: 'pre',
-                          textContent: '${JSON.stringify(this.$uiState.get(), null, 2)}',
+                          textContent: '${JSON.stringify(this.$uiState, null, 2)}',
                           style: {
                             backgroundColor: '#f8f9fa',
                             padding: '1rem',
@@ -642,7 +621,7 @@ export default {
                         },
                         {
                           tagName: 'pre',
-                          textContent: '${JSON.stringify(this.$userPreferences.get(), null, 2)}',
+                          textContent: '${JSON.stringify(this.$userPreferences, null, 2)}',
                           style: {
                             backgroundColor: '#f8f9fa',
                             padding: '1rem',
@@ -696,7 +675,7 @@ export default {
                           },
                           children: [                        {
                           tagName: 'span',
-                          textContent: 'Documents stored: ${this.$documents.get()?.length || 0}',
+                          textContent: 'Documents stored: ${this.$documents.length || 0}',
                           style: {
                             fontSize: '0.9rem',
                             color: '#495057',
@@ -724,7 +703,7 @@ export default {
                                   request.onsuccess = () => resolve(request.result);
                                   request.onerror = () => reject(request.error);
                                 });
-                                this.$documents.set([]);
+                                // IDBRequest will automatically refresh and update $documents
                               } catch (error) {
                                 console.error('Failed to clear documents:', error);
                               }
@@ -785,7 +764,7 @@ export default {
     {
       tagName: 'document-list',
       children: {
-        items: 'window.$documents',
+        items: 'this.$documents',
         map: {
           tagName: 'document-item',
           $doc: (doc, _) => doc,
@@ -825,7 +804,7 @@ export default {
                   children: [
                     {
                       tagName: 'h4',
-                      textContent: '${this.$doc.get().title}',
+                      textContent: '${this.$doc.title}',
                       style: {
                         margin: '0 0 0.25rem 0',
                         fontSize: '0.9rem',
@@ -834,7 +813,7 @@ export default {
                     },
                     {
                       tagName: 'p',
-                      textContent: '${this.$doc.get().content.substring(0, 100)}${this.$doc.get().content.length > 100 ? "..." : ""}',
+                      textContent: '${this.$doc.content.substring(0, 100)}${this.$doc.content.length > 100 ? "..." : ""}',
                       style: {
                         margin: '0 0 0.25rem 0',
                         fontSize: '0.8rem',
@@ -843,7 +822,7 @@ export default {
                     },
                     {
                       tagName: 'small',
-                      textContent: 'Created: ${new Date(this.$doc.get().created).toLocaleDateString()}',
+                      textContent: 'Created: ${new Date(this.$doc.created).toLocaleDateString()}',
                       style: {
                         fontSize: '0.75rem',
                         color: '#adb5bd'
@@ -874,7 +853,8 @@ export default {
                   onclick: async function() {
                     const docId = this.$doc.get().id;
                     if (confirm('Delete this document?')) {
-                      await window.removeDocument(docId);
+                      // Trigger declarative removal by setting the docToRemove
+                      window.$docToRemove.set(docId);
                     }
                   }
                 }

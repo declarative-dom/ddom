@@ -236,7 +236,7 @@ export default {
                     type: "text",
                     placeholder: "Search products...",
                   },
-                  value: "${this.$searchQuery.get()}",
+                  value: "${this.$searchQuery}",
                   style: {
                     padding: "0.75rem",
                     border: "2px solid #dee2e6",
@@ -255,7 +255,7 @@ export default {
                 },
                 {
                   tagName: "select",
-                  value: "${this.$categoryFilter.get()}",
+                  value: "${this.$categoryFilter}",
                   style: {
                     padding: "0.75rem",
                     border: "2px solid #dee2e6",
@@ -304,7 +304,7 @@ export default {
                     max: "5",
                     step: "0.1",
                   },
-                  value: "${this.$minRating.get()}",
+                  value: "${this.$minRating}",
                   style: {
                     padding: "0.75rem",
                   },
@@ -315,7 +315,7 @@ export default {
                 {
                   tagName: "div",
                   textContent:
-                    "Min Rating: ${this.$minRating.get().toFixed(1)} ⭐",
+                    "Min Rating: ${this.$minRating.toFixed(1)} ⭐",
                   style: {
                     padding: "0.75rem",
                     backgroundColor: "#f8f9fa",
@@ -396,7 +396,7 @@ export default {
               children: [
                 {
                   tagName: "div",
-                  textContent: "${this.$searchResults.get().length}",
+                  textContent: "${this.$searchResults.length}",
                   style: {
                     fontSize: "2rem",
                     fontWeight: "bold",
@@ -426,7 +426,7 @@ export default {
               children: [
                 {
                   tagName: "div",
-                  textContent: "${this.$topRatedProducts.get().length}",
+                  textContent: "${this.$topRatedProducts.length}",
                   style: {
                     fontSize: "2rem",
                     fontWeight: "bold",
@@ -460,7 +460,7 @@ export default {
             {
               tagName: "h2",
               textContent:
-                "📦 Products (${this.$searchResults.get().length} found)",
+                "📦 Products (${this.$searchResults.length} found)",
               style: {
                 marginTop: 0,
                 marginBottom: "1.5rem",
@@ -517,7 +517,7 @@ export default {
               children: [
                 {
                   tagName: "h3",
-                  textContent: "${this.$product.get().name}",
+                  textContent: "${this.$product.name}",
                   style: {
                     margin: 0,
                     fontSize: "1.1rem",
@@ -527,7 +527,7 @@ export default {
                 },
                 {
                   tagName: "span",
-                  textContent: "$${this.$product.get().price}",
+                  textContent: "$${this.$product.price}",
                   style: {
                     fontSize: "1.1rem",
                     fontWeight: "bold",
@@ -547,7 +547,7 @@ export default {
               children: [
                 {
                   tagName: "span",
-                  textContent: "${this.$product.get().category}",
+                  textContent: "${this.$product.category}",
                   style: {
                     padding: "0.25rem 0.5rem",
                     backgroundColor: "#6f42c1",
@@ -559,7 +559,7 @@ export default {
                 },
                 {
                   tagName: "span",
-                  textContent: "⭐ ${this.$product.get().rating}",
+                  textContent: "⭐ ${this.$product.rating}",
                   style: {
                     fontSize: "0.9rem",
                     fontWeight: "500",
@@ -570,7 +570,7 @@ export default {
             },
             {
               tagName: "p",
-              textContent: "${this.$product.get().description}",
+              textContent: "${this.$product.description}",
               style: {
                 margin: 0,
                 fontSize: "0.9rem",

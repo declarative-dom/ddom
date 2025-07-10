@@ -5,8 +5,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { MappedArray, isArrayConfig } from '../lib/src/arrays';
-import { Signal } from '../lib/src/signals';
-import { ArrayConfig } from '../types/src';
+import { Signal } from '../lib/src/core/signals';
 
 // Mock DOM environment for tests
 Object.defineProperty(globalThis, 'document', {

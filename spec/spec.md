@@ -289,7 +289,9 @@ typedef (HTMLElementSpec or HTMLBodyElementSpec or HTMLHeadElementSpec or Custom
 
 ```webidl
 // Request namespace for fetch API integration
-dictionary RequestConfig {
+dictionary RequestConfig : NamespaceConfig {
+  required DOMString prototype; // Must be "Request"
+  
   // Standard Request constructor properties
   required DOMString url;
   DOMString method;
@@ -309,42 +311,55 @@ dictionary RequestConfig {
   boolean manual;
   long debounce;
   ("arrayBuffer" or "blob" or "formData" or "json" or "text") responseType;
+  callback isValid;
+  callback onsuccess;
+  callback onerror;
 };
 
 // FormData namespace for form data construction
-dictionary FormDataConfig {
+dictionary FormDataConfig : NamespaceConfig {
+  required DOMString prototype; // Must be "FormData"
+  
   // Dynamic field mapping - any property name to any value
   // Supports File objects, Blob objects, and string values
+  // Additional properties are added as form fields
 };
 
 // URLSearchParams namespace for URL parameter handling
-dictionary URLSearchParamsConfig {
+dictionary URLSearchParamsConfig : NamespaceConfig {
+  required DOMString prototype; // Must be "URLSearchParams"
+  
   // Dynamic parameter mapping - property names become parameter names
   // Values can be strings, numbers, or arrays for multi-value parameters
+  // Additional properties are added as URL parameters
 };
 
 // Blob namespace for binary data creation
-dictionary BlobConfig {
+dictionary BlobConfig : NamespaceConfig {
+  required DOMString prototype; // Must be "Blob"
   required (DOMString or sequence<any>) content;
   DOMString type;
   ("transparent" or "native") endings;
 };
 
 // ArrayBuffer namespace for buffer management
-dictionary ArrayBufferConfig {
+dictionary ArrayBufferConfig : NamespaceConfig {
+  required DOMString prototype; // Must be "ArrayBuffer"
   required (DOMString or sequence<octet> or Uint8Array or ArrayBuffer) data;
   DOMString encoding;
 };
 
 // ReadableStream namespace for stream creation
-dictionary ReadableStreamConfig {
+dictionary ReadableStreamConfig : NamespaceConfig {
+  required DOMString prototype; // Must be "ReadableStream"
   ReadableStreamDefaultSource source;
   QueuingStrategy strategy;
   (DOMString or sequence<any>) data;
 };
 
 // Cookie namespace for browser cookie management
-dictionary CookieConfig {
+dictionary CookieConfig : NamespaceConfig {
+  required DOMString prototype; // Must be "Cookie"
   required DOMString name;
   DOMString value;             // Initial value if cookie doesn't exist
   DOMString domain;
@@ -356,38 +371,70 @@ dictionary CookieConfig {
 };
 
 // SessionStorage namespace for session storage management
-dictionary SessionStorageConfig {
+dictionary SessionStorageConfig : NamespaceConfig {
+  required DOMString prototype; // Must be "SessionStorage"
   required DOMString key;
   any value;                   // Initial value if key doesn't exist
 };
 
 // LocalStorage namespace for local storage management
-dictionary LocalStorageConfig {
+dictionary LocalStorageConfig : NamespaceConfig {
+  required DOMString prototype; // Must be "LocalStorage"
   required DOMString key;
   any value;                   // Initial value if key doesn't exist
 };
 
-// IndexedDB namespace for database operations
-dictionary IndexedDBConfig {
+// IndexedDB namespace for database store factory
+dictionary IndexedDBConfig : NamespaceConfig {
+  required DOMString prototype; // Must be "IndexedDB"
   required DOMString database;
   required DOMString store;
-  any key;
-  any value;                   // Initial value if record doesn't exist
   long version;
+  DOMString keyPath;
+  boolean autoIncrement;
+  sequence<IndexSpec> indexes;
 };
 
-// Namespace wrapper for Web API integrations
-dictionary NamespaceWrapper {
-  RequestConfig Request;
-  FormDataConfig FormData;
-  URLSearchParamsConfig URLSearchParams;
-  BlobConfig Blob;
-  ArrayBufferConfig ArrayBuffer;
-  ReadableStreamConfig ReadableStream;
-  CookieConfig Cookie;
-  SessionStorageConfig SessionStorage;
-  LocalStorageConfig LocalStorage;
-  IndexedDBConfig IndexedDB;
+// IndexedDB index specification
+dictionary IndexSpec {
+  required DOMString name;
+  required (DOMString or sequence<DOMString>) keyPath;
+  boolean unique;
+  boolean multiEntry;
+};
+
+// IDBRequest namespace for reactive database operations
+dictionary IDBRequestConfig : NamespaceConfig {
+  required DOMString prototype; // Must be "IDBRequest"
+  required DOMString objectStore; // Reference to IndexedDBStoreFactory signal
+  ("getAll" or "get" or "count" or "getAllKeys" or "getKey" or 
+   "add" or "put" or "delete" or "clear") operation;
+  DOMString index;             // Index name to use for the operation
+  any query;                   // IDBKeyRange, key value, or template string
+  any key;                     // Key for delete operations (template string)
+  any value;                   // Value for add/put operations (template string)
+  long debounce;               // Debounce delay in milliseconds
+  sequence<FilterCriteria> filter; // Client-side filtering
+  sequence<SortCriteria> sort;     // Client-side sorting
+  long limit;                  // Limit results
+  boolean manual;              // Manual refresh control
+  callback isValid;            // Validation function
+  callback onsuccess;          // Success callback
+  callback onerror;            // Error callback
+};
+
+// WebSocket namespace for real-time communication
+dictionary WebSocketConfig : NamespaceConfig {
+  required DOMString prototype; // Must be "WebSocket"
+  required DOMString url;
+  (DOMString or sequence<DOMString>) protocols;
+  boolean autoConnect;
+  long reconnectDelay;
+  long maxReconnectAttempts;
+  callback onopen;
+  callback onmessage;
+  callback onclose;
+  callback onerror;
 };
 ```
 
@@ -531,7 +578,7 @@ Dollar-prefixed properties are automatically converted to reactive signals and s
   
   children: [{
     tagName: 'p',
-    textContent: '${this.$displayText.get()}' // ← Signals available in child scope
+    textContent: '${this.$displayText}' // ← Signals auto-unwrapped in templates!
   }, {
     tagName: 'button',
     textContent: 'Increment',
@@ -549,25 +596,43 @@ Signal access uses explicit `.get()` and `.set()` methods:
 
 #### 3.8 Template Literal Reactivity
 
-Strings containing `${...}` expressions are automatically converted to reactive templates:
+Strings containing `${...}` expressions are automatically converted to reactive templates. **Signals are automatically unwrapped** in template expressions, eliminating the need for explicit `.get()` calls:
 
 ```javascript
 {
   tagName: 'div',
+  $count: 42,
+  $name: 'John',
+  $isActive: true,
   
-  // Regular properties with templates create reactive DOM bindings
-  textContent: 'Count is ${this.$count.get()}',
-  className: 'status ${this.$count.get() > 10 ? "high" : "low"}',
+  // Signals auto-unwrapped in templates - clean syntax!
+  textContent: 'Count is ${this.$count}',                    // ← No .get() needed!
+  className: 'status ${this.$count > 10 ? "high" : "low"}',
+  title: 'Hello ${this.$name} - Count: ${this.$count}',     // ← Multiple signals
   
   // Dollar-prefixed properties with templates become Computed signals
-  $computedMessage: 'Hello ${this.$name.get()}!',
+  $computedMessage: 'Hello ${this.$name}!',                 // ← Auto-unwrapped in computed signals too
+  $statusText: '${this.$isActive ? "Active" : "Inactive"}', // ← Conditional expressions work seamlessly
   
   attributes: {
-    title: 'Current value: ${this.$count.get()}', // Reactive attribute
-    'data-status': '${this.$isActive.get() ? "active" : "inactive"}'
+    title: 'Current value: ${this.$count}',                 // ← Reactive attributes
+    'data-status': '${this.$isActive ? "active" : "inactive"}',
+    'aria-label': 'User ${this.$name} with ${this.$count} items'
+  },
+  
+  style: {
+    opacity: '${this.$isActive ? 1 : 0.5}',                // ← Even in styles!
+    transform: 'scale(${this.$count > 50 ? 1.2 : 1})'
   }
 }
 ```
+
+**Template Auto-Unwrapping Rules:**
+- **Signal references** like `this.$count` are automatically unwrapped to their values
+- **Property accessors** like `window.$data` are automatically unwrapped if they resolve to signals
+- **JavaScript expressions** work seamlessly with unwrapped values
+- **Computed signals** can reference other signals without `.get()` calls
+- **Manual unwrapping** with `.get()` still works but is unnecessary in templates
 
 #### 3.9 Component Scoping
 
@@ -685,10 +750,10 @@ DDOM provides declarative access to Web APIs through prototype-based namespace p
   // Request namespace - reactive HTTP requests
   $apiData: {
     prototype: 'Request',
-    url: '/api/users/${this.$userId.get()}',
+    url: '/api/users/${this.$userId}',  // ← Signals auto-unwrapped in templates!
     method: 'GET',
     headers: {
-        'Authorization': 'Bearer ${this.$token.get()}'
+        'Authorization': 'Bearer ${this.$token}'  // ← Clean syntax without .get()
       },
       debounce: 300 // Debounce rapid requests
     }
@@ -697,16 +762,16 @@ DDOM provides declarative access to Web APIs through prototype-based namespace p
   // FormData namespace - reactive form construction
   $uploadData: {
     prototype: 'FormData',
-    file: '${this.$selectedFile.get()}',
-    description: '${this.$description.get()}',
+    file: '${this.$selectedFile}',      // ← Auto-unwrapped signals
+    description: '${this.$description}',
     timestamp: '${Date.now()}'
   },
   
   // URLSearchParams namespace - reactive URL parameters
   $queryParams: {
     prototype: 'URLSearchParams',
-    q: '${this.$searchQuery.get()}',
-    page: '${this.$currentPage.get()}',
+    q: '${this.$searchQuery}',          // ← Clean template syntax
+    page: '${this.$currentPage}',
     limit: 20
   },
   
@@ -784,6 +849,210 @@ DDOM provides declarative access to Web APIs through prototype-based namespace p
 
 All namespaces support template literals and property accessors for reactive configuration, and automatically create computed signals that update when dependencies change.
 
+#### 3.12.1 Storage API Automatic Serialization
+
+The DDOM runtime provides automatic serialization for storage APIs that only support string values (`SessionStorage` and `LocalStorage`). This eliminates the need for manual JSON stringification and parsing in application code.
+
+**Automatic Serialization Behavior:**
+
+1. **Objects and Arrays**: Automatically serialized to JSON strings when stored
+2. **Strings**: Stored as-is without additional processing
+3. **Primitives** (numbers, booleans): Converted to JSON representation for consistency
+4. **Retrieval**: Attempts JSON parsing first, returns as string if parsing fails
+
+**Storage Priority:**
+- Existing storage values take precedence over the `value` property
+- The `value` property serves as the initial/default value when no storage exists
+
+**Example with Automatic Serialization:**
+```javascript
+{
+  // Object is automatically serialized to JSON
+  $userSettings: {
+    prototype: 'LocalStorage',
+    key: 'appSettings',
+    value: { theme: 'dark', notifications: true }  // Auto-serialized
+  },
+  
+  // String values stored as-is
+  $userToken: {
+    prototype: 'SessionStorage',
+    key: 'authToken', 
+    value: 'abc123'  // Stored as string
+  },
+  
+  onclick: () => {
+    // Get returns deserialized object
+    const settings = element.$userSettings.get();  // { theme: 'dark', notifications: true }
+    
+    // Set automatically serializes
+    element.$userSettings.set({ ...settings, theme: 'light' });  // Auto-serialized to JSON
+  }
+}
+```
+
+**Cookie Storage Note:**
+Cookies only support string values and do not use automatic serialization. Applications must manually handle JSON serialization for object storage in cookies:
+
+```javascript
+{
+  $cookieData: {
+    prototype: 'Cookie',
+    name: 'userPrefs',
+    value: JSON.stringify({ theme: 'light' })  // Manual serialization required
+  }
+}
+```
+
+#### 3.12.2 IndexedDB with IDBRequest Operations
+
+DDOM provides comprehensive IndexedDB support through two complementary namespaces:
+
+**IndexedDB Namespace** - Database store factory:
+```javascript
+{
+  $appDataStore: {
+    prototype: 'IndexedDB',
+    database: 'AppDataDB',
+    store: 'documents',
+    version: 1,
+    keyPath: 'id',
+    autoIncrement: true,
+    indexes: [
+      { name: 'by-title', keyPath: 'title', unique: false },
+      { name: 'by-created', keyPath: 'created', unique: false }
+    ]
+  }
+}
+```
+
+**IDBRequest Namespace** - Reactive CRUD operations:
+```javascript
+{
+  // Reactive query - auto-updates when data changes
+  $documents: {
+    prototype: 'IDBRequest',
+    objectStore: "this.$appDataStore",
+    operation: "getAll",
+    debounce: 100,
+    filter: [
+      { leftOperand: 'completed', operator: '===', rightOperand: false }
+    ],
+    sort: [
+      { sortBy: 'created', direction: 'desc' }
+    ]
+  },
+  
+  // Conditional write operations
+  $addDocument: {
+    prototype: 'IDBRequest',
+    objectStore: "this.$appDataStore",
+    operation: "add",
+    value: "this.$newDoc",
+    isValid: function() {
+      const doc = this.$newDoc.get();
+      return doc && doc.title && doc.content;
+    },
+    onsuccess: function() {
+      this.$newDocTitle.set("");
+      this.$newDocContent.set("");
+      this.$newDoc.set(null);
+    }
+  },
+  
+  // Declarative delete operations
+  $removeDocument: {
+    prototype: 'IDBRequest',
+    objectStore: "this.$appDataStore",
+    operation: "delete",
+    key: "this.$docToRemove",
+    onsuccess: function() {
+      this.$docToRemove.set(null);
+    }
+  }
+}
+```
+
+**Reactive Flow:**
+1. User clicks "Add Document" → Sets `$newDoc` with document data
+2. `isValid` function validates → Returns `true` for valid documents
+3. `$addDocument` executes automatically → Adds to IndexedDB
+4. Success callback triggers → Clears form and resets `$newDoc`
+5. `$documents` updates automatically → UI reflects new document
+
+#### 3.12.3 Manual Execution and Validation
+
+Namespaces support conditional execution and manual control:
+
+```javascript
+{
+  // Conditional execution based on validation
+  $conditionalRequest: {
+    prototype: 'Request',
+    url: '/api/data/${this.$id.get()}',
+    isValid: function() {
+      return this.$id.get() && this.$id.get() > 0;
+    },
+    onerror: function(error) {
+      this.$errorMessage.set(`Request failed: ${error.message}`);
+    }
+  },
+  
+  // Manual execution - only when explicitly called
+  $manualUpload: {
+    prototype: 'Request',
+    url: '/api/upload',
+    method: 'POST',
+    body: '${this.$uploadData.get()}',
+    manual: true, // Disable automatic execution
+    debounce: 1000
+  },
+  
+  // Execute manually in event handlers
+  onclick: function() {
+    if (this.$uploadData.get()) {
+      this.$manualUpload.refresh(); // Manually trigger the request
+    }
+  }
+}
+```
+
+#### 3.12.4 Advanced Namespace Features
+
+**Debouncing and Performance:**
+```javascript
+{
+  $searchResults: {
+    prototype: 'Request',
+    url: '/api/search?q=${this.$searchQuery.get()}',
+    debounce: 500, // Wait 500ms after last change
+    manual: false  // Auto-execute when dependencies change
+  }
+}
+```
+
+**Error Handling and Loading States:**
+```javascript
+{
+  $userData: {
+    prototype: 'Request',
+    url: '/api/user/${this.$userId.get()}',
+    onerror: function(error) {
+      this.$errorMessage.set(`Failed to load user: ${error.message}`);
+      this.$isLoading.set(false);
+    },
+    onsuccess: function(data) {
+      this.$errorMessage.set(null);
+      this.$isLoading.set(false);
+    }
+  },
+  
+  // Access loading and error states
+  textContent: '${this.$userData.loading.get() ? "Loading..." : "Loaded"}',
+  className: '${this.$userData.error.get() ? "error" : "success"}'
+}
+```
+
 #### 3.6.1 Storage API Automatic Serialization
 
 The DDOM runtime provides automatic serialization for storage APIs that only support string values (`SessionStorage` and `LocalStorage`). This eliminates the need for manual JSON stringification and parsing in application code.
@@ -804,18 +1073,16 @@ The DDOM runtime provides automatic serialization for storage APIs that only sup
 {
   // Object is automatically serialized to JSON
   $userSettings: {
-    LocalStorage: {
-      key: 'appSettings',
-      value: { theme: 'dark', notifications: true }  // Auto-serialized
-    }
+    prototype: 'LocalStorage',
+    key: 'appSettings',
+    value: { theme: 'dark', notifications: true }  // Auto-serialized
   },
   
   // String values stored as-is
   $userToken: {
-    SessionStorage: {
-      key: 'authToken', 
-      value: 'abc123'  // Stored as string
-    }
+    prototype: 'SessionStorage',
+    key: 'authToken', 
+    value: 'abc123'  // Stored as string
   },
   
   onclick: () => {
@@ -834,10 +1101,9 @@ Cookies only support string values and do not use automatic serialization. Appli
 ```javascript
 {
   $cookieData: {
-    Cookie: {
-      name: 'userPrefs',
-      value: JSON.stringify({ theme: 'light' })  // Manual serialization required
-    }
+    prototype: 'Cookie',
+    name: 'userPrefs',
+    value: JSON.stringify({ theme: 'light' })  // Manual serialization required
   }
 }
 ```

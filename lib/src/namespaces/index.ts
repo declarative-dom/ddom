@@ -10,6 +10,7 @@ import typia from 'typia';
 // Import namespace handlers and their config types
 import { type PrototypeConfig } from './types';
 import { processProperty } from '../core/properties';
+import { resolveTemplateProperty } from '../utils/evaluation';
 
 import { createArrayNamespace, type ArrayConfig } from './array';
 import { createRequestNamespace, type RequestConfig } from './request';

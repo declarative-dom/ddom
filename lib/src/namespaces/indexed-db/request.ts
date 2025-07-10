@@ -6,7 +6,9 @@
  * References IDBObjectStore instances created by the IndexedDB namespace.
  */
 
-import { Signal } from '../../core/signals';
+import { Signal, createEffect, ComponentSignalWatcher } from '../../core/signals';
+import { processProperty } from '../../core/properties';
+import { resolveConfig } from '../';
 import { PrototypeConfig, FilterCriteria, SortCriteria } from '../types';
 import { resolveTemplateProperty, resolveOperand, evaluateComparison } from '../../utils/evaluation';
 import { IndexedDBStoreFactory } from './index';
@@ -18,14 +20,19 @@ import { IndexedDBStoreFactory } from './index';
 export interface IDBRequestConfig extends PrototypeConfig {
   prototype: 'IDBRequest';
   objectStore: string;          // Reference to IndexedDBStoreFactory signal (e.g., "this.$allProducts")
-  operation?: 'getAll' | 'get' | 'count' | 'getAllKeys' | 'getKey';
+  operation?: 'getAll' | 'get' | 'count' | 'getAllKeys' | 'getKey' | 'add' | 'put' | 'delete' | 'clear';
   index?: string;              // Index name to use for the operation
   query?: any;                 // IDBKeyRange, key value, or function that returns them
+  key?: any;                   // Key for delete operations
+  value?: any;                 // Value for add/put operations
   debounce?: number;           // Debounce delay in milliseconds (like Request namespace)
   filter?: FilterCriteria<any>[]; // Client-side filtering after database query
   sort?: SortCriteria<any>[];     // Client-side sorting after filtering
   limit?: number;              // Limit results (applied after filtering/sorting)
   manual?: boolean;            // Manual refresh control (default: false)
+  isValid?: () => boolean;     // Validation function to determine when to execute
+  onsuccess?: () => void;      // Callback after successful operation
+  onerror?: (error: any) => void; // Callback after failed operation
 }
 
 /**
@@ -65,7 +72,6 @@ export const createIDBRequestNamespace = (
   const errorSignal = new Signal.State<string | null>(null);
   
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  let lastStoreFactory: IndexedDBStoreFactory | null = null;
   
   const context = {
     window: globalThis.window,
@@ -80,17 +86,34 @@ export const createIDBRequestNamespace = (
     error: errorSignal
   }) as IDBRequestSignal;
 
+  // Determine if this is a write operation
+  const isWriteOperation = ['add', 'put', 'delete', 'clear'].includes(config.operation || 'getAll');
+  
   async function refreshData(): Promise<void> {
     try {
       loadingSignal.set(true);
       errorSignal.set(null);
       
+      // Use resolveConfig to handle validation and reactive dependencies
+      const { value: resolvedConfig, isValid } = resolveConfig(config, element);
+      
+      if (!resolvedConfig || !isValid) {
+        loadingSignal.set(false);
+        return; // Don't execute if config is invalid
+      }
+      
+      // Check validation function if provided (additional validation)
+      if (resolvedConfig.isValid && !resolvedConfig.isValid.call(element)) {
+        loadingSignal.set(false);
+        return; // Don't execute if not valid
+      }
+      
       // Resolve objectStore reference using evaluation system
-      const objectStoreRef = resolveTemplateProperty(context, config.objectStore);
+      const objectStoreRef = resolveTemplateProperty(context, resolvedConfig.objectStore);
       const storeFactory = objectStoreRef?.get?.() || objectStoreRef;
       
       if (!storeFactory) {
-        throw new Error(`ObjectStore reference not found: ${config.objectStore}`);
+        throw new Error(`ObjectStore reference not found: ${resolvedConfig.objectStore}`);
       }
       
       // Check if we have a valid store factory
@@ -99,19 +122,34 @@ export const createIDBRequestNamespace = (
       }
       
       // Get a fresh store with appropriate transaction mode
-      const store = await storeFactory.getStore('readonly');
+      const mode = isWriteOperation ? 'readwrite' : 'readonly';
+      const store = await storeFactory.getStore(mode);
       
       // Execute database operation
-      const results = await executeOperation(store, config, context);
+      const results = await executeOperation(store, resolvedConfig, context);
       
-      // Apply client-side filtering and sorting using evaluation module
-      const processedResults = await processResults(results, config, context);
-      
-      dataSignal.set(processedResults);
+      // For read operations, apply client-side filtering and sorting
+      if (!isWriteOperation) {
+        const processedResults = await processResults(results, resolvedConfig, context);
+        dataSignal.set(processedResults);
+      } else {
+        // For write operations, call success callback
+        if (resolvedConfig.onsuccess) {
+          resolvedConfig.onsuccess.call(element);
+        }
+      }
     } catch (error) {
       console.error(`IDBRequest ${key} failed:`, error);
       errorSignal.set(error instanceof Error ? error.message : String(error));
-      dataSignal.set([]);
+      
+      if (!isWriteOperation) {
+        dataSignal.set([]);
+      }
+      
+      // Call error callback if provided
+      if (config.onerror) {
+        config.onerror.call(element, error);
+      }
     } finally {
       loadingSignal.set(false);
     }
@@ -128,34 +166,45 @@ export const createIDBRequestNamespace = (
 
   // Auto-refresh setup (similar to Request namespace)
   if (!config.manual) {
-    // Watch for objectStore changes
-    new Signal.Computed(() => {
-      const objectStoreRef = resolveTemplateProperty(context, config.objectStore);
-      const storeFactory = objectStoreRef?.get?.() || objectStoreRef;
-      
-      if (storeFactory !== lastStoreFactory) {
-        lastStoreFactory = storeFactory;
-        debouncedRefresh();
+    // Use createEffect like Request namespace to handle reactive dependencies
+    const componentWatcher = (globalThis as any).__ddom_component_watcher as
+      | ComponentSignalWatcher
+      | undefined;
+
+    const cleanup = createEffect(() => {
+      try {
+        // Reactively resolve config - this will create dependencies on signals
+        const { value: resolvedConfig, isValid } = resolveConfig(config, element);
+
+        if (!resolvedConfig || !isValid) {
+          // Don't execute if config is invalid
+          return;
+        }
+
+        // Clear existing debounce timer
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
+        }
+
+        // Execute with debounce if specified
+        if (resolvedConfig.debounce && resolvedConfig.debounce > 0) {
+          debounceTimer = setTimeout(() => {
+            refreshData();
+          }, resolvedConfig.debounce);
+        } else {
+          refreshData();
+        }
+      } catch {
+        // If there's an error resolving config, don't execute
+        return;
       }
-    });
-    
-    // Watch for query parameter changes if query is a string expression
-    if (typeof config.query === 'string') {
-      new Signal.Computed(() => {
-        resolveTemplateProperty(context, config.query as string);
-        debouncedRefresh();
-      });
+    }, componentWatcher);
+
+    // Auto-cleanup with AbortController if available
+    const signal = (globalThis as any).__ddom_abort_signal;
+    if (signal && !signal.aborted) {
+      signal.addEventListener('abort', cleanup, { once: true });
     }
-    
-    // Watch for filter parameter changes
-    config.filter?.forEach(filterConfig => {
-      if (typeof filterConfig.rightOperand === 'string') {
-        new Signal.Computed(() => {
-          resolveTemplateProperty(context, filterConfig.rightOperand);
-          debouncedRefresh();
-        });
-      }
-    });
   }
 
   // Initial load
@@ -171,10 +220,10 @@ async function executeOperation(store: IDBObjectStore, config: IDBRequestConfig,
   return new Promise((resolve, reject) => {
     let request: IDBRequest;
     
-    // Get the source (store or index)
+    // Get the source (store or index) for read operations
     const source = config.index ? store.index(config.index) : store;
     
-    // Resolve query parameter - can be function, string expression, or direct value
+    // Resolve parameters
     let query = config.query;
     if (typeof config.query === 'function') {
       query = config.query();
@@ -182,8 +231,23 @@ async function executeOperation(store: IDBObjectStore, config: IDBRequestConfig,
       query = resolveTemplateProperty(context, config.query);
     }
     
+    let key = config.key;
+    if (typeof config.key === 'function') {
+      key = config.key();
+    } else if (typeof config.key === 'string') {
+      key = resolveTemplateProperty(context, config.key);
+    }
+    
+    let value = config.value;
+    if (typeof config.value === 'function') {
+      value = config.value();
+    } else if (typeof config.value === 'string') {
+      value = resolveTemplateProperty(context, config.value);
+    }
+    
     // Execute the operation
     switch (config.operation || 'getAll') {
+      // Read operations
       case 'getAll':
         request = source.getAll(query);
         break;
@@ -199,13 +263,47 @@ async function executeOperation(store: IDBObjectStore, config: IDBRequestConfig,
       case 'getKey':
         request = source.getKey(query);
         break;
+      
+      // Write operations (use store directly, not index)
+      case 'add':
+        if (value === null || value === undefined) {
+          reject(new Error('Value is required for add operation'));
+          return;
+        }
+        request = store.add(value, key);
+        break;
+      case 'put':
+        if (value === null || value === undefined) {
+          reject(new Error('Value is required for put operation'));
+          return;
+        }
+        request = store.put(value, key);
+        break;
+      case 'delete':
+        if (key === null || key === undefined) {
+          reject(new Error('Key is required for delete operation'));
+          return;
+        }
+        request = store.delete(key);
+        break;
+      case 'clear':
+        request = store.clear();
+        break;
+        
       default:
         throw new Error(`Unsupported operation: ${config.operation}`);
     }
     
     request.onsuccess = () => {
       const result = request.result;
-      // Ensure we always return an array for consistency
+      
+      // For write operations, return empty array (they don't return data)
+      if (['add', 'put', 'delete', 'clear'].includes(config.operation || 'getAll')) {
+        resolve([]);
+        return;
+      }
+      
+      // For read operations, ensure we always return an array for consistency
       if (config.operation === 'count') {
         resolve([{ count: result }]);
       } else if (Array.isArray(result)) {
