@@ -44,10 +44,10 @@ export default {
     ]
   },
 
-  // Reactive search query - QUERY MODE (has operation/filter) → returns IndexedDBQuerySignal
+  // Reactive search query - QUERY MODE using IDBRequest namespace
   $searchResults: {
-    prototype: 'IndexedDB',
-    bind: "this.$allProducts",
+    prototype: 'IDBRequest',
+    objectStore: "this.$allProducts",
     operation: "getAll",
     debounce: 300, // Wait 300ms after last change (just like Request namespace)
     filter: [
@@ -62,7 +62,7 @@ export default {
         rightOperand: true
       },
       {
-        leftOperand: "rating",
+        leftOperand: "item.rating",
         operator: ">=",
         rightOperand: 'window.$minRating.get()'
       }
@@ -71,8 +71,8 @@ export default {
 
   // Reactive category search using index
   $categoryProducts: {
-    prototype: 'IndexedDB',
-    bind: "this.$allProducts",
+    prototype: 'IDBRequest',
+    objectStore: "this.$allProducts",
     operation: "getAll",
     index: "by-category",
     query: function () {
@@ -83,8 +83,8 @@ export default {
 
   // High-rated products (rating >= 4.5)
   $topRatedProducts: {
-    prototype: 'IndexedDB',
-    bind: "this.$allProducts",
+    prototype: 'IDBRequest',
+    objectStore: "this.$allProducts",
     operation: "getAll",
     index: "by-rating",
     query: IDBKeyRange.lowerBound(4.5),
@@ -140,27 +140,25 @@ export default {
       price: Math.floor(Math.random() * 500) + 50,
       rating: Math.round((Math.random() * 2 + 3) * 10) / 10, // 3.0 to 5.0
       description: "A fantastic product that will exceed your expectations",
-    };
+    };        // Use IDBObjectStore directly
+        const store = this.$allProducts.get();
+        await new Promise((resolve, reject) => {
+          const request = store.add(randomProduct);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      },
 
-    // Use IDBObjectStore directly
-    const store = this.$allProducts.getStore();
-    await new Promise((resolve, reject) => {
-      const request = store.add(randomProduct);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  },
-
-  clearAllProducts: async function () {
-    if (confirm("Clear all products from database?")) {
-      // Use IDBObjectStore directly
-      const store = this.$allProducts.getStore();
-      await new Promise((resolve, reject) => {
-        const request = store.clear();
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
-    }
+      clearAllProducts: async function () {
+        if (confirm("Clear all products from database?")) {
+          // Use IDBObjectStore directly
+          const store = this.$allProducts.get();
+          await new Promise((resolve, reject) => {
+            const request = store.clear();
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+        }
   },
 
   document: {

@@ -5,7 +5,7 @@
  * Follows the Rule of Least Power - no imperative functions, only declarative templates.
  */
 
-import { resolveAccessor, resolveTemplate, resolveOperand } from '../../utils/evaluation';
+import { resolveAccessor, resolveTemplate } from '../../utils/evaluation';
 
 const ACCESSOR_REGEX = /^(item|index|window|document)/;
 

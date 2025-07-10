@@ -21,6 +21,7 @@ import { createReadableStreamNamespace, type ReadableStreamConfig } from './read
 import { createCookieNamespace, type CookieConfig } from './cookie';
 import { createStorageNamespace, type StorageConfig } from './storage';
 import { createIndexedDBNamespace, type IndexedDBConfig } from './indexed-db';
+import { createIDBRequestNamespace, type IDBRequestConfig } from './indexed-db/request';
 import { createWebSocketNamespace, type WebSocketConfig } from './web-socket';
 
 
@@ -81,6 +82,7 @@ const NAMESPACE_REGISTRY: Record<string, NamespaceEntry> = {
   'SessionStorage': { handler: createStorageNamespace, validator: storageConfigValidator },
   'LocalStorage': { handler: createStorageNamespace, validator: storageConfigValidator },
   'IndexedDB': { handler: createIndexedDBNamespace, validator: typia.createIs<IndexedDBConfig>() },
+  'IDBRequest': { handler: createIDBRequestNamespace, validator: typia.createIs<IDBRequestConfig>() },
   'WebSocket': { handler: createWebSocketNamespace, validator: typia.createIs<WebSocketConfig>() },
 };
 

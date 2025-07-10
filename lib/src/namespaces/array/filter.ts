@@ -8,7 +8,7 @@
  */
 
 import { FilterCriteria } from '../../types';
-import { resolveOperand, evaluateComparison, type Operator } from '../../utils/evaluation';
+import { resolveOperand, evaluateComparison } from '../../utils/evaluation';
 
 /**
  * Applies an array of filter expressions to items

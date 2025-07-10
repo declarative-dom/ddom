@@ -31,8 +31,8 @@ export default {
       };
       
       try {
-        // Use the IDBObjectStore directly for database operations
-        const store = this.$appDataStore.getStore();
+        // Use the store factory to get a fresh transaction
+        const store = await this.$appDataStore.get().getStore('readwrite');
         const id = await new Promise((resolve, reject) => {
           const request = store.add(newDoc);
           request.onsuccess = () => resolve(request.result);
@@ -54,8 +54,8 @@ export default {
 
   removeDocument: async function(docId) {
     try {
-      // Use the IDBObjectStore directly for database operations
-      const store = this.$appDataStore.getStore();
+      // Use the store factory to get a fresh transaction
+      const store = await this.$appDataStore.get().getStore('readwrite');
       await new Promise((resolve, reject) => {
         const request = store.delete(docId);
         request.onsuccess = () => resolve(request.result);
@@ -73,7 +73,7 @@ export default {
   // Load all documents from database (called on init)
   loadDocuments: async function() {
     try {
-      const store = this.$appDataStore.getStore('readonly');
+      const store = await this.$appDataStore.get().getStore('readonly');
       const docs = await new Promise((resolve, reject) => {
         const request = store.getAll();
         request.onsuccess = () => resolve(request.result);
@@ -718,7 +718,7 @@ export default {
                           onclick: async function() {
                             if (confirm('Clear all documents?')) {
                               try {
-                                const store = this.$appDataStore.getStore();
+                                const store = await this.$appDataStore.get().getStore('readwrite');
                                 await new Promise((resolve, reject) => {
                                   const request = store.clear();
                                   request.onsuccess = () => resolve(request.result);

@@ -213,7 +213,7 @@ export function processScopeProperty(
     console.debug('🔍 processScopeProperty:', key, '=', value, 'typeof:', typeof value);
     const pattern = classifyProperty(value);
     console.debug('🎯 Classified', key, 'as:', pattern);
-    let processed: ProcessedProperty;
+    // let processed: ProcessedProperty;
 
     switch (pattern) {
       case 'function':
@@ -369,7 +369,7 @@ function validateComputedValue(computed: Signal.Computed<any>): boolean {
   try {
     computed.get();
     return true;
-  } catch (error) {
+  } catch {
     return false;
   }
 }

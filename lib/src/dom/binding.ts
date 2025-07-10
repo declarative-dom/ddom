@@ -166,7 +166,7 @@ function applyStandardPropertyBinding(
   el: DOMNode,
   key: string,
   value: any,
-  options: DOMSpecOptions
+  _options: DOMSpecOptions
 ): void {
   console.debug('🔧 applyStandardPropertyBinding:', key, '=', value);
   
@@ -386,7 +386,7 @@ function setAttributeValue(element: Element, name: string, value: any): void {
  * bindReactiveArray(itemsSignal, listElement, { css: true });
  * ```
  */
-export function bindReactiveArray<T>(
+export function bindReactiveArray(
   arraySignal: ArraySignal, // Enhanced signal with getMutableProps method
   parentElement: Element,
   options: DOMSpecOptions = {}

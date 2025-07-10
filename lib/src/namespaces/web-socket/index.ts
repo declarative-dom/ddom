@@ -25,9 +25,9 @@ export interface WebSocketConfig extends PrototypeConfig {
  * Creates WebSocket namespace (placeholder implementation)
  */
 export const createWebSocketNamespace = (
-  config: WebSocketConfig,
-  key: string,
-  element: any
+  _config: WebSocketConfig,
+  _key: string,
+  _element: any
 ) => {
   // Config is already validated by the main namespace index
 

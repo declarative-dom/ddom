@@ -27,7 +27,6 @@
  */
 
 import {
-  ArrayConfig,
   DocumentSpec,
   DOMSpec,
   HTMLElementSpec,

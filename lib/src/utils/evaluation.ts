@@ -68,7 +68,7 @@ const evaluateChain = (obj: any, path: string): any => {
   const parts = path.split('.');
   console.debug('🔍 evaluateChain parts:', parts);
 
-  return parts.reduce((current, part, index) => {
+  return parts.reduce((current, part, _index) => {
     console.debug('🔍 evaluateChain processing part:', part, 'current:', current);
     
     // Handle optional chaining - check for ? at the END of the part (from ?.split)

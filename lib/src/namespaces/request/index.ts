@@ -105,7 +105,7 @@ function createRequestEffect(
       } else {
         executeRequest(requestSignal, resolvedConfig);
       }
-    } catch (error) {
+    } catch {
       // If there's an error resolving config, don't execute
       return;
     }
