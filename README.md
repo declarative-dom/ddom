@@ -240,6 +240,35 @@ console.log(app.$displayText);           // Signal.Computed { ... }
 
 NOTE: Scopes are partitioned at the window, document, and custom element levels. Each custom element creates a new scope boundary, enforcing component-level isolation.
 
+### 🔄 Fine-grained Reactivity
+
+Each property manages its own reactivity - no component-level re-rendering:
+
+```JavaScript
+const app = DDOM({
+  // Only dollar-prefixed properties become signals
+  $name: 'John',
+  $age: 30,
+  
+  // Regular properties are static
+  id: 'user-profile',
+  className: 'container',
+  
+  // But can be signal-driven with templates or getters
+  textContent: 'Name: ${this.$name.get()}',
+  title: function () {
+    return `User: ${this.$name.get()} (${this.$age.get()})`;
+  }
+});
+
+// Only signal updates trigger reactivity
+app.$name.set('Jane');  // ← Updates textContent and title
+app.$age.set(31);       // ← Updates title
+
+// Regular property changes don't trigger reactivity
+app.className = 'updated'; // ← Just sets the property directly
+```
+
 ### 🌐 Dynamic Mapped Arrays
 
 Create dynamic lists that automatically update when data changes using the prototype-based namespace syntax:
@@ -328,36 +357,6 @@ DDOM provides declarative access to Web APIs through prototype-based namespace c
 * **LocalStorage, SessionStorage, Cookie** - Reactive storage APIs
 * **IndexedDB** - Full reactive database support with CRUD operations
 
-
-### 🔄 Fine-grained Reactivity
-
-Each property manages its own reactivity - no component-level re-rendering:
-
-```JavaScript
-const app = DDOM({
-  // Only dollar-prefixed properties become signals
-  $name: 'John',
-  $age: 30,
-  
-  // Regular properties are static
-  id: 'user-profile',
-  className: 'container',
-  
-  // But can be signal-driven with templates or getters
-  textContent: 'Name: ${this.$name.get()}',
-  title: function () {
-    return `User: ${this.$name.get()} (${this.$age.get()})`;
-  }
-});
-
-// Only signal updates trigger reactivity
-app.$name.set('Jane');  // ← Updates textContent and title
-app.$age.set(31);       // ← Updates title
-
-// Regular property changes don't trigger reactivity
-app.className = 'updated'; // ← Just sets the property directly
-```
-
 ## Getting Started
 
 ### Installation
@@ -393,75 +392,42 @@ npm run lint:fix
 </head>
 <body>
     <script type="module">
-        import DDOM from '@declarative-dom/lib';
-        
-        // Create a reactive app
-        const app = DDOM({
-            $count: 0,
-            $name: 'World',
-            
-            // Define the DOM structure
-            document: {
-                body: {
-                    children: [
-                        {
-                            tagName: 'h1',
-                            textContent: 'Hello ${this.$name.get()}!'
-                        },
-                        {
-                            tagName: 'p',
-                            textContent: 'Count: ${this.$count.get()}'
-                        },
-                        {
-                            tagName: 'button',
-                            textContent: 'Increment',
-                            onclick: function() { 
-                                this.$count.set(this.$count.get() + 1);
-                            }
-                        }
-                    ]
-                }
-            });
+      import DDOM from '@declarative-dom/lib';
+      
+      // Create a reactive app
+      const app = DDOM({
+          $count: 0,
+          $name: 'World',
+          
+          // Define the DOM structure
+          document: {
+              body: {
+                  children: [
+                      {
+                          tagName: 'h1',
+                          textContent: 'Hello ${this.$name}!'
+                      },
+                      {
+                          tagName: 'p',
+                          textContent: 'Count: ${this.$count}'
+                      },
+                      {
+                          tagName: 'button',
+                          textContent: 'Increment',
+                          onclick: function() { 
+                              this.$count.set(this.$count.get() + 1);
+                          }
+                      }
+                  ]
+              }
+          }
+        });
         
         console.log('App created:', app);
     </script>
 </body>
 </html>
 ```
-
-## Examples
-
-The `examples/` directory contains comprehensive demonstrations:
-
-* **`basic-reactivity.html`** - Basic reactivity features
-* **`complete-demo.html`** - Comprehensive feature showcase
-* **`validation-test.html`** - Full test suite validating all features
-* **`dynamic-list.html`** - Dynamic list with reactive signals
-* **`reactive-custom-elements.html`** - Custom elements with reactivity
-* **`performance-test.html`** - Performance benchmarking
-* **`declarative-fetch.js`** - Weather dashboard with real-time API integration
-
-### Weather Dashboard Example
-
-The weather dashboard demonstrates real-world API integration using DDOM's declarative fetch capabilities:
-
-* **Reactive location selection** - Automatically updates coordinates when location changes
-* **Debounced API requests** - Prevents excessive calls with intelligent debounce
-* **Template literal URLs** - Dynamic URLs built from reactive properties
-* **Error handling** - Graceful fallbacks for missing data
-* **Beautiful UI** - Modern design with responsive grid layout
-
-```JavaScript
-// Key features from the weather example:
-$weatherData: {
-  Request: {
-    url: 'https://api.weather.gov/points/${this.$currentCoords().lat},${this.$currentCoords().lon}',
-    debounce: 500 // Debounce API calls
-  }
-}
-```
-
-This creates a reactive signal that automatically fetches new weather data whenever the coordinates change, with built-in debouncing to prevent rapid API calls.
 
 ## Testing
 
@@ -523,6 +489,10 @@ DOM immutable properties `id` and `tagName` are automatically protected from rea
 
 ## Philosophy
 
+### DOM-First Design
+
+DDOM maintains strict alignment with DOM APIs and web standards. In general, DDOM aims to mirror and support valid DOM properties, keys, and value types as closely as possible.
+
 ### The Rule of Least Power
 
 DDOM follows [Tim Berners-Lee's Rule of Least Power](https://www.w3.org/DesignIssues/Principles.html#PLP): *"Given a choice of solutions, pick the least powerful solution capable of solving the problem."* This principle guides every design decision:
@@ -533,10 +503,6 @@ DDOM follows [Tim Berners-Lee's Rule of Least Power](https://www.w3.org/DesignIs
 * **Web standards over custom APIs** - Leverage existing browser capabilities
 
 This approach creates more maintainable, serializable, and understandable code while preventing over-engineering.
-
-### DOM-First Design
-
-DDOM maintains strict alignment with DOM APIs and web standards. In general, DDOM aims to mirror and support valid DOM properties, keys, and value types as closely as possible.
 
 ### Developer Experience
 
