@@ -9,13 +9,13 @@
     "module": "ESNext",
     "moduleResolution": "node",
     "outDir": "./dist",
-    "rootDir": "./",
+    "rootDir": "../",
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2022"
   },
   "include": [
-    "index.ts",
+    "./index.d.ts",
     "../dom/types.d.ts",
     "../namespaces/types.d.ts"
   ],
