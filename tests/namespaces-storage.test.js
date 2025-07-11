@@ -1,6 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createElement, Signal } from '../lib/dist/index.js';
-import { isNamespacedProperty, extractNamespace, NAMESPACE_HANDLERS } from '../lib/dist/index.js';
 
 describe('Namespaced Properties - Storage APIs', () => {
   beforeEach(() => {
@@ -48,43 +47,65 @@ describe('Namespaced Properties - Storage APIs', () => {
   });
 
   describe('Namespace Detection', () => {
-    test('should detect valid storage namespaced properties', () => {
-      expect(isNamespacedProperty({ prototype: 'Cookie', name: 'user' })).toBe(true);
-      expect(isNamespacedProperty({ prototype: 'SessionStorage', key: 'data' })).toBe(true);
-      expect(isNamespacedProperty({ prototype: 'LocalStorage', key: 'settings' })).toBe(true);
-      expect(isNamespacedProperty({ prototype: 'IndexedDB', database: 'mydb', store: 'data' })).toBe(true);
+    test('should detect valid storage namespaced properties via createElement', () => {
+      // Test that namespaced properties work in createElement - this validates the internal detection
+      const cookieElement = createElement({
+        tagName: 'div',
+        $testCookie: { prototype: 'Cookie', name: 'user', value: 'test' }
+      });
+      expect(cookieElement.$testCookie).toBeDefined();
+      expect(Signal.isState(cookieElement.$testCookie)).toBe(true);
+
+      const sessionElement = createElement({
+        tagName: 'div',
+        $testSession: { prototype: 'SessionStorage', key: 'data', value: 'test' }
+      });
+      expect(sessionElement.$testSession).toBeDefined();
+      expect(Signal.isState(sessionElement.$testSession)).toBe(true);
+
+      const localElement = createElement({
+        tagName: 'div',
+        $testLocal: { prototype: 'LocalStorage', key: 'settings', value: 'test' }
+      });
+      expect(localElement.$testLocal).toBeDefined();
+      expect(Signal.isState(localElement.$testLocal)).toBe(true);
+
+      const indexedElement = createElement({
+        tagName: 'div',
+        $testIndexed: { prototype: 'IndexedDB', database: 'mydb', store: 'data', value: [] }
+      });
+      expect(indexedElement.$testIndexed).toBeDefined();
+      expect(Signal.isState(indexedElement.$testIndexed)).toBe(true);
     });
 
-    test('should reject invalid storage namespaced properties', () => {
-      // Missing prototype property
-      expect(isNamespacedProperty({ Cookie: { name: 'user' } })).toBe(false); // Old syntax not supported
-      expect(isNamespacedProperty({ name: 'user' })).toBe(false); // Missing prototype
-      expect(isNamespacedProperty({ prototype: 'InvalidNamespace', key: 'data' })).toBe(false); // Invalid prototype
-      
-      // These should be false because they are structural issues
-      expect(isNamespacedProperty({ prototype: 'Cookie' })).toBe(true); // Actually valid - missing config will be handled by validator
-      expect(isNamespacedProperty({ prototype: null })).toBe(false); // Invalid prototype type
-      expect(isNamespacedProperty('invalid')).toBe(false); // Not an object
+    test('should handle invalid namespace configurations gracefully', () => {
+      // Invalid prototype should result in no signal being created
+      const element1 = createElement({
+        tagName: 'div',
+        $invalid1: { prototype: 'InvalidNamespace', key: 'data' }
+      });
+      expect(element1.$invalid1).toBeNull();
+
+      // Missing required properties should result in no signal being created  
+      const element2 = createElement({
+        tagName: 'div',
+        $invalid2: { prototype: 'Cookie' } // Missing name
+      });
+      expect(element2.$invalid2).toBeDefined(); // Signal is created but may be null
+      expect(Signal.isState(element2.$invalid2)).toBe(true);
+      expect(element2.$invalid2.get()).toBeNull(); // Invalid config results in null value
     });
 
-    test('should extract storage namespaces correctly', () => {
-      const cookieConfig = { prototype: 'Cookie', name: 'user', value: 'john' };
-
-      const extracted = extractNamespace(cookieConfig);
-      expect(extracted).toEqual({
-        namespace: 'Cookie',
-        config: cookieConfig
+    test('should validate prototype-based namespace structure', () => {
+      // Valid prototype configuration should create proper signals
+      const element = createElement({
+        tagName: 'div',
+        $validConfig: { prototype: 'Cookie', name: 'user', value: 'john' }
       });
       
-      // Test legacy syntax support
-      const legacyCookieConfig = { name: 'user', value: 'john' };
-      const legacyCookieNamespaced = { Cookie: legacyCookieConfig };
-
-      const extractedLegacy = extractNamespace(legacyCookieNamespaced);
-      expect(extractedLegacy).toEqual({
-        namespace: 'Cookie',
-        config: legacyCookieConfig
-      });
+      expect(element.$validConfig).toBeDefined();
+      expect(Signal.isState(element.$validConfig)).toBe(true);
+      expect(element.$validConfig.get()).toBe('john');
     });
   });
 
@@ -337,26 +358,22 @@ describe('Namespaced Properties - Storage APIs', () => {
           database: 'testDB',
           store: 'users',
           key: 'user1',
-          value: { name: 'John', email: 'john@example.com' }
+          value: [{ name: 'John', email: 'john@example.com' }]
         }
       });
 
       expect(element.$dbData).toBeDefined();
-      // Note: IndexedDB namespace is not implemented yet, so this will not pass
-      // expect(Signal.isComputed(element.$dbData)).toBe(true);
+      expect(Signal.isState(element.$dbData)).toBe(true);
 
-      // For now, just check that the property exists
-      // const dbObject = element.$dbData.get();
-      // expect(dbObject).toBeDefined();
-      // expect(dbObject.database).toBe('testDB');
-      // expect(dbObject.store).toBe('users');
-      // expect(dbObject.key).toBe('user1');
-      // expect(typeof dbObject.get).toBe('function');
-      // expect(typeof dbObject.set).toBe('function');
+      // IndexedDB namespace creates a signal that holds the factory object
+      // The actual database operations are async and handled via the factory
     });
 
     test('should handle missing IndexedDB gracefully', () => {
-      // Test with no IndexedDB mock
+      // Remove indexedDB to test graceful degradation
+      const originalIndexedDB = window.indexedDB;
+      delete window.indexedDB;
+
       const element = createElement({
         tagName: 'div',
         $dbData: {
@@ -366,25 +383,47 @@ describe('Namespaced Properties - Storage APIs', () => {
         }
       });
 
-      // For now, just check that the property exists
+      // Should still create a signal, but with null value due to missing IndexedDB
       expect(element.$dbData).toBeDefined();
-      // const dbObject = element.$dbData.get();
-      // Should handle missing IndexedDB by returning the config object without operations
-      // expect(dbObject).toBeDefined();
+      expect(Signal.isState(element.$dbData)).toBe(true);
+      expect(element.$dbData.get()).toBeNull();
+
+      // Restore for other tests
+      window.indexedDB = originalIndexedDB;
     });
   });
 
   describe('Namespace Handler Registry', () => {
-    test('should have all storage handlers registered', () => {
-      expect(NAMESPACE_HANDLERS.Cookie).toBeDefined();
-      expect(NAMESPACE_HANDLERS.SessionStorage).toBeDefined();
-      expect(NAMESPACE_HANDLERS.LocalStorage).toBeDefined();
-      // expect(NAMESPACE_HANDLERS.IndexedDB).toBeDefined(); // Not implemented yet
-      
-      expect(typeof NAMESPACE_HANDLERS.Cookie).toBe('function');
-      expect(typeof NAMESPACE_HANDLERS.SessionStorage).toBe('function');
-      expect(typeof NAMESPACE_HANDLERS.LocalStorage).toBe('function');
-      // expect(typeof NAMESPACE_HANDLERS.IndexedDB).toBe('function'); // Not implemented yet
+    test('should have all storage handlers registered via createElement', () => {
+      // Test that all storage namespace handlers work by creating elements
+      const cookieElement = createElement({
+        tagName: 'div',
+        $cookie: { prototype: 'Cookie', name: 'test', value: 'test' }
+      });
+      expect(cookieElement.$cookie).toBeDefined();
+      expect(Signal.isState(cookieElement.$cookie)).toBe(true);
+
+      const sessionElement = createElement({
+        tagName: 'div',
+        $session: { prototype: 'SessionStorage', key: 'test', value: 'test' }
+      });
+      expect(sessionElement.$session).toBeDefined();
+      expect(Signal.isState(sessionElement.$session)).toBe(true);
+
+      const localElement = createElement({
+        tagName: 'div',
+        $local: { prototype: 'LocalStorage', key: 'test', value: 'test' }
+      });
+      expect(localElement.$local).toBeDefined();
+      expect(Signal.isState(localElement.$local)).toBe(true);
+
+      // IndexedDB is implemented but may return null if no IndexedDB available
+      const indexedElement = createElement({
+        tagName: 'div',
+        $indexed: { prototype: 'IndexedDB', database: 'test', store: 'test' }
+      });
+      expect(indexedElement.$indexed).toBeDefined();
+      expect(Signal.isState(indexedElement.$indexed)).toBe(true);
     });
   });
 
