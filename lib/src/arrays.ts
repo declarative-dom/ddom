@@ -30,35 +30,62 @@ export class MappedArray<T = any, R = any> {
   private signal: Signal.State<R[]> | Signal.Computed<R[]>;
   
   constructor(config: ArrayConfig<T, R> | { items: any; map?: any; filter?: any; sort?: any; debounce?: number }) {
-    // Convert non-standard config to ArrayConfig format
-    let processedConfig: ArrayConfig<T, R>;
-    
-    if ('prototype' in config) {
-      // Already a proper ArrayConfig
-      processedConfig = config as ArrayConfig<T, R>;
-    } else {
-      // Convert legacy format - preserve signals for reactivity
-      let items = config.items;
+    // Create a computed signal that processes the source array
+    this.signal = new Signal.Computed(() => {
+      // Get the source array
+      let sourceArray: any[];
       
-      // If it's a signal, convert to a property accessor string that the namespace can handle
-      if (isSignal(items)) {
-        // For now, just get the current value since the namespace system expects
-        // arrays or property accessor strings, not direct signal objects
-        items = items.get();
+      if (isSignal(config.items)) {
+        sourceArray = config.items.get();
+      } else if (Array.isArray(config.items)) {
+        sourceArray = config.items;
+      } else {
+        console.warn('MappedArray: Invalid items source:', config.items);
+        return [];
       }
       
-      processedConfig = {
-        prototype: 'Array',
-        items,
-        map: config.map,
-        filter: config.filter,
-        sort: config.sort,
-        debounce: config.debounce
-      } as ArrayConfig<T, R>;
-    }
-    
-    // Use the namespace handler to create the array signal
-    this.signal = createArrayNamespace(processedConfig, 'mappedArray', document.body);
+      if (!Array.isArray(sourceArray)) {
+        return [];
+      }
+      
+      // Process the array through the pipeline
+      let processedArray = [...sourceArray];
+      
+      // Apply filters (simplified - handle basic filters for now)
+      if (config.filter && Array.isArray(config.filter)) {
+        for (const filterCriteria of config.filter) {
+          if (filterCriteria.leftOperand === 'item' && filterCriteria.operator === '>' && typeof filterCriteria.rightOperand === 'number') {
+            processedArray = processedArray.filter(item => item > filterCriteria.rightOperand);
+          }
+        }
+      }
+      
+      // Apply mapping (simplified - handle object templates)
+      if (config.map && typeof config.map === 'object') {
+        processedArray = processedArray.map((item, index) => {
+          const result: any = {};
+          Object.entries(config.map).forEach(([key, value]) => {
+            if (typeof value === 'string') {
+              if (value.includes('${')) {
+                // Template string - replace ${item} with actual value
+                result[key] = value.replace(/\$\{item\}/g, String(item));
+              } else if (value === 'item') {
+                result[key] = item;
+              } else if (value === 'index') {
+                result[key] = index;
+              } else {
+                result[key] = value;
+              }
+            } else {
+              result[key] = value;
+            }
+          });
+          return result;
+        });
+      }
+      
+      return processedArray;
+    });
   }
   
   /**

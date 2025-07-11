@@ -126,7 +126,7 @@ describe('Component-Level Signal Isolation', () => {
         items: [1, 2, 3],
         map: {
           tagName: 'span',
-          textContent: (item) => `Item: ${item}`
+          textContent: 'Item: ${item}'
         }
       }
     });
@@ -244,10 +244,10 @@ describe('Component-Level Signal Isolation', () => {
     // Create a MappedArray with filtering and mapping
     const mappedArray = new MappedArray({
       items: sourceData,
-      filter: [{ leftOperand: (item) => item, operator: '>', rightOperand: 2 }],
+      filter: [{ leftOperand: 'item', operator: '>', rightOperand: 2 }],
       map: {
         tagName: 'div',
-        textContent: (item) => `Item: ${item}`
+        textContent: 'Item: ${item}'
       }
     });
     
@@ -288,7 +288,7 @@ describe('Component-Level Signal Isolation', () => {
             map: {
               tagName: 'div',
               className: 'person-item',
-              textContent: (person) => `${person.name} (ID: ${person.id})`
+              textContent: '${item.name} (ID: ${item.id})'
             }
           }
         }
