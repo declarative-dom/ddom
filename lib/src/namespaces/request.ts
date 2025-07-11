@@ -5,10 +5,9 @@
  * debouncing, and response handling.
  */
 
-import { Signal, createEffect, ComponentSignalWatcher } from '../../core/signals';
-import { resolveConfig } from '../';
-import { PrototypeConfig } from '../types';
-import { performFetch } from './fetch';
+import { Signal, createEffect, ComponentSignalWatcher } from '../core/signals';
+import { resolveConfig } from '.';
+import { PrototypeConfig } from './types';
 
 /**
  * RequestConfig Type Definition
@@ -139,5 +138,63 @@ async function executeRequest(
     console.warn('Request failed:', error);
     // For errors, set error response
     requestSignal.set({ error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+
+/**
+ * Performs an HTTP fetch with DDOM-specific handling
+ */
+export async function performFetch(config: RequestConfig): Promise<any> {
+  const { url, responseType = 'json', body, headers = {}, ...fetchOptions } = config;
+  
+  // Process the request body and headers
+  let processedBody = body;
+  let processedHeaders: Record<string, string> = { ...headers as Record<string, string> };
+  
+  // Auto-serialize object bodies to JSON and set Content-Type
+  if (body && typeof body === 'object' && !(body instanceof FormData) && !(body instanceof URLSearchParams) && !(body instanceof Blob) && !(body instanceof ArrayBuffer)) {
+    processedBody = JSON.stringify(body);
+    // Set Content-Type header if not already set
+    if (!processedHeaders['Content-Type'] && !processedHeaders['content-type']) {
+      processedHeaders['Content-Type'] = 'application/json';
+    }
+  }
+  
+  // Perform the fetch
+  const response = await fetch(url, {
+    ...fetchOptions,
+    body: processedBody,
+    headers: processedHeaders
+  });
+  
+  // Handle non-ok responses
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+  
+  // Parse response based on responseType
+  switch (responseType) {
+    case 'json':
+      return await response.json();
+      
+    case 'text':
+      return await response.text();
+      
+    case 'blob':
+      return await response.blob();
+      
+    case 'arraybuffer':
+      return await response.arrayBuffer();
+      
+    case 'document':
+      const text = await response.text();
+      const parser = new DOMParser();
+      return parser.parseFromString(text, 'text/html');
+      
+    case '':
+    default:
+      // Return the Response object itself
+      return response;
   }
 }

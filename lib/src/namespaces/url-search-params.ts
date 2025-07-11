@@ -4,10 +4,9 @@
  * Creates reactive URLSearchParams objects from configuration.
  */
 
-import { Signal } from '../../core/signals';
-import { processProperty } from '../../core/properties';
-import { PrototypeConfig } from '../types';
-import { buildURLSearchParams } from './builder';
+import { Signal } from '../core/signals';
+import { processProperty } from '../core/properties';
+import { PrototypeConfig } from './types';
 
 /**
  * URLSearchParamsConfig Type Definition
@@ -60,3 +59,29 @@ export const createURLSearchParamsNamespace = (
   
   return computedParams;
 };
+
+
+/**
+ * Builds a URLSearchParams object from configuration
+ */
+export function buildURLSearchParams(config: any): URLSearchParams {
+  const params = new URLSearchParams();
+  
+  Object.entries(config).forEach(([key, value]) => {
+    if (key === 'prototype') return;
+    
+    if (Array.isArray(value)) {
+      // Add multiple values for the same key
+      value.forEach(item => {
+        if (item != null) {
+          params.append(key, String(item));
+        }
+      });
+    } else if (value != null) {
+      // Add single value
+      params.set(key, String(value));
+    }
+  });
+  
+  return params;
+}

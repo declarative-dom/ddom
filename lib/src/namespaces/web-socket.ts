@@ -5,7 +5,7 @@
  * TODO: Implement full WebSocket functionality
  */
 
-import { PrototypeConfig } from '../types';
+import { PrototypeConfig } from './types';
 
 /**
  * WebSocketConfig Type Definition

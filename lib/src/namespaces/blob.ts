@@ -4,9 +4,9 @@
  * Creates reactive Blob objects from configuration.
  */
 
-import { Signal } from '../../core/signals';
-import { processProperty } from '../../core/properties';
-import { PrototypeConfig } from '../types';
+import { Signal } from '../core/signals';
+import { processProperty } from '../core/properties';
+import { PrototypeConfig } from './types';
 
 /**
  * BlobConfig Type Definition

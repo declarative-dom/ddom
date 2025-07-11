@@ -6,8 +6,8 @@
  * For reactive queries, use the IDBRequest namespace.
  */
 
-import { Signal } from '../../core/signals';
-import { processProperty } from '../../core/properties';
+import { Signal } from '../core/signals';
+import { processProperty } from '../core/properties';
 import { PrototypeConfig } from '../types';
 
 /**

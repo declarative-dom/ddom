@@ -8,14 +8,14 @@
  * Supports both reading from and writing to storage with reactive updates.
  */
 
-import { Signal } from '../../core/signals';
-import { SerializableValue } from '../../utils';
-import { processProperty } from '../../core/properties';
-import type { PrototypeConfig } from '../types';
+import { Signal } from '../core/signals';
+import { SerializableValue } from '../utils';
+import { processProperty } from '../core/properties';
+import type { PrototypeConfig } from './types';
 import { 
   serialize, 
   deserialize,
-} from '../../utils';
+} from '../utils';
 
 /**
  * StorageConfig Type Definition

@@ -10,7 +10,6 @@ import typia from 'typia';
 // Import namespace handlers and their config types
 import { type PrototypeConfig } from './types';
 import { processProperty } from '../core/properties';
-import { resolveTemplateProperty } from '../utils/evaluation';
 
 import { createArrayNamespace, type ArrayConfig } from './array';
 import { createRequestNamespace, type RequestConfig } from './request';
@@ -22,7 +21,7 @@ import { createReadableStreamNamespace, type ReadableStreamConfig } from './read
 import { createCookieNamespace, type CookieConfig } from './cookie';
 import { createStorageNamespace, type StorageConfig } from './storage';
 import { createIndexedDBNamespace, type IndexedDBConfig } from './indexed-db';
-import { createIDBRequestNamespace, type IDBRequestConfig } from './indexed-db/request';
+import { createIDBRequestNamespace, type IDBRequestConfig } from './indexed-db-request';
 import { createWebSocketNamespace, type WebSocketConfig } from './web-socket';
 
 

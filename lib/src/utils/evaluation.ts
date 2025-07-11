@@ -40,8 +40,18 @@ const unwrapSignal = (value: any): any =>
  * resolveAccessor(obj, 'items[0].data'); // Array access with property
  */
 export const resolveAccessor = (obj: any, path: string, fallback: any = null): any => {
+  if (!path) {
+    return fallback;
+  }
   try {
-    return evaluateChain(obj, path) ?? fallback;
+    // If there's no dot in the path, return the property directly from the object
+    if (path.toString().includes('.')) {
+      return evaluateChain(obj, path) ?? fallback;
+    } else if (Object.hasOwn(obj, path)) {
+      return obj[path] ?? fallback;
+    } else {
+      return path ?? fallback;
+    }
   } catch (error) {
     console.warn('Accessor expression resolution failed:', path, error);
     return fallback;
@@ -236,72 +246,81 @@ const evaluateFunction = (expr: string, context: any): any => {
 
 
 /**
- * Simple comparison evaluator - no tokenization, just basic operators.
- * Handles both property-based and value-based comparisons for filter.ts compatibility.
+ * Efficient comparison evaluator built around FilterCriteria.
+ * Performs single operator lookup and evaluation for optimal performance.
  * 
- * @param {string} expr - The comparison expression to evaluate
+ * @param {FilterCriteria} filter - The filter criteria with left/right operands and operator
+ * @param {any} item - The current item being evaluated (for array filtering)
  * @param {any} context - Context for resolving operand values
- * @returns {any} The comparison result, or null if not a comparison expression
+ * @returns {boolean} The comparison result
+ * 
+ * @example
+ * evaluateFilter({ leftOperand: 'item.age', operator: '>=', rightOperand: 18 }, item, context);
+ * evaluateFilter({ leftOperand: 'item.name', operator: 'includes', rightOperand: 'John' }, item, context);
+ */
+export const evaluateFilter = (filter: any, item: any, context: any): boolean => {
+  try {
+    // Resolve operand values
+    const leftValue = resolveAccessor(context, filter.leftOperand);
+    const rightValue = resolveAccessor(context, filter.rightOperand);
+
+    // Direct operator lookup for maximum performance
+    switch (filter.operator) {
+      case '===': return leftValue === rightValue;
+      case '!==': return leftValue !== rightValue;
+      case '==': return leftValue == rightValue;
+      case '!=': return leftValue != rightValue;
+      case '>=': return leftValue >= rightValue;
+      case '<=': return leftValue <= rightValue;
+      case '>': return leftValue > rightValue;
+      case '<': return leftValue < rightValue;
+      case '&&': return leftValue && rightValue;
+      case '||': return leftValue || rightValue;
+      case '!': return !leftValue;
+      case 'includes': return String(leftValue).includes(String(rightValue));
+      case 'startsWith': return String(leftValue).startsWith(String(rightValue));
+      case 'endsWith': return String(leftValue).endsWith(String(rightValue));
+      default:
+        console.warn(`Unknown filter operator: ${filter.operator}`);
+        return true; // Don't filter out on unknown operators
+    }
+  } catch (error) {
+    console.warn('Filter evaluation failed:', error, filter);
+    return true; // Don't filter out on errors
+  }
+};
+
+/**
+ * Template comparison evaluator that extracts FilterCriteria from string expressions.
+ * Uses regex to parse comparison expressions and convert them to FilterCriteria format.
+ * 
+ * @param {string} expr - The comparison expression string (e.g., "user.age >= 18")
+ * @param {any} context - Context for resolving template variables
+ * @returns {boolean | null} The comparison result, or null if not a comparison expression
  * 
  * @example
  * evaluateComparison('user.age >= 18', context); // true/false
- * evaluateComparison('count < 10', context); // true/false
  * evaluateComparison('status === "active"', context); // true/false
  */
-export type Operator = '===' | '!==' | '==' | '!=' | '>=' | '<=' | '>' | '<' | 'includes' | 'startsWith' | 'endsWith';
+export const evaluateComparison = (expr: string, context: any): boolean | null => {
+  // Operator patterns ordered by specificity (longer operators first)
+  const operatorRegex = /^(.+?)\s*(===|!==|>=|<=|==|!=|>|<|includes|startsWith|endsWith|&&|\|\|)\s*(.+)$/;
 
-/**
- * Simple comparison evaluator - no tokenization, just basic operators.
- * Handles both property-based and value-based comparisons for filter.ts compatibility.
- * 
- * @param {string} expr - The comparison expression to evaluate
- * @param {any} context - Context for resolving operand values
- * @returns {any} The comparison result, or null if not a comparison expression
- */
-export const evaluateComparison = (expr: string, context: any): any => {
-  const operators = ['===', '!==', '==', '!=', '>=', '<=', '>', '<', 'includes', 'startsWith', 'endsWith'];
+  const match = expr.trim().match(operatorRegex);
+  if (match) {
+    const [, left, operator, right] = match;
 
-  for (const op of operators) {
-    if (expr.includes(` ${op} `)) {
-      const [left, right] = expr.split(` ${op} `).map(s => s.trim());
+    // Create FilterCriteria and evaluate using the main filter function
+    const filter = {
+      leftOperand: left.trim(),
+      operator: operator,
+      rightOperand: right.trim()
+    };
 
-      // Handle both property resolution and direct values (for filter.ts)
-      let leftVal, rightVal;
-
-      if (context.hasOwnProperty('leftValue') && context.hasOwnProperty('rightValue')) {
-        // Direct values from filter.ts
-        leftVal = context.leftValue;
-        rightVal = context.rightValue;
-      } else {
-        // Property resolution for templates
-        leftVal = isLiteral(left) ? parseLiteral(left) : (() => {
-          const resolved = resolveAccessor(context, left);
-          return VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
-        })();
-
-        rightVal = isLiteral(right) ? parseLiteral(right) : (() => {
-          const resolved = resolveAccessor(context, right);
-          return VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
-        })();
-      }
-
-      switch (op) {
-        case '===': return leftVal === rightVal;
-        case '!==': return leftVal !== rightVal;
-        case '==': return leftVal == rightVal;
-        case '!=': return leftVal != rightVal;
-        case '>=': return leftVal >= rightVal;
-        case '<=': return leftVal <= rightVal;
-        case '>': return leftVal > rightVal;
-        case '<': return leftVal < rightVal;
-        case 'includes': return String(leftVal).includes(String(rightVal));
-        case 'startsWith': return String(leftVal).startsWith(String(rightVal));
-        case 'endsWith': return String(leftVal).endsWith(String(rightVal));
-      }
-    }
+    return evaluateFilter(filter, context.this || {}, context);
   }
 
-  return null;
+  return null; // Not a comparison expression
 };
 
 /**
@@ -456,7 +475,7 @@ export const resolveTemplateProperty = (context: any, path: string, fallback: an
     // Handle property accessor strings (not template literals)
     if (typeof path === 'string' && !path.includes('${') && !path.includes('(')) {
       // Special case: 'this.$name' as a string should resolve to the signal
-      if (path.startsWith('this.') || path.startsWith('window.') || path.startsWith('document.')) {
+      if (/^(this|window|document)\./.test(path)) {
         return resolveAccessor(context, path, fallback);
       }
       // Regular strings are returned as-is
@@ -464,7 +483,7 @@ export const resolveTemplateProperty = (context: any, path: string, fallback: an
     }
 
     // Function call with args - return result directly
-    if (path.includes('(') && path.includes(')')) {
+    if (VALUE_PATTERNS.FUNCTION_CALL.test(path)) {
       return evaluateFunction(path, context);
     }
 

@@ -6,12 +6,11 @@
  * References IDBObjectStore instances created by the IndexedDB namespace.
  */
 
-import { Signal, createEffect, ComponentSignalWatcher } from '../../core/signals';
-import { processProperty } from '../../core/properties';
-import { resolveConfig } from '../';
+import { Signal, createEffect, ComponentSignalWatcher } from '../core/signals';
+import { resolveConfig } from '.';
 import { PrototypeConfig, FilterCriteria, SortCriteria } from '../types';
-import { resolveTemplateProperty, resolveOperand, evaluateComparison } from '../../utils/evaluation';
-import { IndexedDBStoreFactory } from './index';
+import { resolveTemplateProperty, resolveOperand, evaluateComparison } from '../utils/evaluation';
+import { IndexedDBStoreFactory } from './indexed-db';
 
 /**
  * IDBRequestConfig Type Definition
@@ -109,8 +108,17 @@ export const createIDBRequestNamespace = (
       }
       
       // Resolve objectStore reference using evaluation system
-      const objectStoreRef = resolveTemplateProperty(context, resolvedConfig.objectStore);
-      const storeFactory = objectStoreRef?.get?.() || objectStoreRef;
+      const objectStoreSignal = resolveOperand(resolvedConfig.objectStore, element, context);
+      
+      // Extract the store factory from the signal
+      let storeFactory: IndexedDBStoreFactory;
+      if (objectStoreSignal && typeof objectStoreSignal.get === 'function') {
+        // It's a Signal containing the store factory
+        storeFactory = objectStoreSignal.get();
+      } else {
+        // It might be the store factory directly
+        storeFactory = objectStoreSignal;
+      }
       
       if (!storeFactory) {
         throw new Error(`ObjectStore reference not found: ${resolvedConfig.objectStore}`);

@@ -3,9 +3,6 @@ import { adoptStyleSheet, clearStyleSheet } from './dom/style-sheets';
 import { define } from './dom/custom-elements';
 import { createEffect, ComponentSignalWatcher } from './core/signals';
 import { Signal } from 'signal-polyfill';
-import { processProperty } from './core/properties';
-import { resolveAccessor } from './utils/evaluation';
-import { MappedArray } from './arrays';
 
 // Named exports for compatibility
 export { adoptDocument, adoptNode, adoptWindow, createElement } from './dom/element';
@@ -13,7 +10,6 @@ export { adoptStyleSheet, clearStyleSheet } from './dom/style-sheets';
 export { define } from './dom/custom-elements';
 export { createEffect, ComponentSignalWatcher } from './core/signals';
 export { Signal } from 'signal-polyfill';
-export { MappedArray } from './arrays';
 
 // Export property utilities that tests expect
 export { processProperty as createReactiveProperty } from './core/properties';
@@ -38,7 +34,6 @@ Object.assign(DDOM, {
 	},
 	createEffect,
 	ComponentSignalWatcher,
-	MappedArray,
 	Signal,
 });
 

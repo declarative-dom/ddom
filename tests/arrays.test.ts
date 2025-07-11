@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { MappedArray, isArrayConfig } from '../lib/src/arrays';
+import { createArrayNamespace } from '../lib/src/namespaces/array';
 import { Signal } from '../lib/src/core/signals';
 
 // Mock DOM environment for tests
@@ -35,113 +35,97 @@ const sampleUsers: User[] = [
   { id: 6, name: 'Frank', department: 'Engineering', age: 40, active: false, salary: 95000 },
 ];
 
-describe('MappedArray', () => {
+describe('Array Namespace', () => {
   let userSignal: Signal.State<User[]>;
 
   beforeEach(() => {
     userSignal = new Signal.State(sampleUsers);
   });
 
-  describe('Type Guards', () => {
-    it('should correctly identify ArrayConfig objects', () => {
-      expect(isArrayConfig({ items: [] })).toBe(true);
-      expect(isArrayConfig({ items: 'window.data' })).toBe(true);
-      expect(isArrayConfig({ notItems: [] })).toBe(false);
-      expect(isArrayConfig(null)).toBe(false);
-      expect(isArrayConfig(undefined)).toBe(false);
-      expect(isArrayConfig('string')).toBe(false);
-    });
-  });
-
   describe('Basic Array Sources', () => {
     it('should work with static arrays', () => {
-      const mappedArray = new MappedArray({
+      const arrayNamespace = createArrayNamespace({
+        prototype: 'Array',
         items: sampleUsers,
-        map: { name: (user: User) => user.name.toUpperCase() }
-      });
+        map: { name: '${item.name.toUpperCase()}' },
+      }, 'testKey', document.body);
 
-      const result = mappedArray.get();
+      const result = arrayNamespace.get();
       expect(result).toHaveLength(6);
       expect(result[0]).toEqual({ name: 'ALICE' });
     });
 
     it('should work with Signal.State arrays', () => {
-      const mappedArray = new MappedArray({
+      const arrayNamespace = createArrayNamespace({
+        prototype: 'Array',
         items: userSignal,
-        map: { id: (user: User) => user.id, name: (user: User) => user.name }
-      });
+        map: { id: 'item.id', name: 'item.name' },
+      }, 'testKey', document.body);
 
-      const result = mappedArray.get();
+      const result = arrayNamespace.get();
       expect(result).toHaveLength(6);
       expect(result[0]).toEqual({ id: 1, name: 'Alice' });
-    });
-
-    it('should work with function sources', () => {
-      const mappedArray = new MappedArray({
-        items: () => sampleUsers.slice(0, 3),
-        map: { name: (user: User) => user.name }
-      });
-
-      const result = mappedArray.get();
-      expect(result).toHaveLength(3);
-      expect(result.map(r => r.name)).toEqual(['Alice', 'Bob', 'Charlie']);
     });
   });
 
   describe('Filtering', () => {
     it('should filter items based on property values', () => {
-      const mappedArray = new MappedArray({
+      const arrayNamespace = createArrayNamespace({
+        prototype: 'Array',
         items: sampleUsers,
         filter: [
-          { leftOperand: 'active', operator: '===', rightOperand: true }
+          { leftOperand: 'item.active', operator: '===', rightOperand: true },
         ],
-        map: { name: (user: User) => user.name }
-      });
+        map: { name: 'item.name' },
+      }, 'testKey', document.body);
 
-      const result = mappedArray.get();
+      const result = arrayNamespace.get();
       expect(result).toHaveLength(4);
       expect(result.map(r => r.name)).toEqual(['Alice', 'Bob', 'Diana', 'Eve']);
     });
 
-    it('should filter with function operands', () => {
-      const mappedArray = new MappedArray({
+    it('should filter with item accessors', () => {
+      const arrayNamespace = createArrayNamespace({
+        prototype: 'Array',
         items: sampleUsers,
         filter: [
-          { leftOperand: (user: User) => user.age, operator: '>=', rightOperand: 30 }
+          { leftOperand: 'item.age', operator: '>=', rightOperand: 30 },
         ],
-        map: { name: (user: User) => user.name }
-      });
+        map: { name: 'item.name' },
+      }, 'testKey', document.body);
 
-      const result = mappedArray.get();
+      const result = arrayNamespace.get();
       expect(result).toHaveLength(4);
       expect(result.map(r => r.name)).toEqual(['Alice', 'Charlie', 'Eve', 'Frank']);
     });
 
     it('should support multiple filters (AND logic)', () => {
-      const mappedArray = new MappedArray({
+      const arrayNamespace = createArrayNamespace({
+        prototype: 'Array',
         items: sampleUsers,
         filter: [
-          { leftOperand: 'active', operator: '===', rightOperand: true },
-          { leftOperand: 'department', operator: '===', rightOperand: 'Engineering' }
+          { leftOperand: 'item.active', operator: '===', rightOperand: true },
+          { leftOperand: 'item.department', operator: '===', rightOperand: 'Engineering' },
         ],
-        map: { name: (user: User) => user.name }
-      });
+        map: { name: 'item.name' },
+      }, 'testKey', document.body);
 
-      const result = mappedArray.get();
+      const result = arrayNamespace.get();
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('Alice');
     });
 
     it('should support string method filters', () => {
-      const mappedArray = new MappedArray({
+      const arrayNamespace = createArrayNamespace({
+        prototype: 'Array',
         items: sampleUsers,
         filter: [
-          { leftOperand: 'name', operator: 'startsWith', rightOperand: 'A' }
+          { leftOperand: 'item.name', operator: 'startsWith', rightOperand: 'A' },
         ],
-        map: { name: (user: User) => user.name }
-      });
+        map: { name: 'item.name' },
+      }, 'testKey', document.body);
 
-      const result = mappedArray.get();
+      const result = arrayNamespace.get();
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('Alice');
     });
@@ -149,53 +133,57 @@ describe('MappedArray', () => {
 
   describe('Sorting', () => {
     it('should sort by property name ascending', () => {
-      const mappedArray = new MappedArray({
+      const mappedArray = createArrayNamespace({
+        prototype: 'Array',
         items: sampleUsers,
         sort: [
-          { sortBy: 'name', direction: 'asc' }
+          { sortBy: 'item.name', direction: 'asc' }
         ],
-        map: { name: (user: User) => user.name }
-      });
+        map: { name: 'item.name' }
+      }, 'testKey', document.body);
 
       const result = mappedArray.get();
       expect(result.map(r => r.name)).toEqual(['Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank']);
     });
 
     it('should sort by property name descending', () => {
-      const mappedArray = new MappedArray({
+      const mappedArray = createArrayNamespace({
+        prototype: 'Array',
         items: sampleUsers,
         sort: [
-          { sortBy: 'age', direction: 'desc' }
+          { sortBy: 'item.age', direction: 'desc' }
         ],
-        map: { name: (user: User) => user.name, age: (user: User) => user.age }
-      });
+        map: { name: 'item.name', age: 'item.age' }
+      }, 'testKey', document.body);
 
       const result = mappedArray.get();
       expect(result.map(r => r.name)).toEqual(['Frank', 'Charlie', 'Eve', 'Alice', 'Diana', 'Bob']);
     });
 
-    it('should sort with function sortBy', () => {
-      const mappedArray = new MappedArray({
+    it('should sort with property sortBy', () => {
+      const mappedArray = createArrayNamespace({
+        prototype: 'Array',
         items: sampleUsers,
         sort: [
-          { sortBy: (user: User) => user.salary, direction: 'asc' }
+          { sortBy: 'item.salary', direction: 'asc' }
         ],
-        map: { name: (user: User) => user.name, salary: (user: User) => user.salary }
-      });
+        map: { name: 'item.name', salary: 'item.salary' }
+      }, 'testKey', document.body);
 
       const result = mappedArray.get();
       expect(result.map(r => r.name)).toEqual(['Bob', 'Diana', 'Eve', 'Alice', 'Charlie', 'Frank']);
     });
 
     it('should support multiple sort criteria', () => {
-      const mappedArray = new MappedArray({
+      const mappedArray = createArrayNamespace({
+        prototype: 'Array',
         items: sampleUsers,
         sort: [
-          { sortBy: 'department', direction: 'asc' },
-          { sortBy: 'age', direction: 'asc' }
+          { sortBy: 'item.department', direction: 'asc' },
+          { sortBy: 'item.age', direction: 'asc' }
         ],
-        map: { name: (user: User) => user.name, department: (user: User) => user.department }
-      });
+        map: { name: 'item.name', department: 'item.department' }
+      }, 'testKey', document.body);
 
       const result = mappedArray.get();
       // Engineering: Alice(30), Charlie(35), Frank(40)
@@ -205,70 +193,18 @@ describe('MappedArray', () => {
     });
   });
 
-  describe('Grouping', () => {
-    it('should group by property', () => {
-      const mappedArray = new MappedArray({
-        items: sampleUsers,
-        groupBy: (user: User) => user.department,
-        map: {
-          department: (group: any) => group.key,
-          count: (group: any) => group.items.length,
-          names: (group: any) => group.items.map((user: User) => user.name)
-        }
-      });
-
-      const result = mappedArray.get();
-      expect(result).toHaveLength(3);
-      
-      // Find by checking the actual department value, not the function
-      const engineering = result.find((r: any) => r.department === 'Engineering');
-      expect(engineering?.count).toBe(3);
-      expect(engineering?.names).toEqual(['Alice', 'Charlie', 'Frank']);
-
-      const sales = result.find((r: any) => r.department === 'Sales');
-      expect(sales?.count).toBe(2);
-      expect(sales?.names).toEqual(['Bob', 'Diana']);
-
-      const marketing = result.find((r: any) => r.department === 'Marketing');
-      expect(marketing?.count).toBe(1);
-      expect(marketing?.names).toEqual(['Eve']);
-    });
-
-    it('should group by computed value', () => {
-      const mappedArray = new MappedArray({
-        items: sampleUsers,
-        groupBy: (user: User) => user.age >= 30 ? 'senior' : 'junior',
-        map: {
-          category: (group: any) => group.key,
-          count: (group: any) => group.items.length,
-          avgAge: (group: any) => group.items.reduce((sum: number, user: User) => sum + user.age, 0) / group.items.length
-        }
-      });
-
-      const result = mappedArray.get();
-      expect(result).toHaveLength(2);
-
-      const senior = result.find((r: any) => r.category === 'senior');
-      expect(senior?.count).toBe(4);
-      expect(senior?.avgAge).toBe(34.25); // (30+35+32+40)/4
-
-      const junior = result.find((r: any) => r.category === 'junior');
-      expect(junior?.count).toBe(2);
-      expect(junior?.avgAge).toBe(26.5); // (25+28)/2
-    });
-  });
-
   describe('Mapping', () => {
     it('should map with object templates', () => {
-      const mappedArray = new MappedArray({
+      const mappedArray = createArrayNamespace({
+        prototype: 'Array',
         items: sampleUsers.slice(0, 2),
         map: {
-          id: (user: User) => user.id,
-          displayName: (user: User) => `${user.name} (${user.department})`,
-          isActive: (user: User) => user.active,
+          id: 'item.id',
+          displayName: '${item.name} (${item.department})',
+          isActive: 'item.active',
           static: 'test'
         }
-      });
+      }, 'testKey', document.body);
 
       const result = mappedArray.get();
       expect(result).toHaveLength(2);
@@ -281,10 +217,11 @@ describe('MappedArray', () => {
     });
 
     it('should map with string templates', () => {
-      const mappedArray = new MappedArray({
+      const mappedArray = createArrayNamespace({
+        prototype: 'Array',
         items: sampleUsers.slice(0, 2),
-        map: '${this.name} - ${this.department}'
-      });
+        map: '${item.name} - ${item.department}'
+      }, 'testKey', document.body);
 
       const result = mappedArray.get();
       expect(result).toHaveLength(2);
@@ -293,10 +230,11 @@ describe('MappedArray', () => {
     });
 
     it('should map with direct values', () => {
-      const mappedArray = new MappedArray({
+      const mappedArray = createArrayNamespace({
+        prototype: 'Array',
         items: sampleUsers.slice(0, 3),
         map: 'transformed'
-      });
+      }, 'testKey', document.body);
 
       const result = mappedArray.get();
       expect(result).toHaveLength(3);
@@ -304,95 +242,16 @@ describe('MappedArray', () => {
     });
   });
 
-  describe('Prepend and Append', () => {
-    it('should prepend items to the result', () => {
-      const mappedArray = new MappedArray({
-        items: sampleUsers.slice(0, 2),
-        map: { name: (user: User) => user.name },
-        prepend: [{ name: 'FIRST' }, { name: 'SECOND' }]
-      });
-
-      const result = mappedArray.get();
-      expect(result).toHaveLength(4);
-      expect(result.map(r => r.name)).toEqual(['FIRST', 'SECOND', 'Alice', 'Bob']);
-    });
-
-    it('should append items to the result', () => {
-      const mappedArray = new MappedArray({
-        items: sampleUsers.slice(0, 2),
-        map: { name: (user: User) => user.name },
-        append: [{ name: 'LAST' }, { name: 'FINAL' }]
-      });
-
-      const result = mappedArray.get();
-      expect(result).toHaveLength(4);
-      expect(result.map(r => r.name)).toEqual(['Alice', 'Bob', 'LAST', 'FINAL']);
-    });
-
-    it('should support both prepend and append', () => {
-      const mappedArray = new MappedArray({
-        items: sampleUsers.slice(0, 2),
-        map: { name: (user: User) => user.name },
-        prepend: [{ name: 'FIRST' }],
-        append: [{ name: 'LAST' }]
-      });
-
-      const result = mappedArray.get();
-      expect(result).toHaveLength(4);
-      expect(result.map(r => r.name)).toEqual(['FIRST', 'Alice', 'Bob', 'LAST']);
-    });
-  });
-
-  describe('Complete Pipeline', () => {
-    it('should execute full pipeline: filter → sort → groupBy → map → prepend/append', () => {
-      const mappedArray = new MappedArray({
-        items: sampleUsers,
-        filter: [
-          { leftOperand: 'active', operator: '===', rightOperand: true }
-        ],
-        sort: [
-          { sortBy: 'department', direction: 'asc' },
-          { sortBy: 'age', direction: 'asc' }
-        ],
-        groupBy: (user: User) => user.department,
-        map: {
-          department: (group: any) => group.key,
-          employees: (group: any) => group.items.map((user: User) => ({
-            name: user.name,
-            age: user.age
-          })),
-          avgAge: (group: any) => Math.round(group.items.reduce((sum: number, user: User) => sum + user.age, 0) / group.items.length)
-        },
-        prepend: [{ department: 'HEADER', employees: [], avgAge: 0 }],
-        append: [{ department: 'FOOTER', employees: [], avgAge: 0 }]
-      });
-
-      const result = mappedArray.get();
-      expect(result).toHaveLength(5); // header + 3 departments + footer
-
-      expect(result[0].department).toBe('HEADER');
-      expect(result[4].department).toBe('FOOTER');
-
-      const engineering = result.find((r: any) => r.department === 'Engineering');
-      expect(engineering?.employees).toHaveLength(1); // Only Alice is active
-      expect(engineering?.employees[0].name).toBe('Alice');
-      expect(engineering?.avgAge).toBe(30);
-
-      const sales = result.find((r: any) => r.department === 'Sales');
-      expect(sales?.employees).toHaveLength(2); // Bob and Diana are active
-      expect(sales?.avgAge).toBe(27); // (25+28)/2 rounded
-    });
-  });
-
   describe('Reactivity', () => {
     it('should react to source signal changes', () => {
-      const mappedArray = new MappedArray({
+      const mappedArray = createArrayNamespace({
+        prototype: 'Array',
         items: userSignal,
         filter: [
-          { leftOperand: 'active', operator: '===', rightOperand: true }
+          { leftOperand: 'item.active', operator: '===', rightOperand: true }
         ],
-        map: { name: (user: User) => user.name }
-      });
+        map: { name: 'item.name' }
+      }, 'testKey', document.body);
 
       // Initial state
       expect(mappedArray.get()).toHaveLength(4);
@@ -409,10 +268,11 @@ describe('MappedArray', () => {
     });
 
     it('should update when source array is modified', () => {
-      const mappedArray = new MappedArray({
+      const mappedArray = createArrayNamespace({
+        prototype: 'Array',
         items: userSignal,
-        map: { count: () => 1 }
-      });
+        map: { count: 1 }
+      }, 'testKey', document.body);
 
       expect(mappedArray.get()).toHaveLength(6);
 
@@ -422,92 +282,84 @@ describe('MappedArray', () => {
     });
   });
 
-  describe('Mutable Properties Analysis', () => {
-    it('should identify mutable properties correctly', () => {
-      const mappedArray = new MappedArray({
-        items: sampleUsers,
-        map: {
-          staticProp: 'static',
-          dynamicProp: (user: User) => user.name,
-          anotherStatic: 42,
-          anotherDynamic: (user: User) => user.age
-        }
-      });
-
-      const mutableProps = mappedArray.getMutableProps();
-      expect(mutableProps).toContain('dynamicProp');
-      expect(mutableProps).toContain('anotherDynamic');
-      expect(mutableProps).not.toContain('staticProp');
-      expect(mutableProps).not.toContain('anotherStatic');
-    });
-  });
-
   describe('Error Handling', () => {
     it('should handle invalid source types gracefully', () => {
       expect(() => {
-        new MappedArray({
+        createArrayNamespace({
+          prototype: 'Array',
           items: 'invalid' as any
-        });
-      }).toThrow('Cannot resolve property accessor: invalid');
-    });
-
-    it('should handle filter errors gracefully', () => {
-      const mappedArray = new MappedArray({
-        items: sampleUsers,
-        filter: [
-          { leftOperand: () => { throw new Error('Filter error'); }, operator: '===', rightOperand: true }
-        ]
-      });
-
-      // Should return empty array on error
-      expect(mappedArray.get()).toEqual([]);
-    });
-
-    it('should handle mapping errors gracefully', () => {
-      const mappedArray = new MappedArray({
-        items: sampleUsers,
-        map: {
-          name: (user: User) => user.name,
-          error: () => { throw new Error('Map error'); }
-        }
-      });
-
-      // Should return empty array on error
-      expect(mappedArray.get()).toEqual([]);
+        }, 'testKey', document.body);
+      }).toThrow('Property accessor "invalid" must resolve to an array or Signal containing an array');
     });
   });
 
   describe('Resource Management', () => {
-    it('should dispose properly', () => {
-      const mappedArray = new MappedArray({
-        items: userSignal,
-        map: { name: (user: User) => user.name }
-      });
-
-      expect(() => mappedArray.dispose()).not.toThrow();
-    });
-
     it('should allow setting new array values on Signal.State sources', () => {
-      const mappedArray = new MappedArray({
+      const mappedArray = createArrayNamespace({
+        prototype: 'Array',
         items: userSignal,
-        map: { name: (user: User) => user.name }
-      });
+        map: { name: 'item.name' }
+      }, 'testKey', document.body);
 
       const newUsers = sampleUsers.slice(0, 2);
-      mappedArray.set(newUsers);
+      // Directly update the source signal
+      userSignal.set(newUsers);
 
       expect(mappedArray.get()).toHaveLength(2);
     });
 
     it('should accept static array items', () => {
-      const mappedArray = new MappedArray({
+      const mappedArray = createArrayNamespace({
+        prototype: 'Array',
         items: sampleUsers, // Static array, not a signal
-        map: { name: (user: User) => user.name }
-      });
+        map: { name: 'item.name' }
+      }, 'testKey', document.body);
 
       const result = mappedArray.get();
       expect(result).toHaveLength(6);
       expect(result.map(r => r.name)).toEqual(['Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank']);
+    });
+  });
+
+  describe('Unshift and Concat', () => {
+    it('should prepend items to the array using unshift', () => {
+      const arrayNamespace = createArrayNamespace({
+        prototype: 'Array',
+        items: sampleUsers.slice(0, 2),
+        map: { name: 'item.name' },
+        unshift: [{ name: 'FIRST' }, { name: 'SECOND' }],
+      }, 'testKey', document.body);
+
+      const result = arrayNamespace.get();
+      expect(result).toHaveLength(4);
+      expect(result.map(r => r.name)).toEqual(['FIRST', 'SECOND', 'Alice', 'Bob']);
+    });
+
+    it('should append items to the array using concat', () => {
+      const arrayNamespace = createArrayNamespace({
+        prototype: 'Array',
+        items: sampleUsers.slice(0, 2),
+        map: { name: 'item.name' },
+        concat: [{ name: 'LAST' }, { name: 'FINAL' }],
+      }, 'testKey', document.body);
+
+      const result = arrayNamespace.get();
+      expect(result).toHaveLength(4);
+      expect(result.map(r => r.name)).toEqual(['Alice', 'Bob', 'LAST', 'FINAL']);
+    });
+
+    it('should support both unshift and concat', () => {
+      const arrayNamespace = createArrayNamespace({
+        prototype: 'Array',
+        items: sampleUsers.slice(0, 2),
+        map: { name: 'item.name' },
+        unshift: [{ name: 'FIRST' }],
+        concat: [{ name: 'LAST' }],
+      }, 'testKey', document.body);
+
+      const result = arrayNamespace.get();
+      expect(result).toHaveLength(4);
+      expect(result.map(r => r.name)).toEqual(['FIRST', 'Alice', 'Bob', 'LAST']);
     });
   });
 });

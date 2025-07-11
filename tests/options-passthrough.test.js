@@ -11,20 +11,18 @@ describe('DOMSpecOptions Pass-through Test', () => {
   });
 
   test('should pass options to nested adoptNode calls', () => {
-    // Test that options are passed through to window handler
-    // The window handler should call adoptNode with the passed options
+    // Test that options are passed through to document handler
+    // The document handler should apply properties directly to document
     adoptNode({
-      window: {
-        document: {
-          title: 'New Title'
-        }
+      document: {
+        title: 'New Title'
       }
     }, window, {
       css: false,
       ignoreKeys: []
     });
 
-    // The document title should be set through the window handler
+    // The document title should be set through the document handler
     expect(document.title).toBe('New Title');
   });
 

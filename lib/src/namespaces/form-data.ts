@@ -5,9 +5,9 @@
  * Focused solely on FormData - each Web API gets its own namespace.
  */
 
-import { Signal } from '../../core/signals';
-import { processProperty } from '../../core/properties';
-import { PrototypeConfig } from '../types';
+import { Signal } from '../core/signals';
+import { processProperty } from '../core/properties';
+import { PrototypeConfig } from './types';
 
 /**
  * FormDataConfig Type Definition

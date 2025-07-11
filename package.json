@@ -6,7 +6,7 @@
 	"license": "MIT",
 	"private": true,
 	"workspaces": [
-		"types",
+		"lib/src/types",
 		"lib"
 	],
 	"scripts": {
@@ -15,9 +15,11 @@
 		"test:ui": "vitest --ui",
 		"test:coverage": "vitest run --coverage",
 		"build": "npm run build --workspaces",
+		"build:types": "npm run build --workspace=lib/src/types",
 		"lint": "oxlint .",
 		"lint:fix": "oxlint . --fix",
 		"release": "npm run release --workspaces && release-it",
+		"release:types": "npm run release --workspace=lib/src/types",
 		"upgrade": "npx npm-check-updates -u && npm install"
 	},
 	"repository": {

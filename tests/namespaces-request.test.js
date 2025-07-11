@@ -16,8 +16,11 @@ describe('Namespaced Properties - Request Namespace', () => {
     // Set up a default mock response to prevent console errors from auto-triggered requests
     mockFetch.mockResolvedValue({
       ok: true,
-      headers: new Headers({ 'content-type': 'application/json' }),
-      json: vi.fn().mockResolvedValue({ default: true })
+      headers: new Headers({ 'Content-type': 'application/json' }),
+      json: vi.fn().mockResolvedValue({ default: true }),
+      text: vi.fn().mockResolvedValue('{"default":true}'),
+      blob: vi.fn().mockResolvedValue(new Blob()),
+      arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(0))
     });
   });
 
@@ -114,7 +117,7 @@ describe('Namespaced Properties - Request Namespace', () => {
     test('should execute manual fetch request', async () => {
       const mockResponse = {
         ok: true,
-        headers: new Headers({ 'content-type': 'application/json' }),
+        headers: new Headers({ 'Content-type': 'application/json' }),
         json: vi.fn().mockResolvedValue({ id: 1, name: 'John' })
       };
       mockFetch.mockResolvedValue(mockResponse);
@@ -170,7 +173,7 @@ describe('Namespaced Properties - Request Namespace', () => {
     test('should handle JSON parsing errors gracefully', async () => {
       const mockResponse = {
         ok: true,
-        headers: new Headers({ 'content-type': 'application/json' }),
+        headers: new Headers({ 'Content-type': 'application/json' }),
         json: vi.fn().mockRejectedValue(new Error('Invalid JSON')),
         text: vi.fn().mockResolvedValue('plain text response')
       };
@@ -201,7 +204,7 @@ describe('Namespaced Properties - Request Namespace', () => {
     test('should process template literals in URL', async () => {
       const mockResponse = {
         ok: true,
-        headers: new Headers({ 'content-type': 'application/json' }),
+        headers: new Headers({ 'Content-type': 'application/json' }),
         json: vi.fn().mockResolvedValue({ success: true })
       };
       mockFetch.mockResolvedValue(mockResponse);
@@ -222,14 +225,15 @@ describe('Namespaced Properties - Request Namespace', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
       const fetchCall = mockFetch.mock.calls[0];
       // Check that the URL was resolved correctly
-      expect(fetchCall[0].url).toContain('/api/users/123');
+      expect(fetchCall[0]).toContain('/api/users/123');
     });
 
     test('should serialize object body as JSON', async () => {
       const mockResponse = {
         ok: true,
-        headers: new Headers(),
-        text: vi.fn().mockResolvedValue('success')
+        headers: new Headers({ 'Content-type': 'application/json' }),
+        json: vi.fn().mockResolvedValue({ success: true }),
+        text: vi.fn().mockResolvedValue('{"success":true}')
       };
       mockFetch.mockResolvedValue(mockResponse);
 
@@ -252,17 +256,19 @@ describe('Namespaced Properties - Request Namespace', () => {
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
       const fetchCall = mockFetch.mock.calls[0];
-      const request = fetchCall[0];
+      const [url, options] = fetchCall;
 
-      // Check that Content-Type header was set
-      expect(request.headers.get('Content-Type')).toBe('application/json');
+      // Check that the body was serialized as JSON
+      expect(options.body).toBe(JSON.stringify({ name: 'John', age: 30 }));
+      expect(options.headers['Content-Type']).toBe('application/json'); // Check the correct case
     });
 
     test('should support standard Request constructor options', async () => {
       const mockResponse = {
         ok: true,
         headers: new Headers(),
-        text: vi.fn().mockResolvedValue('success')
+        json: vi.fn().mockResolvedValue({ success: true }),
+        text: vi.fn().mockResolvedValue('{"success":true}')
       };
       mockFetch.mockResolvedValue(mockResponse);
 
@@ -285,11 +291,11 @@ describe('Namespaced Properties - Request Namespace', () => {
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
       const fetchCall = mockFetch.mock.calls[0];
-      const request = fetchCall[0];
+      const [url, options] = fetchCall;
 
-      expect(request.method).toBe('POST');
-      expect(request.mode).toBe('cors');
-      expect(request.credentials).toBe('include');
+      expect(options.method).toBe('POST');
+      expect(options.mode).toBe('cors');
+      expect(options.credentials).toBe('include');
     });
   });
 
@@ -298,7 +304,7 @@ describe('Namespaced Properties - Request Namespace', () => {
       const jsonData = { id: 1, name: 'John' };
       const mockResponse = {
         ok: true,
-        headers: new Headers({ 'content-type': 'application/json' }),
+        headers: new Headers({ 'Content-type': 'application/json' }),
         json: vi.fn().mockResolvedValue(jsonData)
       };
       mockFetch.mockResolvedValue(mockResponse);
@@ -323,8 +329,9 @@ describe('Namespaced Properties - Request Namespace', () => {
       const textData = 'plain text response';
       const mockResponse = {
         ok: true,
-        headers: new Headers({ 'content-type': 'text/plain' }),
-        text: vi.fn().mockResolvedValue(textData)
+        headers: new Headers({ 'Content-type': 'text/plain' }),
+        text: vi.fn().mockResolvedValue(textData),
+        json: vi.fn().mockResolvedValue({}) // Add json method even though we won't use it
       };
       mockFetch.mockResolvedValue(mockResponse);
 
@@ -333,6 +340,7 @@ describe('Namespaced Properties - Request Namespace', () => {
         $userData: {
           prototype: 'Request',
           url: '/api/text',
+          responseType: 'text', // Explicitly set response type to text
           manual: true
         }
       });
@@ -349,7 +357,7 @@ describe('Namespaced Properties - Request Namespace', () => {
     test('should support debounce property for auto requests', async () => {
       const mockResponse = {
         ok: true,
-        headers: new Headers({ 'content-type': 'application/json' }),
+        headers: new Headers({ 'Content-type': 'application/json' }),
         json: vi.fn().mockResolvedValue({ success: true })
       };
       mockFetch.mockResolvedValue(mockResponse);
@@ -376,7 +384,7 @@ describe('Namespaced Properties - Request Namespace', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
       
       const fetchCall = mockFetch.mock.calls[0];
-      expect(fetchCall[0].url).toContain('q=test');
+      expect(fetchCall[0]).toContain('q=test');
     });
   });
 

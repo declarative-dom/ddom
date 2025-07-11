@@ -5,10 +5,10 @@
  * Supports both reading from and writing to cookies with reactive updates.
  */
 
-import { Signal } from '../../core/signals';
-import { processProperty } from '../../core/properties';
-import { PrototypeConfig } from '../types';
-import { serialize, deserialize, SerializableValue } from '../../utils';
+import { Signal } from '../core/signals';
+import { processProperty } from '../core/properties';
+import { PrototypeConfig } from './types';
+import { serialize, deserialize, SerializableValue } from '../utils';
 
 /**
  * CookieInit interface (Cookie Store API)
