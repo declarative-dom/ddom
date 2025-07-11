@@ -33,7 +33,7 @@ describe('Reactive Property Injection', () => {
               tagName: 'div',
               id: 'template-test',
               textContent:
-                'Hello ${$name.get()}, you are ${$age.get()} years old!',
+                'Hello ${this.$name}, you are ${this.$age} years old!',
             },
           ],
         },
@@ -226,13 +226,13 @@ describe('Reactive Property Injection', () => {
             {
               tagName: 'header',
               id: 'app-header',
-              textContent: '${$appName.get()} v${$version.get()}',
+              textContent: '${this.$appName} v${this.$version}',
               children: [
                 {
                   tagName: 'small',
-                  textContent: 'by ${$author.get()}',
+                  textContent: 'by ${this.$author}',
                   fullCredits: function () {
-                    return `${$appName.get()} v${$version.get()} by ${$author.get()}`;
+                    return `${this.$appName.get()} v${this.$version.get()} by ${this.$author.get()}`;
                   },
                 },
               ],
@@ -286,7 +286,7 @@ describe('Reactive Property Injection', () => {
             {
               tagName: 'div',
               id: 'signal-test',
-              textContent: 'Count: ${$counter.get()}',
+              textContent: 'Count: ${this.$counter}',
               onclick: function () {
                 // Access the signal and update it
                 if (typeof $counter === 'object' && 'set' in $counter) {
