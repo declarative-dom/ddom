@@ -385,5 +385,4 @@ describe('Namespaced Properties - Request Namespace', () => {
       expect(typeof element.$testRequest.fetch).toBe('function');
     });
   });
-  });
 });
