@@ -12,7 +12,7 @@
 
 Just as JSON provides a syntax and grammar for defining arbitrary data, DDOM defines a type-enforced object structure for exposing [Open Web Platform](https://www.w3.org/wiki/Open_Web_Platform) functionality within an object syntax inspired by the [official DOM API](https://dom.spec.whatwg.org/), the [CSSOM](https://www.w3.org/TR/cssom-1/), [ECMAScript static methods](https://tc39.es/), and related web standards.
 
-DDOM is developed as a [specification](spec/spec.md), a [collection of types](types/), and a [reference runtime library](lib/) for deploying reactive web applications using the DDOM syntax. The DDOM runtime library is developed in Typescript and integrates the [TC39 JavaScript Signals proposal](https://github.com/tc39/proposal-signals) to provide a standardized signal-based reactivity model.
+DDOM is developed as a [specification](spec/spec.md), a [collection of types](lib/src/types/), and a [reference runtime library](lib/) for deploying reactive web applications using the DDOM syntax. The DDOM runtime library is developed in Typescript and integrates the [TC39 JavaScript Signals proposal](https://github.com/tc39/proposal-signals) to provide a standardized signal-based reactivity model.
 
 ## Quick Example
 
@@ -28,7 +28,7 @@ DDOM.customElements.define({
   
   children: [{
     tagName: 'h1',
-    textContent: 'Hello ${this.$name}!' // ← Signals auto-unwrapped in templates!
+    textContent: 'Hello ${this.$name}!' // ← Signals available in template strings
   }, {
     tagName: 'p', 
     textContent: 'Count: ${this.$count}' // ← Clean syntax without .get()
@@ -36,7 +36,7 @@ DDOM.customElements.define({
     tagName: 'button',
     textContent: 'Increment',
     onclick: function() { 
-      this.$count.set(this.$count.get() + 1); // ← .get()/.set() only needed in JavaScript
+      this.$count.set(this.$count.get() + 1); // ← .get()/.set() only needed in JavaScript functions
     }
   }]
 });
