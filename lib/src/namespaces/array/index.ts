@@ -47,8 +47,6 @@ function resolveSourceSignal(items: string | any[], parentElement?: Element): Si
   } else if (typeof items === 'string') {
     // Handle property accessor resolution and expression evaluation
     const resolved = resolveOperand(items, parentElement || document.body);
-    // debug
-    console.debug('🔍 Resolving property accessor:', items, 'resolved to:', resolved);
     if (resolved !== null) {
       // Check if it's a signal
       if (isSignal(resolved)) {

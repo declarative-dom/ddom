@@ -89,11 +89,8 @@ export function adoptNode(
   el: DOMNode,
   options: DOMSpecOptions = {}
 ): void {
-  console.debug('🔧 adoptNode called with spec:', spec, 'el:', el, 'options:', options);
-
   // Process all properties using key/value pairs
   const specEntries = Object.entries(spec);
-  console.debug('📝 Processing spec entries:', specEntries);
 
   // Inherit parent reactive properties directly (simple assignment)
   if (options.scopeProperties) {
@@ -107,14 +104,11 @@ export function adoptNode(
 
   // Process reactive properties directly on this element
   localScopeProperties.forEach(([key, value]) => {
-    console.debug('⚡ Processing reactive property:', key, '=', value);
     // skip if the property is already defined on the element
     if (Object.hasOwn(el, key)) {
-      console.debug('⏭️ Skipping property', key, 'as it already exists on the element');
       return;
     }
     const processed = processScopeProperty(key, value, el);
-    console.debug('📦 processScopeProperty result:', { type: processed.type, value: processed.value, isValid: processed.isValid });
     if (processed.isValid) {
       (el as any)[key] = processed.value;
     } else {
@@ -144,7 +138,6 @@ export function adoptNode(
 
   // Process all other properties using the enhanced binding system
   specEntries.forEach(([key, value]) => {
-    console.debug('🔗 Processing property:', key, '=', value, 'ignored:', options.ignoreKeys?.includes(key));
     if (!options.ignoreKeys?.includes(key)) {
       applyPropertyBinding(spec, el, key, value, options);
     }
@@ -167,7 +160,6 @@ export function adoptNode(
  * ```
  */
 export function adoptWindow(spec: WindowSpec): void {
-  console.debug('🏠 adoptWindow called with spec:', spec);
   adoptNode(spec, window);
 }
 
@@ -193,9 +185,7 @@ export function createElement(
   spec: HTMLElementSpec,
   options: DOMSpecOptions = {}
 ): HTMLElement {
-  console.debug('🎯 createElement called with spec:', spec, 'options:', options);
   const el = document.createElement(spec.tagName) as HTMLElement;
-  console.debug('✅ Created element:', el);
 
   // Apply all properties using the unified adoption system
   adoptNode(
@@ -234,12 +224,10 @@ export function appendChild(
   parentNode: DOMNode,
   options: DOMSpecOptions = {}
 ): HTMLElement {
-  console.debug('🔗 appendChild called with spec:', spec, 'parentNode:', parentNode);
   const el = document.createElement(spec.tagName) as HTMLElement;
 
   // Append the element to the provided parent node
   if ('appendChild' in parentNode) {
-    console.debug('➕ Appending element to parent:', el, '→', parentNode);
     parentNode.appendChild(el);
   } else {
     console.warn('❌ parentNode does not support appendChild:', parentNode);

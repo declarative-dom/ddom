@@ -94,7 +94,6 @@ export function classifyProperty(value: any): string {
     return 'function';
   } else if (typeof value === 'string') {
     if (VALUE_PATTERNS.TEMPLATE.test(value)) {
-      console.debug('🎯 classifyProperty: TEMPLATE detected:', value);
       return 'template';
     } else if (VALUE_PATTERNS.ACCESSOR.test(value)) {
       return 'accessor';
@@ -143,7 +142,6 @@ const ValueProcessors = {
         // ...contextNode
       };
       const resolved = resolveTemplateProperty(context, value);
-      console.debug('🔍 Accessor resolved:', value, '→', resolved);
       if (resolved !== null) {
         return {
           type: getValueType(resolved),
@@ -210,9 +208,7 @@ export function processScopeProperty(
   contextNode: any
 ): ProcessedProperty {
   try {
-    console.debug('🔍 processScopeProperty:', key, '=', value, 'typeof:', typeof value);
     const pattern = classifyProperty(value);
-    console.debug('🎯 Classified', key, 'as:', pattern);
     // let processed: ProcessedProperty;
 
     switch (pattern) {
@@ -238,9 +234,7 @@ export function processScopeProperty(
       case 'object':
       default:
         // Everything else becomes a reactive signal
-        console.debug('📦 Creating Signal.State for', key, 'with value:', value);
         const signal = new Signal.State(value);
-        console.debug('📦 Created signal:', signal, 'signal.get():', signal.get());
         return {
           type: 'Signal.State',
           value: signal,
@@ -270,9 +264,7 @@ export function processProperty(
   contextNode: any
 ): ProcessedProperty {
   try {
-    console.debug('🔍 processProperty:', key, '=', value, 'typeof:', typeof value);
     const pattern = classifyProperty(value);
-    console.debug('📊 Pattern classified as:', pattern);
 
     switch (pattern) {
       case 'function':
@@ -285,7 +277,6 @@ export function processProperty(
 
       case 'template':
         // Templates become computed for reactivity
-        console.debug('🎨 Processing template:', value);
         return ValueProcessors.template(key, value, contextNode);
 
       case 'accessor':

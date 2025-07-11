@@ -76,12 +76,9 @@ function transformObject(template: object, item: any, index: number): any {
         result[key] = transformTemplate(value, item, index);
       } else if (ACCESSOR_REGEX.test(value)) {
         // Use shared operand resolution for property accessors like 'item[0]', 'item[1].name'
-        console.debug('🔍 Evaluating property accessor:', value, 'with item:', item, 'index:', index);
         const resolved = evaluateAccessor(value, item, index);
-        console.debug('🔧 Accessor resolved to:', resolved);
         result[key] = resolved;
       } else {
-        console.debug('🔍 isValidAccessor returned false for:', value);
         // Direct value string
         result[key] = value;
       }

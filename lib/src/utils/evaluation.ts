@@ -62,28 +62,19 @@ export const resolveAccessor = (obj: any, path: string, fallback: any = null): a
  * evaluateChain(obj, 'this.$currentCoords()?.lat'); // Mixed optional chaining
  */
 const evaluateChain = (obj: any, path: string): any => {
-  console.debug('🔍 evaluateChain called with:', path);
-
-  // Split on dots first, then handle array indices within each part
   const parts = path.split('.');
-  console.debug('🔍 evaluateChain parts:', parts);
 
   return parts.reduce((current, part, _index) => {
-    console.debug('🔍 evaluateChain processing part:', part, 'current:', current);
-    
     // Handle optional chaining - check for ? at the END of the part (from ?.split)
     const isOptional = part.endsWith('?');
     const cleanPart = part.replace(/\?$/, '').trim();
-    console.debug('🔍 evaluateChain isOptional:', isOptional, 'cleanPart:', cleanPart);
 
     if (isOptional && current == null) {
-      console.debug('🔍 evaluateChain optional chain stopped at null');
       return undefined;
     }
 
     // Always unwrap signals before accessing properties
     if (current?.get && typeof current.get === 'function') {
-      console.debug('🔍 evaluateChain unwrapping signal');
       current = current.get();
       if (isOptional && current == null) return undefined;
     }
@@ -111,9 +102,7 @@ const evaluateChain = (obj: any, path: string): any => {
     }
 
     // Simple property access
-    const result = current[cleanPart];
-    console.debug('🔍 evaluateChain property access result:', result);
-    return result;
+    return current[cleanPart];
   }, obj);
 };
 
@@ -137,10 +126,7 @@ const parseArgs = (argsStr: string, context: any): any[] => {
 
   return args.map(arg => {
     const trimmed = arg.replace(/^,+|,+$/g, '').trim(); // Remove leading/trailing commas
-    console.debug('🔍 parseArgs processing:', trimmed);
-    const result = isLiteral(trimmed) ? parseLiteral(trimmed) : resolveAccessor(context, trimmed);
-    console.debug('🔍 parseArgs result:', trimmed, '→', result);
-    return result;
+    return isLiteral(trimmed) ? parseLiteral(trimmed) : resolveAccessor(context, trimmed);
   });
 };
 
@@ -234,10 +220,8 @@ const evaluateFunction = (expr: string, context: any): any => {
   };
 
   if (globals[funcPath]) {
-    console.debug('🔍 Calling global function:', funcPath, 'with args:', args);
     // Unwrap any signal arguments for global functions
     const unwrappedArgs = args.map(arg => unwrapSignal(arg));
-    console.debug('🔍 Unwrapped args:', unwrappedArgs);
     return globals[funcPath](...unwrappedArgs);
   }
 
@@ -329,11 +313,8 @@ export const evaluateComparison = (expr: string, context: any): any => {
  * @returns {any} The evaluated result with signals unwrapped
  */
 const evaluateTemplateExpression = (expr: string, context: any): any => {
-  console.debug('🔍 evaluateTemplateExpression called with:', expr);
-
   // String concatenation: operand + operand (simple case)
   if (expr.includes(' + ') && !expr.includes('?')) {
-    console.debug('🔍 String concatenation detected');
     const parts = expr.split(' + ').map(part => {
       const trimmed = part.trim();
       if (isLiteral(trimmed)) return parseLiteral(trimmed);
@@ -356,7 +337,6 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
     const ternaryMatch = expr.match(VALUE_PATTERNS.TERNARY);
     if (ternaryMatch) {
       const [, condition, truthy, falsy] = ternaryMatch;
-      console.debug('🔍 Ternary detected - condition:', condition, 'truthy:', truthy, 'falsy:', falsy);
 
       // Evaluate condition: spaces = comparison, no spaces = truthiness
       let conditionResult;
@@ -370,8 +350,6 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
         const resolved = resolveAccessor(context, condition.trim());
         conditionResult = VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
       }
-
-      console.debug('🔍 Condition result:', conditionResult);
 
       const resultPath = conditionResult ? truthy.trim() : falsy.trim();
 
@@ -424,15 +402,12 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
   // Function call - only if the entire expression is a function call
   if (VALUE_PATTERNS.FUNCTION_CALL.test(expr)) {
     const result = evaluateFunction(expr, context);
-    console.debug('🔍 Function call:', expr, '→', result);
     return VALUE_PATTERNS.SIGNAL(result) ? result.get() : result;
   }
 
   // Simple property access - resolve and unwrap
   const resolved = resolveAccessor(context, expr);
-  const result = VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
-  console.debug('🔍 Property access:', expr, '→', result);
-  return result;
+  return VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
 };
 
 

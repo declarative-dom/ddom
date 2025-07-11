@@ -66,18 +66,14 @@ export function applyPropertyBinding(
   value: any,
   options: DOMSpecOptions = {}
 ): void {
-  console.debug('🎯 applyPropertyBinding called:', key, '=', value, 'on element:', el);
-  
   // Skip ignored keys
   if (options.ignoreKeys?.includes(key) || (options?.css === false && key === 'style')) {
-    console.debug('⏭️ Skipping ignored key:', key);
     return;
   }
 
   // Handle special DOM properties with dedicated handlers
   switch (key) {
     case 'document':
-      console.debug('📄 Handling document property');
       // Special handling for document property - adopt into existing document instead of replacing
       if (value && typeof value === 'object' && el === window) {
         // Apply the document spec directly to the document object
@@ -87,7 +83,6 @@ export function applyPropertyBinding(
       break;
 
     case 'customElements':
-      console.debug('🔧 Handling customElements property');
       // Special handling for customElements - process array but don't assign to window.customElements
       if (Array.isArray(value)) {
         define(value);
@@ -96,14 +91,11 @@ export function applyPropertyBinding(
 
     case 'head':
     case 'body':
-      console.debug('🏢 Handling', key, 'property');
       // Special handling for head and body - adopt into existing elements instead of replacing
       if (value && typeof value === 'object' && el === document) {
         const targetElement = el[key as 'head' | 'body'];
-        console.debug('🏢 Target element for', key, ':', targetElement);
         if (targetElement) {
           Object.entries(value).forEach(([subKey, subValue]) => {
-            console.debug('🏢 Processing', key, 'property:', subKey, '=', subValue);
             applyPropertyBinding(value, targetElement, subKey, subValue, options);
           });
         }
@@ -120,27 +112,22 @@ export function applyPropertyBinding(
     case 'style':
       // Generate a unique selector for this element
       const selector = (el as any).id ? `#${(el as any).id}` : generatePathSelector(el as Element);
-      console.debug('🎨 Applying styles to selector:', selector, 'with value:', value);
       // Apply styles using the DDOM CSS rule system
       insertRules(value, selector);
 
       break;
 
     case 'children':
-      console.debug('👶 Handling children in binding layer');
       options.ignoreKeys = []; // reset ignoreKeys prior to children processing
       if (Array.isArray(value)) {
         // Static children array - use simple element creation since binding.ts shouldn't depend on element.ts
-        console.debug('📋 Processing', value.length, 'static children');
         value.forEach((child: HTMLElementSpec, index) => {
-          console.debug(`👶 Creating child ${index}:`, child);
           if (child && typeof child === 'object' && child.tagName) {
             appendChild(child, el, options);
           }
         });
       } else if (value && typeof value === 'object' && value.prototype === 'Array') {
         // Reactive children array - use our enhanced reactive array binding
-        console.debug('📋 Binding reactive children array');
         const signal = processNamespacedProperty(key, value, el);
         if (signal) {
           bindReactiveArray(signal, el as Element, options);
@@ -151,7 +138,6 @@ export function applyPropertyBinding(
       break;
 
     default:
-      console.debug('🔗 Applying standard property binding for:', key);
       // Standard property binding with reactive support
       applyStandardPropertyBinding(el, key, value, options);
       break;
@@ -168,8 +154,6 @@ function applyStandardPropertyBinding(
   value: any,
   _options: DOMSpecOptions
 ): void {
-  console.debug('🔧 applyStandardPropertyBinding:', key, '=', value);
-  
   // Use specialized native property processor
   const processed = processProperty(key, value, el);
   
@@ -177,8 +161,6 @@ function applyStandardPropertyBinding(
     console.warn(`❌ Invalid property ${key}:`, processed.error);
     return;
   }
-  
-  console.debug('✅ Processed property:', key, '→', processed.type, 'value:', processed.value);
   
   // Apply binding based on the processed property's type
   switch (processed.type) {
@@ -194,7 +176,6 @@ function applyStandardPropertyBinding(
       
     default:
       // Primitive value: direct assignment
-      console.debug('📝 Direct assignment of primitive:', key, '=', processed.value);
       (el as any)[key] = processed.value;
       break;
   }
@@ -305,8 +286,6 @@ export function bindSignalToAttribute(
  */
 function applyAttributesBinding(element: Element, attributes: Record<string, any>): void {
   Object.entries(attributes).forEach(([attrName, attrValue]) => {
-    console.debug('🏷️ Processing attribute:', attrName, '=', attrValue, 'type:', typeof attrValue);
-    
     // Use specialized attribute value processor
     const processed = processAttributeValue(attrName, attrValue, element);
     
@@ -315,20 +294,16 @@ function applyAttributesBinding(element: Element, attributes: Record<string, any
       return;
     }
     
-    console.debug('✅ Processed attribute:', attrName, '→', processed.type, 'value:', processed.value);
-    
     // Apply attribute binding based on the processed property's type
     switch (processed.type) {
       case 'Signal.State':
       case 'Signal.Computed':
         // Signal/computed value - set up reactive binding
-        console.debug('📡 Setting up signal binding for attribute:', attrName);
         bindSignalToAttribute(element, attrName, processed.value);
         break;
         
       case 'function':
         // Function → Convert to computed signal and bind consistently
-        console.debug('⚡ Converting function to computed signal for attribute:', attrName);
         const computed = new Signal.Computed(processed.value);
         bindSignalToAttribute(element, attrName, computed);
         break;
@@ -337,7 +312,6 @@ function applyAttributesBinding(element: Element, attributes: Record<string, any
         
       default:
         // Static value
-        console.debug('📝 Static attribute assignment:', attrName);
         setAttributeValue(element, attrName, processed.value);
         break;
     }
@@ -392,9 +366,6 @@ export function bindReactiveArray(
   options: DOMSpecOptions = {}
 ): void {
 
-  // debug
-  console.debug('🔗 bindReactiveArray called with options:', options);
-
   // Keep track of rendered elements by stable keys for efficient updates
   const renderedElements = new Map<string, Element>();
   let previousItems: any[] = [];
@@ -406,8 +377,6 @@ export function bindReactiveArray(
 
   // Function to update the current array state with fine-grained updates
   const updateArray = (items: any[]) => {
-    console.debug('🔄 updateArray called with items:', items);
-    
     // Consistent key generation function
     const getItemKey = (item: any) => item.id || JSON.stringify(item);
 
@@ -424,7 +393,6 @@ export function bindReactiveArray(
     );
 
     items.forEach((item: any) => {
-      console.debug('🔍 Processing item for DOM creation:', item);
       if (item && typeof item === 'object' && item.tagName) {
         const key = getItemKey(item);
         currentKeys.add(key);
@@ -443,13 +411,6 @@ export function bindReactiveArray(
       } else {
         console.warn('⚠️ Item missing tagName or not an object:', item);
       }
-    });
-
-    console.debug('📊 Array update summary:', {
-      currentKeys: Array.from(currentKeys),
-      keysToCreate: Array.from(keysToCreate),
-      keysToUpdate: Array.from(keysToUpdate),
-      keysToRemove: Array.from(keysToRemove)
     });
 
     // Native Set difference operations
@@ -472,9 +433,7 @@ export function bindReactiveArray(
     keysToCreate.forEach((key) => {
       const item = items.find((item) => getItemKey(item) === key);
       if (item) {
-        console.debug('🏗️ Creating new element for key:', key, 'item:', item);
         const element = createElement(item, options);
-        console.debug('✅ Created array element:', element);
         newComponentsByKey.set(key, element);
         renderedElements.set(key, element);
       }
@@ -486,8 +445,6 @@ export function bindReactiveArray(
       const element = renderedElements.get(key);
 
       if (item && element) {
-        console.debug(`Updating existing component for key ${key} with mutable properties`, mutableProps);
-        
         // Only update properties that actually reference item/index data
         mutableProps.forEach((prop: string) => {
           if (prop in item) {
