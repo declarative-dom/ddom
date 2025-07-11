@@ -4,10 +4,8 @@
     "url": "https://github.com/declarative-dom/ddom/issues"
   },
   "description": "Library for building UI components using a Declarative DOM JavaScript object literals.",
-  "dependencies": {
-    "typia": "^9.4.0"
-  },
   "devDependencies": {
+    "typia": "^9.5.0",
     "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^12.1.4",
