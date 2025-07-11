@@ -122,6 +122,7 @@ describe('Component-Level Signal Isolation', () => {
     const parentDiv = createElement({
       tagName: 'div',
       children: {
+        prototype: 'Array',
         items: [1, 2, 3],
         map: {
           tagName: 'span',
@@ -278,6 +279,7 @@ describe('Component-Level Signal Isolation', () => {
           tagName: 'div',
           className: 'list-container',
           children: {
+            prototype: 'Array',
             items: [
               { id: 1, name: 'Alice' },
               { id: 2, name: 'Bob' },
