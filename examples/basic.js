@@ -1,7 +1,7 @@
 export default {
-  $count: 0, // Another scoped State Signal
-  $buttonText: '${$count.get() < 1 ? "Click Me!" : "Click me again!"}', // Becomes a scoped State Signal
-  $statusMessage: 'You clicked the button ${$count.get()} times!', // Becomes a scoped Computed Signal
+  $count: 0, // Scoped State Signal
+  $buttonText: '${window.$count < 1 ? "Click Me!" : "Click me again!"}', // Becomes a scoped Computed Signal
+  $statusMessage: 'You clicked the button ${window.$count} times!', // Another scoped Computed Signal
   document: {
     body: {
       style: {
@@ -22,7 +22,7 @@ export default {
         {
           tagName: 'button',
           $localButtonText: 'local button text',
-          textContent: '${$buttonText.get()}', // Reference the property
+          textContent: '${window.$buttonText}', // Reference the property
           style: {
             padding: '0.5em 1em',
             backgroundColor: '#007bff',
@@ -38,10 +38,10 @@ export default {
         },
         {
           tagName: 'p',
-          textContent: '${$statusMessage.get()}', // Use the computed signal
+          textContent: '${window.$statusMessage}', // Use the computed signal
           attributes: {
             hidden: function () {
-              return $count.get() < 1; // Hide if count is less than 1
+              return window.$count.get() < 1; // Hide if count is less than 1
             }
           },
           style: { marginTop: '1em', color: '#555' },

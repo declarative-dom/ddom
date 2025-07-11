@@ -12,6 +12,9 @@ This directory contains examples demonstrating the DDOM declarative syntax and r
 - **`reactive-custom-elements`** - Custom elements with transparent reactivity
 - **`custom-elements`** - Basic custom elements example
 - **`computed-properties/`** - Examples of computed properties using getters
+- **`storage-apis`** - Storage APIs demonstration (Cookies, LocalStorage, SessionStorage)
+- **`reactive-indexeddb`** - Reactive IndexedDB database operations with declarative queries
+- **`declarative-fetch`** - Declarative fetch requests with reactive URLs
 - **`builder/`** - Interactive DDOM object builder tool
 
 ## Structure
@@ -52,6 +55,35 @@ Use string addresses for signal resolution:
 
 ### 4. Protected Properties
 `id` and `tagName` are protected from reactivity and set only once.
+
+### 5. Storage Namespaces
+DDOM provides first-class support for Storage APIs with reactive updates:
+```javascript
+{
+  // Cookie management
+  $userPrefs: {
+    prototype: 'Cookie',
+    name: 'userPreferences', 
+    value: '{"theme":"light"}'
+  },
+  
+  // localStorage with automatic serialization
+  $settings: {
+    prototype: 'LocalStorage',
+    key: 'appSettings',
+    value: { notifications: true }
+  },
+  
+  // IndexedDB reactive queries
+  $products: {
+    prototype: 'IndexedDB',
+    database: 'CatalogDB',
+    store: 'products',
+    operation: 'getAll',
+    filter: [{ leftOperand: 'name', operator: 'includes', rightOperand: 'this.$searchTerm' }]
+  }
+}
+```
 
 ## Running the Examples
 

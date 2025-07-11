@@ -1,72 +1,73 @@
 {
-	"author": "Declarative DOM Working Group",
-	"bugs": {
-		"url": "https://github.com/declarative-dom/ddom/issues"
-	},
-	"description": "Library for building UI components using a Declarative DOM JavaScript object literals.",
-	"dependencies": {
-		"@declarative-dom/types": "0.4.0"
-	},
-	"devDependencies": {
-		"@rollup/plugin-node-resolve": "^16.0.1",
-		"@rollup/plugin-terser": "^0.4.4",
-		"@rollup/plugin-typescript": "^12.1.4",
-		"rollup": "^4.44.1",
-		"signal-polyfill": "^0.2.2",
-		"tslib": "^2.8.1",
-		"typescript": "^5"
-	},
-	"exports": {
-		".": {
-			"import": "./dist/index.js",
-			"types": "./dist/lib/src/index.d.ts"
-		}
-	},
-	"homepage": "https://github.com/declarative-dom/ddom/tree/main/lib#readme",
-	"keywords": [
-		"declarative",
-		"dom",
-		"components",
-		"spec",
-		"ui",
-		"typescript",
-		"json",
-		"data-structure"
-	],
-	"license": "MIT",
-	"main": "dist/index.js",
-	"name": "@declarative-dom/lib",
-	"publishConfig": {
-		"access": "public"
-	},
-	"release-it": {
-		"git": false,
-		"plugins": {
-			"@release-it/bumper": {
-				"out": {
-					"file": "package.json",
-					"path": [
-						"dependencies.@declarative-dom/types"
-					]
-				}
-			}
-		}
-	},
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/declarative-dom/ddom.git"
-	},
-	"scripts": {
-		"build": "rollup -c",
-		"clean": "rm -rf dist",
-		"debug": "NO_COLOR=true rollup -c 2>&1 | tee build.log",
-		"dev": "rollup -c --watch",
-		"prepublishOnly": "npm run build",
-		"release": "release-it",
-		"test": "cd .. && npm run test",
-		"upgrade": "npx npm-check-updates -u && npm install"
-	},
-	"type": "module",
-	"types": "dist/lib/src/index.d.ts",
-	"version": "0.4.0"
+  "author": "Declarative DOM Working Group",
+  "bugs": {
+    "url": "https://github.com/declarative-dom/ddom/issues"
+  },
+  "description": "Library for building UI components using a Declarative DOM JavaScript object literals.",
+  "devDependencies": {
+    "typia": "^9.5.0",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^12.1.4",
+    "@ryoppippi/unplugin-typia": "^2.6.5",
+    "rollup": "^4.44.2",
+    "signal-polyfill": "^0.2.2",
+    "ts-patch": "^3.3.0",
+    "tslib": "^2.8.1",
+    "typescript": "~5.8.3"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/lib/src/index.d.ts"
+    }
+  },
+  "homepage": "https://github.com/declarative-dom/ddom/tree/main/lib#readme",
+  "keywords": [
+    "declarative",
+    "dom",
+    "components",
+    "spec",
+    "ui",
+    "typescript",
+    "json",
+    "data-structure"
+  ],
+  "license": "MIT",
+  "main": "dist/index.js",
+  "name": "@declarative-dom/lib",
+  "publishConfig": {
+    "access": "public"
+  },
+  "release-it": {
+    "git": false,
+    "plugins": {
+      "@release-it/bumper": {
+        "out": {
+          "file": "package.json",
+          "path": [
+            "dependencies.@declarative-dom/types"
+          ]
+        }
+      }
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/declarative-dom/ddom.git"
+  },
+  "scripts": {
+    "build": "rollup -c",
+    "clean": "rm -rf dist",
+    "debug": "NO_COLOR=true rollup -c 2>&1 | tee build.log",
+    "dev": "rollup -c --watch",
+    "prepublishOnly": "npm run build",
+    "release": "release-it",
+    "test": "cd .. && npm run test",
+    "upgrade": "npx npm-check-updates -u && npm install",
+    "prepare": "ts-patch install"
+  },
+  "type": "module",
+  "types": "dist/lib/src/index.d.ts",
+  "version": "0.4.0"
 }

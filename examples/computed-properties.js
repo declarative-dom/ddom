@@ -52,7 +52,7 @@ export default {
       attributes: {
         // Use data attributes for CSS styling
         'data-level': '${this.$levelClass()}',
-        'data-score': '${this.$score.get()}',
+        'data-score': '${this.$score}',
         'data-progress': '${this.$progressPercentage()}',
       },
 
@@ -139,7 +139,7 @@ export default {
                 fontWeight: 'bold',
                 fontSize: '1.2em',
               },
-              textContent: '${this.$level.get()}',
+              textContent: '${this.$level}',
             },
             {
               tagName: 'div',
@@ -198,7 +198,7 @@ export default {
                 {
                   tagName: 'span',
                   textContent:
-                    '${this.$score.get()}%',
+                    '${this.$score}%',
                   style: {
                     fontSize: '0.9em',
                     fontWeight: '500',

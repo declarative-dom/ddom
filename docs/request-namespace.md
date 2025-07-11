@@ -1,12 +1,15 @@
 # Web API Namespaces
 
-DDOM provides declarative namespaces for common Web APIs, enabling reactive integration with standard browser functionality. Each namespace follows the same pattern: standard Web API properties with minimal DDOM extensions for reactivity and control.
+DDOM provides prototype-based namespaces for common Web APIs, enabling reactive integration with standard browser functionality. Each namespace follows the same pattern: a `prototype` property identifying the API type, plus standard Web API properties with minimal DDOM extensions for reactivity and control.
 
-## Supported Namespaces
+## Supported Prototypes
 
 - **Request** - Declarative fetch API integration
+- **IndexedDB** - Reactive database queries and operations
 - **FormData** - Reactive form data construction
 - **URLSearchParams** - Reactive URL parameter handling  
+- **Array, Set, Map** - Reactive collections with filtering, mapping, and sorting
+- **TypedArrays** - Reactive binary data arrays
 - **Blob** - Reactive binary data creation
 - **ArrayBuffer** - Reactive buffer management
 - **ReadableStream** - Reactive stream creation
@@ -15,9 +18,9 @@ DDOM provides declarative namespaces for common Web APIs, enabling reactive inte
 
 ## Request Namespace
 
-The Request namespace provides declarative fetch API integration for DDOM applications. It enables reactive HTTP requests using standard `Request` constructor properties with minimal DDOM extensions.
+The Request namespace provides declarative fetch API integration for DDOM applications. It enables reactive HTTP requests using the prototype-based configuration with standard `Request` constructor properties.
 
-## Overview
+### Overview
 
 Request namespace properties create reactive signals that execute HTTP requests and manage their state automatically. The namespace uses the standard [Fetch API Request](https://developer.mozilla.org/en-US/docs/Web/API/Request) interface, making it familiar to developers.
 
@@ -29,10 +32,9 @@ import { createElement } from '@declarative-dom/lib';
 const component = createElement({
   tagName: 'div',
   $userData: {
-    Request: {
-      url: '/api/users/123',
-      method: 'GET'
-    }
+    prototype: 'Request',
+    url: '/api/users/123',
+    method: 'GET'
   }
 });
 
@@ -50,6 +52,9 @@ await component.$userData.fetch();
 
 ```typescript
 interface RequestConfig {
+  // Namespace identifier
+  prototype: 'Request';           // Required: identifies this as a Request namespace
+  
   // Standard Request constructor properties
   url: string;                    // Required: Request URL
   method?: string;                // HTTP method (GET, POST, etc.)
@@ -92,10 +97,9 @@ Automatically executes requests when reactive dependencies change:
 
 ```javascript
 $userProfile: {
-  Request: {
-    url: '/api/users/${this.$userId.get()}'
-    // disabled: false is the default
-  }
+  prototype: 'Request',
+  url: '/api/users/${this.$userId.get()}'
+  // disabled: false is the default
 }
 ```
 
@@ -105,14 +109,13 @@ Requires explicit `.fetch()` calls:
 
 ```javascript
 $createUser: {
-  Request: {
-    url: '/api/users',
-    method: 'POST',
-    disabled: true, // Manual triggering
-    body: {
-      name: '${this.$userName.get()}',
-      email: '${this.$userEmail.get()}'
-    }
+  prototype: 'Request',
+  url: '/api/users',
+  method: 'POST',
+  disabled: true, // Manual triggering
+  body: {
+    name: '${this.$userName.get()}',
+    email: '${this.$userEmail.get()}'
   }
 }
 
@@ -126,15 +129,14 @@ Use template literals for reactive values in any configuration property:
 
 ```javascript
 $apiCall: {
-  Request: {
-    url: '/api/${this.$endpoint.get()}/${this.$id.get()}',
-    headers: {
-      'Authorization': 'Bearer ${this.$token.get()}',
-      'Content-Type': 'application/json'
-    },
-    body: {
-      timestamp: '${Date.now()}'
-    }
+  prototype: 'Request',
+  url: '/api/${this.$endpoint.get()}/${this.$id.get()}',
+  headers: {
+    'Authorization': 'Bearer ${this.$token.get()}',
+    'Content-Type': 'application/json'
+  },
+  body: {
+    timestamp: '${Date.now()}'
   }
 }
 ```
@@ -145,9 +147,8 @@ $apiCall: {
 
 ```javascript
 $userData: {
-  Request: {
-    url: '/api/users/123'
-  }
+  prototype: 'Request',
+  url: '/api/users/123'
 }
 ```
 
@@ -155,12 +156,12 @@ $userData: {
 
 ```javascript
 $createPost: {
-  Request: {
-    url: '/api/posts',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
+  prototype: 'Request',
+  url: '/api/posts',
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
     body: {
       title: '${this.$title.get()}',
       content: '${this.$content.get()}'
@@ -174,7 +175,7 @@ $createPost: {
 
 ```javascript
 $externalApi: {
-  Request: {
+  prototype: 'Request',
     url: 'https://api.external.com/data',
     mode: 'cors',
     credentials: 'include',
@@ -189,11 +190,11 @@ $externalApi: {
 
 ```javascript
 $uploadFile: {
-  Request: {
+  prototype: 'Request',
     url: '/api/upload',
     method: 'POST',
     body: {
-      FormData: {
+      prototype: 'FormData',
         file: '${this.$selectedFile.get()}',
         description: '${this.$fileDescription.get()}'
       }
@@ -230,7 +231,7 @@ Use delay to prevent rapid successive requests:
 
 ```javascript
 $searchResults: {
-  Request: {
+  prototype: 'Request',
     url: '/api/search?q=${this.$query.get()}',
     delay: 300  // Wait 300ms after last change
   }
@@ -242,8 +243,8 @@ $searchResults: {
 ### Reactive Headers
 
 ```javascript
-$authenticatedRequest: {
-  Request: {
+$authenticatedprototype: 'Request',
+  prototype: 'Request',
     url: '/api/protected',
     headers: {
       'Authorization': 'Bearer ${this.$authToken.get()}',
@@ -259,7 +260,7 @@ Use computed signals to conditionally execute requests:
 
 ```javascript
 $conditionalData: {
-  Request: {
+  prototype: 'Request',
     url: '/api/data/${this.$shouldFetch.get() ? this.$dataId.get() : ""}'
   }
 }
@@ -276,7 +277,7 @@ DDOM.customElements.define({
   tagName: 'user-profile',
   $userId: null,
   $userData: {
-    Request: {
+    prototype: 'Request',
       url: '/api/users/${this.$userId.get()}'
     }
   },
@@ -309,6 +310,363 @@ Each namespace follows the same pattern: standard Web API properties with minima
 
 ---
 
+## IndexedDB Namespace
+
+The IndexedDB namespace provides reactive database queries that follow the same declarative patterns as the Request namespace. It has two distinct modes based on configuration:
+
+1. **Setup Mode** (no operation/filter/query) → Returns `IDBObjectStore` for direct database operations
+2. **Query Mode** (with operation/filter/query) → Returns `IndexedDBQuerySignal` for reactive queries
+
+### Overview
+
+IndexedDB namespace properties create either direct database stores or reactive query signals. Query signals automatically re-execute when template literals change, providing seamless database reactivity just like the Request namespace.
+
+### Two Operating Modes
+
+#### Setup Mode - Direct Database Access
+When no `operation`, `filter`, or `query` is specified, returns an `IDBObjectStore`:
+
+```javascript
+// Setup Mode → Returns IDBObjectStore
+$products: {
+  prototype: 'IndexedDB',
+    database: 'ShopDB',
+    store: 'products',
+    keyPath: 'id',
+    autoIncrement: true,
+    value: [{ name: 'Initial Product' }] // Auto-populate if empty
+  }
+}
+
+// Use as direct IDBObjectStore
+const store = element.$products.getStore();
+await store.add({ name: 'New Product' });
+```
+
+#### Query Mode - Reactive Queries  
+When `operation`, `filter`, or `query` is specified, returns an `IndexedDBQuerySignal`:
+
+```javascript
+// Query Mode → Returns IndexedDBQuerySignal
+$searchResults: {
+  prototype: 'IndexedDB',
+    database: 'ShopDB',
+    store: 'products',
+    operation: 'getAll',
+    debounce: 300,
+    filter: (item) => item.name.includes(this.$query.get())
+  }
+}
+
+// Automatically updates when $query changes!
+textContent: 'Found ${this.$searchResults.get().length} products'
+```
+
+### Basic Usage
+
+```javascript
+// Reactive search - updates automatically when search term changes
+$searchResults: {
+  prototype: 'IndexedDB',
+    database: 'MyAppDB',
+    store: 'products', 
+    operation: 'getAll',
+    debounce: 300, // Just like Request namespace
+    filter: (item) => item.name.includes(this.$searchQuery.get())
+  }
+}
+
+// Use results in UI
+textContent: 'Found ${this.$searchResults.get().length} products'
+```
+
+### Configuration
+
+```typescript
+interface IndexedDBConfig {
+  // Namespace identifier
+  prototype: 'IndexedDB';             // Required: identifies this as an IndexedDB namespace
+  
+  // Database setup
+  database: string;                   // Required: database name
+  store: string;                      // Required: object store name
+  version?: number;                   // Database version (default: 1)
+  indexes?: IndexedDBIndexConfig[];   // Optional: indexes to create
+  
+  // Query configuration  
+  operation?: 'getAll' | 'get' | 'query' | 'count'; // Operation type
+  key?: any;                          // Key for get operation (reactive)
+  query?: IDBKeyRange | any;          // Query range (reactive)
+  index?: string;                     // Index name to query (reactive)
+  direction?: IDBCursorDirection;     // Cursor direction
+  limit?: number;                     // Max results (reactive)
+  filter?: (item: any) => boolean;    // Client-side filter (reactive)
+  
+  // Control options
+  manual?: boolean;                   // Manual execution (default: false)
+  debounce?: number;                  // Debounce delay in milliseconds
+}
+```
+
+### Query Operations
+
+#### getAll (Default)
+Returns all records, optionally filtered:
+
+```javascript
+$allProducts: {
+  prototype: 'IndexedDB',
+    database: 'ShopDB',
+    store: 'products',
+    operation: 'getAll' // Default operation
+  }
+}
+```
+
+#### get
+Returns single record by key:
+
+```javascript
+$currentUser: {
+  prototype: 'IndexedDB',
+    database: 'UserDB', 
+    store: 'users',
+    operation: 'get',
+    key: '${this.$userId.get()}' // Reactive key
+  }
+}
+```
+
+#### query
+Advanced queries with ranges:
+
+```javascript
+$expensiveItems: {
+  prototype: 'IndexedDB',
+    database: 'ShopDB',
+    store: 'products', 
+    operation: 'query',
+    index: 'by-price',
+    query: IDBKeyRange.lowerBound(100)
+  }
+}
+```
+
+#### count
+Count matching records:
+
+```javascript
+$productCount: {
+  prototype: 'IndexedDB',
+    database: 'ShopDB',
+    store: 'products',
+    operation: 'count',
+    query: '${this.$categoryFilter.get() !== "all" ? IDBKeyRange.only(this.$categoryFilter.get()) : undefined}'
+  }
+}
+```
+
+### Reactive Patterns
+
+#### Search with Debouncing and Structured Filters
+```javascript
+// Reactive search using FilterCriteria (same as MappedArrays!)
+$searchResults: {
+  prototype: 'IndexedDB',
+    bind: 'this.$products', // Reference existing database store
+    operation: 'getAll', 
+    debounce: 300, // Wait 300ms after last change
+    filter: [
+      {
+        leftOperand: 'item.name.toLowerCase()',
+        operator: 'includes',
+        rightOperand: 'this.$query.get().toLowerCase()'
+      },
+      {
+        leftOperand: 'rating',
+        operator: '>=', 
+        rightOperand: 'this.$minRating.get()'
+      }
+    ]
+  }
+}
+```
+
+#### Category Filtering with Index
+```javascript
+$categoryProducts: {
+  prototype: 'IndexedDB',
+    bind: 'this.$products',
+    operation: 'getAll',
+    index: 'by-category',
+    query: function() {
+      const category = this.$selectedCategory.get();
+      return category === 'all' ? undefined : IDBKeyRange.only(category);
+    }
+  }
+}
+```
+
+#### Advanced Filtering and Sorting
+```javascript
+$advancedResults: {
+  prototype: 'IndexedDB',
+    bind: 'this.$products',
+    operation: 'getAll',
+    filter: [
+      { leftOperand: 'price', operator: '>=', rightOperand: 100 },
+      { leftOperand: 'category', operator: '===', rightOperand: 'this.$selectedCategory.get()' }
+    ],
+    sort: [
+      { sortBy: 'rating', direction: 'desc' },
+      { sortBy: 'price', direction: 'asc' }
+    ]
+  }
+}
+```
+
+### Database Operations
+
+The signal provides database methods that trigger re-queries:
+
+```javascript
+// Add item and auto-refresh results
+await element.$searchResults.add({
+  name: 'New Product',
+  category: 'electronics',
+  price: 299
+});
+
+// Update item and auto-refresh results  
+await element.$searchResults.put({
+  id: 123,
+  name: 'Updated Product',
+  price: 399
+});
+
+// Delete item and auto-refresh results
+await element.$searchResults.delete(123);
+
+// Clear all and refresh
+await element.$searchResults.clear();
+```
+
+### Manual Query Mode
+
+For controlled execution:
+
+```javascript
+$manualQuery: {
+  prototype: 'IndexedDB',
+    database: 'DataDB',
+    store: 'items', 
+    manual: true // No auto-execution
+  }
+}
+
+// Later, execute manually:
+await element.$manualQuery.query();
+```
+
+### Index Management
+
+Declaratively create indexes:
+
+```javascript
+$products: {
+  prototype: 'IndexedDB',
+    database: 'ShopDB',
+    store: 'products',
+    keyPath: 'id',
+    autoIncrement: true,
+    indexes: [
+      { name: 'by-name', keyPath: 'name', unique: false },
+      { name: 'by-category', keyPath: 'category', unique: false },
+      { name: 'by-price', keyPath: 'price', unique: false },
+      { name: 'by-rating', keyPath: 'rating', unique: false }
+    ]
+  }
+}
+```
+
+### Complete Example
+
+```javascript
+{
+  // State
+  $searchQuery: '',
+  $categoryFilter: 'all',
+  
+  // Reactive database query (like Request namespace)
+  $searchResults: {
+    prototype: 'IndexedDB',
+      database: 'ProductDB',
+      store: 'products',
+      operation: 'getAll',
+      debounce: 300,
+      filter: function() {
+        const query = window.$searchQuery.get().toLowerCase();
+        const category = window.$categoryFilter.get();
+        
+        return function(product) {
+          const matchesQuery = product.name.toLowerCase().includes(query);
+          const matchesCategory = category === 'all' || product.category === category;
+          return matchesQuery && matchesCategory;
+        };
+      }
+    }
+  },
+  
+  children: [{
+    tagName: 'input',
+    placeholder: 'Search products...',
+    oninput: (e) => this.$searchQuery.set(e.target.value)
+  }, {
+    tagName: 'select', 
+    onchange: (e) => this.$categoryFilter.set(e.target.value),
+    children: [
+      { tagName: 'option', value: 'all', textContent: 'All Categories' },
+      { tagName: 'option', value: 'electronics', textContent: 'Electronics' }
+    ]
+  }, {
+    tagName: 'div',
+    textContent: 'Found ${this.$searchResults.get().length} products'
+  }, {
+    tagName: 'div',
+    children: {
+      items: 'this.$searchResults',
+      map: {
+        tagName: 'div',
+        textContent: '${(item) => item.name} - $${(item) => item.price}'
+      }
+    }
+  }]
+}
+```
+
+### Best Practices
+
+1. **Use debouncing for search** - Prevent excessive database queries
+2. **Leverage indexes** - Create indexes for common query patterns  
+3. **Client-side filtering** - Use filter functions for complex conditions
+4. **Manual mode for mutations** - Use manual triggering for write operations
+5. **Reactive keys and ranges** - Use template literals for dynamic queries
+
+### Comparison with Request Namespace
+
+| Feature | Request | IndexedDB |
+|---------|---------|-----------|
+| Reactive execution | ✅ | ✅ |
+| Debouncing | ✅ | ✅ |
+| Template literals | ✅ | ✅ |
+| Manual triggering | ✅ | ✅ |
+| Auto re-execution | ✅ | ✅ |
+| Error handling | ✅ | ✅ |
+
+Both namespaces follow the same declarative patterns, making the learning curve minimal!
+
+---
+
 ## FormData Namespace
 
 The FormData namespace creates reactive FormData objects for handling form submissions and file uploads declaratively.
@@ -317,7 +675,7 @@ The FormData namespace creates reactive FormData objects for handling form submi
 
 ```javascript
 $formData: {
-  FormData: {
+  prototype: 'FormData',
     name: '${this.$userName.get()}',
     email: '${this.$userEmail.get()}',
     file: '${this.$selectedFile.get()}' // File object from input
@@ -329,7 +687,8 @@ $formData: {
 
 ```typescript
 interface FormDataConfig {
-  [fieldName: string]: any; // Field values (strings, Files, Blobs)
+  prototype: 'FormData';          // Required: identifies this as a FormData namespace
+  [fieldName: string]: any;       // Field values (strings, Files, Blobs)
 }
 ```
 
@@ -338,7 +697,7 @@ interface FormDataConfig {
 #### Contact Form Data
 ```javascript
 $contactForm: {
-  FormData: {
+  prototype: 'FormData',
     name: '${this.$name.get()}',
     email: '${this.$email.get()}',
     message: '${this.$message.get()}',
@@ -350,7 +709,7 @@ $contactForm: {
 #### File Upload with Metadata
 ```javascript
 $uploadData: {
-  FormData: {
+  prototype: 'FormData',
     file: '${this.$selectedFile.get()}',
     description: '${this.$fileDescription.get()}',
     category: '${this.$selectedCategory.get()}',
@@ -369,7 +728,7 @@ The URLSearchParams namespace creates reactive URL parameter strings for API cal
 
 ```javascript
 $queryParams: {
-  URLSearchParams: {
+  prototype: 'URLSearchParams',
     q: '${this.$searchQuery.get()}',
     page: '${this.$currentPage.get()}',
     limit: 20
@@ -381,6 +740,7 @@ $queryParams: {
 
 ```typescript
 interface URLSearchParamsConfig {
+  prototype: 'URLSearchParams';   // Required: identifies this as a URLSearchParams namespace
   [paramName: string]: string | number | string[]; // Parameter values
 }
 ```
@@ -390,7 +750,7 @@ interface URLSearchParamsConfig {
 #### Search Parameters
 ```javascript
 $searchParams: {
-  URLSearchParams: {
+  prototype: 'URLSearchParams',
     q: '${this.$query.get()}',
     category: '${this.$selectedCategory.get()}',
     sort: '${this.$sortOrder.get()}',
@@ -400,7 +760,7 @@ $searchParams: {
 
 // Use in API call
 $searchResults: {
-  Request: {
+  prototype: 'Request',
     url: '/api/search?${this.$searchParams.get().toString()}'
   }
 }
@@ -409,7 +769,7 @@ $searchResults: {
 #### Multi-value Parameters
 ```javascript
 $filterParams: {
-  URLSearchParams: {
+  prototype: 'URLSearchParams',
     tags: ['${this.$selectedTags.get().join("','")}'], // Array of values
     status: '${this.$statusFilter.get()}',
     limit: 50
@@ -611,7 +971,7 @@ $customStream: {
   
   // Create form data
   $uploadForm: {
-    FormData: {
+    prototype: 'FormData',
       file: '${this.$selectedFile.get()}',
       description: '${this.$uploadDescription.get()}',
       timestamp: '${Date.now()}'
@@ -619,8 +979,8 @@ $customStream: {
   },
   
   // Submit upload
-  $uploadRequest: {
-    Request: {
+  $uploadprototype: 'Request',
+    prototype: 'Request',
       url: '/api/upload',
       method: 'POST',
       body: '${this.$uploadForm.get()}',
@@ -659,7 +1019,7 @@ $customStream: {
   
   // Build search parameters
   $searchParams: {
-    URLSearchParams: {
+    prototype: 'URLSearchParams',
       q: '${this.$searchQuery.get()}',
       category: '${this.$filters.get().category}',
       sort: '${this.$filters.get().sort}',
@@ -669,7 +1029,7 @@ $customStream: {
   
   // Execute search
   $searchResults: {
-    Request: {
+    prototype: 'Request',
       url: '/api/search?${this.$searchParams.get().toString()}',
       delay: 300 // Debounce searches
     }

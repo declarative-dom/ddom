@@ -1,0 +1,61 @@
+{
+	"name": "@declarative-dom/types",
+	"version": "0.4.0",
+	"description": "TypeScript type definitions for Declarative DOM",
+	"author": "Declarative DOM Working Group",
+	"license": "MIT",
+	"type": "module",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"files": [
+		"dist/**/*",
+		"README.md"
+	],
+	"scripts": {
+		"build": "tsc",
+		"clean": "rm -rf dist",
+		"prepublishOnly": "npm run clean && npm run build",
+		"test": "tsc --noEmit",
+		"release": "release-it"
+	},
+	"engines": {
+		"node": ">=16.0.0"
+	},
+	"keywords": [
+		"typescript",
+		"types",
+		"definitions",
+		"declarative",
+		"dom",
+		"ddom",
+		"ui",
+		"components"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/declarative-dom/ddom.git",
+		"directory": "lib/src/types"
+	},
+	"bugs": {
+		"url": "https://github.com/declarative-dom/ddom/issues"
+	},
+	"homepage": "https://github.com/declarative-dom/ddom/tree/main/lib/src/types#readme",
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"typescript": "^5.8.3"
+	},
+	"release-it": {
+		"git": false,
+		"npm": {
+			"publish": true
+		}
+	}
+}

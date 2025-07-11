@@ -102,7 +102,7 @@ describe('Reactive Property Debug', () => {
           children: [{
             tagName: 'div',
             id: 'debug-test',
-            textContent: 'Hello ${$name.get()}!'
+            textContent: 'Hello ${this.$name}!'
           }]
         }
       }

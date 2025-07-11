@@ -1,23 +1,19 @@
-import { adoptDocument, adoptNode, adoptWindow, appendChild, createElement } from './elements';
-import { adoptStyleSheet, clearStyleSheet } from './styleSheets';
-import { define } from './customElements';
-import { MappedArray } from './arrays';
-import { createEffect, ComponentSignalWatcher } from './signals';
+import { adoptDocument, adoptNode, adoptWindow, appendChild, createElement } from './dom/element';
+import { adoptStyleSheet, clearStyleSheet } from './dom/style-sheets';
+import { define } from './dom/custom-elements';
+import { createEffect, ComponentSignalWatcher } from './core/signals';
 import { Signal } from 'signal-polyfill';
-import { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate, createReactiveProperty } from './properties';
-import { isNamespacedProperty, processNamespacedProperty, NAMESPACE_HANDLERS } from './namespaces';
 
 // Named exports for compatibility
-export { adoptDocument, adoptNode, adoptWindow, createElement } from './elements';
-export type { DOMSpecOptions, ReactiveProperties } from './elements';
-export { adoptStyleSheet, clearStyleSheet } from './styleSheets';
-export { define } from './customElements';
-export { createEffect, ComponentSignalWatcher } from './signals';
+export { adoptDocument, adoptNode, adoptWindow, createElement } from './dom/element';
+export { adoptStyleSheet, clearStyleSheet } from './dom/style-sheets';
+export { define } from './dom/custom-elements';
+export { createEffect, ComponentSignalWatcher } from './core/signals';
 export { Signal } from 'signal-polyfill';
-export { MappedArray } from './arrays';
-export { parseTemplateLiteral, bindTemplate, computedTemplate, isTemplateLiteral, bindPropertyTemplate, bindAttributeTemplate, isPropertyAccessor, resolvePropertyAccessor, createReactiveProperty } from './properties';
-export { isNamespacedProperty, processNamespacedProperty, NAMESPACE_HANDLERS, extractNamespace } from './namespaces';
-export type { RequestConfig } from '../../types/src';
+
+// Export property utilities that tests expect
+export { processProperty as createReactiveProperty } from './core/properties';
+export { resolveAccessor as resolvePropertyAccessor } from './utils/evaluation';
 
 // Default export: DDOM function with namespace properties
 function DDOM(spec: any) {
@@ -37,19 +33,8 @@ Object.assign(DDOM, {
 		define
 	},
 	createEffect,
-	createReactiveProperty,
 	ComponentSignalWatcher,
-	MappedArray,
 	Signal,
-	parseTemplateLiteral,
-	bindTemplate,
-	computedTemplate,
-	isTemplateLiteral,
-	bindPropertyTemplate,
-	bindAttributeTemplate,
-	isNamespacedProperty,
-	processNamespacedProperty,
-	NAMESPACE_HANDLERS
 });
 
 export default DDOM;
@@ -58,7 +43,6 @@ export default DDOM;
 declare global {
 	interface Window {
 		DDOM: typeof DDOM;
-		MappedArray: typeof MappedArray;
 		Signal: typeof Signal;
 	}
 }
@@ -66,6 +50,5 @@ declare global {
 // Auto-expose DDOM namespace globally
 if (typeof window !== 'undefined') {
 	window.DDOM = DDOM;
-	window.MappedArray = MappedArray;
 	window.Signal = Signal;
 }

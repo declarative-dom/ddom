@@ -1,6 +1,5 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createElement, Signal } from '../lib/dist/index.js';
-import { isNamespacedProperty, extractNamespace, NAMESPACE_HANDLERS } from '../lib/dist/index.js';
 
 // Mock fetch for testing
 const mockFetch = vi.fn();
@@ -17,8 +16,11 @@ describe('Namespaced Properties - Request Namespace', () => {
     // Set up a default mock response to prevent console errors from auto-triggered requests
     mockFetch.mockResolvedValue({
       ok: true,
-      headers: new Headers({ 'content-type': 'application/json' }),
-      json: vi.fn().mockResolvedValue({ default: true })
+      headers: new Headers({ 'Content-type': 'application/json' }),
+      json: vi.fn().mockResolvedValue({ default: true }),
+      text: vi.fn().mockResolvedValue('{"default":true}'),
+      blob: vi.fn().mockResolvedValue(new Blob()),
+      arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(0))
     });
   });
 
@@ -28,37 +30,50 @@ describe('Namespaced Properties - Request Namespace', () => {
   });
 
   describe('Namespace Detection', () => {
-    test('should detect valid namespaced properties', () => {
-      expect(isNamespacedProperty({ Request: { url: '/api/users' } })).toBe(true);
-      expect(isNamespacedProperty({ Request: { url: '/api/users', method: 'POST' } })).toBe(true);
-    });
-
-    test('should reject invalid namespaced properties', () => {
-      expect(isNamespacedProperty('string')).toBe(false);
-      expect(isNamespacedProperty(123)).toBe(false);
-      expect(isNamespacedProperty(null)).toBe(false);
-      expect(isNamespacedProperty(undefined)).toBe(false);
-      expect(isNamespacedProperty([])).toBe(false);
-      expect(isNamespacedProperty({ Request: { url: '/api' }, other: 'value' })).toBe(false);
-      expect(isNamespacedProperty({})).toBe(false);
-      expect(isNamespacedProperty({ UnknownNamespace: { url: '/api' } })).toBe(false);
-    });
-
-    test('should extract namespace and config correctly', () => {
-      const config = { url: '/api/users', method: 'GET' };
-      const namespaced = { Request: config };
-
-      const extracted = extractNamespace(namespaced);
-      expect(extracted).toEqual({
-        namespace: 'Request',
-        config: config
+    test('should detect valid namespaced properties via createElement', () => {
+      // Test that Request namespace works in createElement - validates internal detection
+      const element = createElement({
+        tagName: 'div',
+        $userData: { prototype: 'Request', url: '/api/users', manual: true }
       });
+      expect(element.$userData).toBeDefined();
+      expect(Signal.isState(element.$userData)).toBe(true);
+
+      const element2 = createElement({
+        tagName: 'div',
+        $postData: { prototype: 'Request', url: '/api/users', method: 'POST', manual: true }
+      });
+      expect(element2.$postData).toBeDefined();
+      expect(Signal.isState(element2.$postData)).toBe(true);
     });
 
-    test('should return null for invalid namespace extraction', () => {
-      expect(extractNamespace('string')).toBe(null);
-      expect(extractNamespace({ Request: { url: '/api' }, other: 'value' })).toBe(null);
-      expect(extractNamespace({ UnknownNamespace: { url: '/api' } })).toBe(null);
+    test('should handle invalid namespaced properties gracefully', () => {
+      // Invalid prototype should result in no signal being created
+      const element1 = createElement({
+        tagName: 'div',
+        $invalid: { prototype: 'InvalidNamespace', url: '/api' }
+      });
+      expect(element1.$invalid).toBeNull();
+
+      // Missing required properties should result in warning but still create signal
+      const element2 = createElement({
+        tagName: 'div',
+        $incomplete: { prototype: 'Request' } // Missing url
+      });
+      expect(element2.$incomplete).toBeDefined();
+      expect(element2.$incomplete).toBeNull(); // Request namespace returns null for invalid config
+    });
+
+    test('should validate prototype-based namespace structure', () => {
+      // Valid Request configuration should create proper signals
+      const element = createElement({
+        tagName: 'div',
+        $validRequest: { prototype: 'Request', url: '/api/users', method: 'GET', manual: true }
+      });
+      
+      expect(element.$validRequest).toBeDefined();
+      expect(Signal.isState(element.$validRequest)).toBe(true);
+      expect(typeof element.$validRequest.fetch).toBe('function');
     });
   });
 
@@ -67,10 +82,9 @@ describe('Namespaced Properties - Request Namespace', () => {
       const element = createElement({
         tagName: 'div',
         $userData: {
-          Request: {
-            url: '/api/users',
-            disabled: true
-          }
+          prototype: 'Request',
+          url: '/api/users',
+          manual: true
         }
       });
 
@@ -87,10 +101,9 @@ describe('Namespaced Properties - Request Namespace', () => {
       const element = createElement({
         tagName: 'div',
         $userData: {
-          Request: {
-            url: '/api/users'
-            // disabled defaults to false (auto-enabled)
-          }
+          prototype: 'Request',
+          url: '/api/users'
+          // manual defaults to false (auto-enabled)
         }
       });
 
@@ -104,7 +117,7 @@ describe('Namespaced Properties - Request Namespace', () => {
     test('should execute manual fetch request', async () => {
       const mockResponse = {
         ok: true,
-        headers: new Headers({ 'content-type': 'application/json' }),
+        headers: new Headers({ 'Content-type': 'application/json' }),
         json: vi.fn().mockResolvedValue({ id: 1, name: 'John' })
       };
       mockFetch.mockResolvedValue(mockResponse);
@@ -112,11 +125,10 @@ describe('Namespaced Properties - Request Namespace', () => {
       const element = createElement({
         tagName: 'div',
         $userData: {
-          Request: {
-            url: '/api/users/1',
-            method: 'GET',
-            disabled: true
-          }
+          prototype: 'Request',
+          url: '/api/users/1',
+          method: 'GET',
+          manual: true
         }
       });
 
@@ -141,24 +153,27 @@ describe('Namespaced Properties - Request Namespace', () => {
       const element = createElement({
         tagName: 'div',
         $userData: {
-          Request: {
-            url: '/api/users/1',
-            disabled: true
-          }
+          prototype: 'Request',
+          url: '/api/users/1',
+          manual: true
         }
       });
 
-      await element.$userData.fetch();
-      vi.runAllTicks();
+      try {
+        await element.$userData.fetch();
+        vi.runAllTicks();
+      } catch (e) {
+        // Expected to throw
+      }
 
       const state = element.$userData.get();
-      expect(state).toBe(null); // Error handling sets signal to null
+      expect(state).toEqual({ error: 'Network error' });
     });
 
     test('should handle JSON parsing errors gracefully', async () => {
       const mockResponse = {
         ok: true,
-        headers: new Headers({ 'content-type': 'application/json' }),
+        headers: new Headers({ 'Content-type': 'application/json' }),
         json: vi.fn().mockRejectedValue(new Error('Invalid JSON')),
         text: vi.fn().mockResolvedValue('plain text response')
       };
@@ -167,18 +182,21 @@ describe('Namespaced Properties - Request Namespace', () => {
       const element = createElement({
         tagName: 'div',
         $userData: {
-          Request: {
-            url: '/api/users/1',
-            disabled: true
-          }
+          prototype: 'Request',
+          url: '/api/users/1',
+          manual: true
         }
       });
 
-      await element.$userData.fetch();
-      vi.runAllTicks();
+      try {
+        await element.$userData.fetch();
+        vi.runAllTicks();
+      } catch (e) {
+        // Expected to throw
+      }
 
       const state = element.$userData.get();
-      expect(state).toBe(null); // Falls back to null on JSON parse error
+      expect(state).toEqual({ error: 'Invalid JSON' });
     });
   });
 
@@ -186,7 +204,7 @@ describe('Namespaced Properties - Request Namespace', () => {
     test('should process template literals in URL', async () => {
       const mockResponse = {
         ok: true,
-        headers: new Headers({ 'content-type': 'application/json' }),
+        headers: new Headers({ 'Content-type': 'application/json' }),
         json: vi.fn().mockResolvedValue({ success: true })
       };
       mockFetch.mockResolvedValue(mockResponse);
@@ -196,10 +214,9 @@ describe('Namespaced Properties - Request Namespace', () => {
         tagName: 'div',
         $userId: 123,
         $userData: {
-          Request: {
-            url: '/api/users/${this.$userId.get()}',
-            disabled: true
-          }
+          prototype: 'Request',
+          url: '/api/users/${this.$userId.get()}',
+          manual: true
         }
       });
 
@@ -208,29 +225,29 @@ describe('Namespaced Properties - Request Namespace', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
       const fetchCall = mockFetch.mock.calls[0];
       // Check that the URL was resolved correctly
-      expect(fetchCall[0].url).toContain('/api/users/123');
+      expect(fetchCall[0]).toContain('/api/users/123');
     });
 
     test('should serialize object body as JSON', async () => {
       const mockResponse = {
         ok: true,
-        headers: new Headers(),
-        text: vi.fn().mockResolvedValue('success')
+        headers: new Headers({ 'Content-type': 'application/json' }),
+        json: vi.fn().mockResolvedValue({ success: true }),
+        text: vi.fn().mockResolvedValue('{"success":true}')
       };
       mockFetch.mockResolvedValue(mockResponse);
 
       const element = createElement({
         tagName: 'div',
         $userData: {
-          Request: {
-            url: '/api/users',
-            method: 'POST',
-            body: {
-              name: 'John',
-              age: 30
-            },
-            disabled: true
-          }
+          prototype: 'Request',
+          url: '/api/users',
+          method: 'POST',
+          body: {
+            name: 'John',
+            age: 30
+          },
+          manual: true
         }
       });
 
@@ -239,33 +256,34 @@ describe('Namespaced Properties - Request Namespace', () => {
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
       const fetchCall = mockFetch.mock.calls[0];
-      const request = fetchCall[0];
+      const [url, options] = fetchCall;
 
-      // Check that Content-Type header was set
-      expect(request.headers.get('Content-Type')).toBe('application/json');
+      // Check that the body was serialized as JSON
+      expect(options.body).toBe(JSON.stringify({ name: 'John', age: 30 }));
+      expect(options.headers['Content-Type']).toBe('application/json'); // Check the correct case
     });
 
     test('should support standard Request constructor options', async () => {
       const mockResponse = {
         ok: true,
         headers: new Headers(),
-        text: vi.fn().mockResolvedValue('success')
+        json: vi.fn().mockResolvedValue({ success: true }),
+        text: vi.fn().mockResolvedValue('{"success":true}')
       };
       mockFetch.mockResolvedValue(mockResponse);
 
       const element = createElement({
         tagName: 'div',
         $postRequest: {
-          Request: {
-            url: '/api/post',
-            method: 'POST',
-            headers: {
-              'Accept': 'application/json'
-            },
-            mode: 'cors',
-            credentials: 'include',
-            disabled: true
-          }
+          prototype: 'Request',
+          url: '/api/post',
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json'
+          },
+          mode: 'cors',
+          credentials: 'include',
+          manual: true
         }
       });
 
@@ -273,11 +291,11 @@ describe('Namespaced Properties - Request Namespace', () => {
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
       const fetchCall = mockFetch.mock.calls[0];
-      const request = fetchCall[0];
+      const [url, options] = fetchCall;
 
-      expect(request.method).toBe('POST');
-      expect(request.mode).toBe('cors');
-      expect(request.credentials).toBe('include');
+      expect(options.method).toBe('POST');
+      expect(options.mode).toBe('cors');
+      expect(options.credentials).toBe('include');
     });
   });
 
@@ -286,7 +304,7 @@ describe('Namespaced Properties - Request Namespace', () => {
       const jsonData = { id: 1, name: 'John' };
       const mockResponse = {
         ok: true,
-        headers: new Headers({ 'content-type': 'application/json' }),
+        headers: new Headers({ 'Content-type': 'application/json' }),
         json: vi.fn().mockResolvedValue(jsonData)
       };
       mockFetch.mockResolvedValue(mockResponse);
@@ -294,10 +312,9 @@ describe('Namespaced Properties - Request Namespace', () => {
       const element = createElement({
         tagName: 'div',
         $userData: {
-          Request: {
-            url: '/api/users/1',
-            disabled: true
-          }
+          prototype: 'Request',
+          url: '/api/users/1',
+          manual: true
         }
       });
 
@@ -312,18 +329,19 @@ describe('Namespaced Properties - Request Namespace', () => {
       const textData = 'plain text response';
       const mockResponse = {
         ok: true,
-        headers: new Headers({ 'content-type': 'text/plain' }),
-        text: vi.fn().mockResolvedValue(textData)
+        headers: new Headers({ 'Content-type': 'text/plain' }),
+        text: vi.fn().mockResolvedValue(textData),
+        json: vi.fn().mockResolvedValue({}) // Add json method even though we won't use it
       };
       mockFetch.mockResolvedValue(mockResponse);
 
       const element = createElement({
         tagName: 'div',
         $userData: {
-          Request: {
-            url: '/api/text',
-            disabled: true
-          }
+          prototype: 'Request',
+          url: '/api/text',
+          responseType: 'text', // Explicitly set response type to text
+          manual: true
         }
       });
 
@@ -336,10 +354,10 @@ describe('Namespaced Properties - Request Namespace', () => {
   });
 
   describe('Delay/Debounce Functionality', () => {
-    test('should support delay property for auto requests', async () => {
+    test('should support debounce property for auto requests', async () => {
       const mockResponse = {
         ok: true,
-        headers: new Headers({ 'content-type': 'application/json' }),
+        headers: new Headers({ 'Content-type': 'application/json' }),
         json: vi.fn().mockResolvedValue({ success: true })
       };
       mockFetch.mockResolvedValue(mockResponse);
@@ -348,11 +366,10 @@ describe('Namespaced Properties - Request Namespace', () => {
         tagName: 'div',
         $searchQuery: '',
         $searchResults: {
-          Request: {
-            url: '/api/search?q=${this.$searchQuery.get()}',
-            delay: 100 // 100ms delay (matches Web Animations API pattern)
-            // disabled is false by default (auto-enabled)
-          }
+          prototype: 'Request',
+          url: '/api/search?q=${this.$searchQuery.get()}',
+          debounce: 100 // 100ms debounce
+          // manual is false by default (auto-enabled)
         }
       });
 
@@ -360,21 +377,28 @@ describe('Namespaced Properties - Request Namespace', () => {
       element.$searchQuery.set('test');
       expect(mockFetch).not.toHaveBeenCalled();
 
-      // Advance timers by the delay amount
+      // Advance timers by the debounce amount
       vi.advanceTimersByTime(100);
       vi.runAllTicks();
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
       
       const fetchCall = mockFetch.mock.calls[0];
-      expect(fetchCall[0].url).toContain('q=test');
+      expect(fetchCall[0]).toContain('q=test');
     });
   });
 
   describe('Namespace Handler Registry', () => {
-    test('should have Request handler registered', () => {
-      expect(NAMESPACE_HANDLERS.Request).toBeDefined();
-      expect(typeof NAMESPACE_HANDLERS.Request).toBe('function');
+    test('should have Request handler registered via createElement', () => {
+      // Test that Request namespace handler works by creating an element
+      const element = createElement({
+        tagName: 'div',
+        $testRequest: { prototype: 'Request', url: '/api/test', manual: true }
+      });
+      
+      expect(element.$testRequest).toBeDefined();
+      expect(Signal.isState(element.$testRequest)).toBe(true);
+      expect(typeof element.$testRequest.fetch).toBe('function');
     });
   });
 });

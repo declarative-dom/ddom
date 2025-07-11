@@ -42,11 +42,11 @@ export default {
   // Computed properties for iframe content generation
   currentExampleConfig: function () {
     // Return the config for the current example
-    return this.$examples.get()[window.$currentExample.get()]?.config;
+    return window.$examples.get()[window.$currentExample.get()]?.config;
   },
 
   currentExampleURL: function () {
-    return this.$examples.get()[window.$currentExample.get()]?.path;
+    return window.$examples.get()[window.$currentExample.get()]?.path;
   },
 
   currentExampleJSON: function () {
@@ -68,7 +68,7 @@ export default {
       $example: '',
 
       attributes: {
-        'data-active': '${window.$currentExample.get() === this.$example.get()}',
+        'data-active': '${window.$currentExample === this.$example}',
       },
 
       style: {
@@ -88,7 +88,7 @@ export default {
       children: [
         {
           tagName: 'button',
-          textContent: '${this.$label.get()}', // Use the reactive label property
+          textContent: '${this.$label}', // Use the reactive label property
           style: {
             padding: '0.5em 1em',
             border: '1px solid #007bff',
@@ -150,12 +150,13 @@ export default {
                 flexWrap: 'wrap',
               },
               children: {
-                items: () => Object.entries(window.$examples.get()),
+                prototype: 'Array',
+                items: 'Object.entries(window.$examples)',
                 map: {
                   tagName: 'nav-button',
-                  id: (item) => `nav-${item[0]}`,
-                  $label: (item) => item[1].name,
-                  $example: (item) => item[0],
+                  id: 'nav-${item[0]}',
+                  $label: 'item[1].name',
+                  $example: 'item[0]',
                 },
               },
             },
