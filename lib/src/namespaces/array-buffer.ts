@@ -1,7 +1,28 @@
 /**
  * ArrayBuffer Namespace Handler
  * 
- * Creates reactive ArrayBuffer objects from configuration.
+ * Creates reactive ArrayBuffer objects from declarative configuration with automatic
+ * rebuilding when source data changes. Enables dynamic binary data management
+ * with full integration into DDOM's reactive property system.
+ * 
+ * @example
+ * ```typescript
+ * // Create reactive ArrayBuffer from string data
+ * const textData = new Signal.State('Hello World');
+ * adoptNode({
+ *   buffer: {
+ *     prototype: 'ArrayBuffer',
+ *     data: '${this.textData}',
+ *     length: null // Auto-calculated from data
+ *   },
+ *   textData: textData
+ * }, element);
+ * 
+ * // ArrayBuffer automatically updates when data changes
+ * textData.set('Updated content');
+ * ```
+ * 
+ * @module namespaces/array-buffer
  */
 
 import { Signal } from '../core/signals';
@@ -28,7 +49,26 @@ export interface ArrayBufferSignal extends Signal.Computed<ArrayBuffer> {
 }
 
 /**
- * Creates reactive ArrayBuffer objects
+ * Creates a reactive ArrayBuffer namespace that rebuilds when configuration changes.
+ * Processes source data through the DDOM property system, enabling reactive binary
+ * data that automatically updates when dependencies change.
+ * 
+ * @param config - The validated ArrayBuffer configuration object
+ * @param key - The property name being processed (for debugging)
+ * @param element - The element context for property resolution
+ * @returns A computed signal containing the reactive ArrayBuffer object
+ * 
+ * @example
+ * ```typescript
+ * const bufferSignal = createArrayBufferNamespace({
+ *   prototype: 'ArrayBuffer',
+ *   data: [72, 101, 108, 108, 111], // "Hello" as byte array
+ *   length: 5
+ * }, 'binaryData', element);
+ * 
+ * const buffer = bufferSignal.get();
+ * console.log(buffer.byteLength); // 5
+ * ```
  */
 export const createArrayBufferNamespace = (
   config: ArrayBufferConfig,

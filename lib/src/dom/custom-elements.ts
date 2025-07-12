@@ -1,3 +1,42 @@
+/**
+ * Custom Elements Registration and Management
+ * 
+ * This module provides modern custom element registration using the Web Components standard.
+ * It handles the complete lifecycle of custom elements including initialization, rendering,
+ * cleanup, and reactive property management with DDOM's declarative approach.
+ * 
+ * Key Features:
+ * - Automatic custom element registration with deduplication
+ * - Shadow DOM and element internals support
+ * - Component-level signal isolation for performance
+ * - Automatic cleanup with AbortController
+ * - Style adoption and document modification support
+ * - Full custom element lifecycle management
+ * 
+ * @example
+ * ```typescript
+ * // Define a simple custom element
+ * define([{
+ *   tagName: 'my-button',
+ *   template: {
+ *     tagName: 'button',
+ *     textContent: '${this.label}',
+ *     onclick: () => this.dispatchEvent(new Event('click'))
+ *   },
+ *   constructor(el) {
+ *     el.label = 'Click me';
+ *   }
+ * }]);
+ * 
+ * // Use the custom element
+ * document.body.innerHTML = '<my-button></my-button>';
+ * ```
+ * 
+ * @module dom/custom-elements
+ * @version 0.4.1
+ * @author Declarative DOM Working Group
+ */
+
 import {
 	CustomElementSpec,
 	DocumentSpec,
@@ -18,15 +57,36 @@ import {
 
 /**
  * Registers an array of custom elements with the browser's CustomElementRegistry.
- * Modern, simplified implementation using latest JavaScript features.
+ * Modern, simplified implementation using latest JavaScript features with full
+ * lifecycle management and reactive property support.
  * 
  * Key features:
- * - Single initialization per element
- * - AbortController for automatic cleanup
- * - Simplified container logic
- * - No unnecessary feature detection
+ * - Single initialization per element with deduplication
+ * - AbortController for automatic cleanup on disconnect
+ * - Component-level signal isolation for optimal performance
+ * - Shadow DOM and element internals support
+ * - Automatic style adoption and document modification
+ * - Full custom element lifecycle callbacks
  * 
- * @param elements Array of declarative custom element definitions to register
+ * @param elements - Array of declarative custom element definitions to register
+ * @example
+ * ```typescript
+ * define([{
+ *   tagName: 'counter-button',
+ *   style: { 
+ *     ':host': { display: 'inline-block' },
+ *     'button': { padding: '8px 16px' }
+ *   },
+ *   template: {
+ *     tagName: 'button',
+ *     textContent: 'Count: ${this.$count}',
+ *     onclick: () => this.$count.set(this.$count.get() + 1)
+ *   },
+ *   constructor(el) {
+ *     el.$count = new Signal.State(0);
+ *   }
+ * }]);
+ * ```
  */
 export function define(elements: CustomElementSpec[]) {
 	elements

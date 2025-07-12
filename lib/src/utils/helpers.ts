@@ -5,7 +5,25 @@
  */
 
 /**
- * Creates a debounced version of a function
+ * Creates a debounced version of a function that delays execution until after
+ * the specified delay has passed since the last invocation. Useful for optimizing
+ * performance with frequently called functions like input handlers or API calls.
+ * 
+ * @param func - The function to debounce
+ * @param delay - The delay in milliseconds
+ * @returns A debounced version of the original function
+ * 
+ * @example
+ * ```typescript
+ * const search = debounce((query: string) => {
+ *   console.log('Searching for:', query);
+ * }, 300);
+ * 
+ * // Multiple rapid calls
+ * search('a');
+ * search('ab');  
+ * search('abc'); // Only this will execute after 300ms
+ * ```
  */
 export function debounce<T extends (...args: any[]) => any>(
   func: T,
@@ -20,7 +38,20 @@ export function debounce<T extends (...args: any[]) => any>(
 }
 
 /**
- * Safely converts a value to a string
+ * Safely converts any value to a string with intelligent fallback handling.
+ * Handles null/undefined, primitives, and complex objects with JSON serialization
+ * fallback to String() for non-serializable values.
+ * 
+ * @param value - The value to convert to string
+ * @returns A string representation of the value
+ * 
+ * @example
+ * ```typescript
+ * safeString(null); // ''
+ * safeString(123); // '123'
+ * safeString({a: 1}); // '{"a":1}'
+ * safeString(function() {}); // '[object Function]'
+ * ```
  */
 export function safeString(value: any): string {
   if (value == null) return '';
@@ -35,7 +66,19 @@ export function safeString(value: any): string {
 }
 
 /**
- * Safely converts a value to a number
+ * Safely converts any value to a number with fallback to zero for invalid values.
+ * Useful for ensuring numeric operations don't fail with NaN values.
+ * 
+ * @param value - The value to convert to number
+ * @returns A valid number (0 if conversion fails)
+ * 
+ * @example
+ * ```typescript
+ * safeNumber('123'); // 123
+ * safeNumber('abc'); // 0
+ * safeNumber(null); // 0
+ * safeNumber(true); // 1
+ * ```
  */
 export function safeNumber(value: any): number {
   if (typeof value === 'number') return value;
@@ -44,7 +87,19 @@ export function safeNumber(value: any): number {
 }
 
 /**
- * Creates a shallow clone of an object
+ * Creates a shallow clone of an object or array preserving the original type.
+ * Uses spread syntax for optimal performance with arrays and objects.
+ * 
+ * @param obj - The object to clone
+ * @returns A shallow copy of the original object
+ * 
+ * @example
+ * ```typescript
+ * const original = { a: 1, b: { c: 2 } };
+ * const clone = shallowClone(original);
+ * clone.a = 3; // original.a is still 1
+ * clone.b.c = 4; // original.b.c is also 4 (shallow)
+ * ```
  */
 export function shallowClone<T>(obj: T): T {
   if (Array.isArray(obj)) {

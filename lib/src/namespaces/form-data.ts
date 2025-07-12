@@ -1,8 +1,31 @@
 /**
  * FormData Namespace Handler
  * 
- * Creates reactive FormData objects from configuration.
- * Focused solely on FormData - each Web API gets its own namespace.
+ * Creates reactive FormData objects from declarative configuration with automatic
+ * rebuilding when form field values change. Enables dynamic form data management
+ * with full integration into DDOM's reactive property system.
+ * 
+ * @example
+ * ```typescript
+ * // Create reactive form data
+ * const userName = new Signal.State('');
+ * const userEmail = new Signal.State('');
+ * adoptNode({
+ *   formData: {
+ *     prototype: 'FormData',
+ *     name: '${this.userName}',
+ *     email: '${this.userEmail}',
+ *     timestamp: new Date().toISOString()
+ *   },
+ *   userName: userName,
+ *   userEmail: userEmail
+ * }, element);
+ * 
+ * // FormData automatically updates when signals change
+ * userName.set('john_doe');
+ * ```
+ * 
+ * @module namespaces/form-data
  */
 
 import { Signal } from '../core/signals';
@@ -28,7 +51,26 @@ export interface FormDataSignal extends Signal.Computed<FormData> {
 }
 
 /**
- * Creates reactive FormData objects
+ * Creates a reactive FormData namespace that rebuilds when configuration changes.
+ * Processes all form field values through the DDOM property system, enabling
+ * reactive form data that automatically updates when dependencies change.
+ * 
+ * @param config - The validated FormData configuration object
+ * @param key - The property name being processed (for debugging)
+ * @param element - The element context for property resolution
+ * @returns A computed signal containing the reactive FormData object
+ * 
+ * @example
+ * ```typescript
+ * const formSignal = createFormDataNamespace({
+ *   prototype: 'FormData',
+ *   username: '${this.user}',
+ *   action: 'submit'
+ * }, 'submitData', element);
+ * 
+ * const formData = formSignal.get();
+ * console.log(formData.get('username'));
+ * ```
  */
 export const createFormDataNamespace = (
   config: FormDataConfig,

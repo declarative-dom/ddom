@@ -1,7 +1,29 @@
 /**
  * URLSearchParams Namespace Handler
  * 
- * Creates reactive URLSearchParams objects from configuration.
+ * Creates reactive URLSearchParams objects from declarative configuration with automatic
+ * rebuilding when query parameters change. Enables dynamic URL parameter management
+ * with full integration into DDOM's reactive property system.
+ * 
+ * @example
+ * ```typescript
+ * // Create reactive URL parameters
+ * const searchTerm = new Signal.State('');
+ * adoptNode({
+ *   urlParams: {
+ *     prototype: 'URLSearchParams',
+ *     q: '${this.searchTerm}',
+ *     page: 1,
+ *     limit: 10
+ *   },
+ *   searchTerm: searchTerm
+ * }, element);
+ * 
+ * // URLSearchParams automatically updates when searchTerm changes
+ * searchTerm.set('new search');
+ * ```
+ * 
+ * @module namespaces/url-search-params
  */
 
 import { Signal } from '../core/signals';
@@ -27,7 +49,25 @@ export interface URLSearchParamsSignal extends Signal.Computed<URLSearchParams> 
 }
 
 /**
- * Creates reactive URLSearchParams objects
+ * Creates a reactive URLSearchParams namespace that rebuilds when configuration changes.
+ * Processes all configuration properties through the DDOM property system, enabling
+ * reactive query parameters that automatically update the URLSearchParams object.
+ * 
+ * @param config - The validated URLSearchParams configuration object
+ * @param key - The property name being processed (for debugging)
+ * @param element - The element context for property resolution
+ * @returns A computed signal containing the reactive URLSearchParams object
+ * 
+ * @example
+ * ```typescript
+ * const paramsSignal = createURLSearchParamsNamespace({
+ *   prototype: 'URLSearchParams',
+ *   search: '${this.searchQuery}',
+ *   category: 'products'
+ * }, 'queryParams', element);
+ * 
+ * console.log(paramsSignal.get().toString()); // "search=...&category=products"
+ * ```
  */
 export const createURLSearchParamsNamespace = (
   config: URLSearchParamsConfig,

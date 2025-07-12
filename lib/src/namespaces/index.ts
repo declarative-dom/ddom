@@ -87,7 +87,31 @@ const NAMESPACE_REGISTRY: Record<string, NamespaceEntry> = {
 };
 
 /**
- * Processes a namespaced property with centralized validation
+ * Processes a namespaced property with centralized validation and handler dispatch.
+ * This is the main entry point for all namespace processing in DDOM, providing
+ * unified validation and routing to appropriate namespace handlers based on prototype.
+ * 
+ * @param key - The property name being processed (for debugging and context)
+ * @param config - The namespace configuration object with prototype identifier
+ * @param element - The element context for property resolution and binding
+ * @returns The processed namespace object (signal, computed value, etc.)
+ * 
+ * @example
+ * ```typescript
+ * // Process an Array namespace
+ * const arraySignal = processNamespacedProperty('items', {
+ *   prototype: 'Array',
+ *   items: [1, 2, 3],
+ *   filter: [{ property: 'value', operator: '>', value: 1 }]
+ * }, element);
+ * 
+ * // Process a Storage namespace
+ * const storageSignal = processNamespacedProperty('userData', {
+ *   prototype: 'LocalStorage',
+ *   key: 'user-settings',
+ *   value: { theme: 'dark' }
+ * }, element);
+ * ```
  */
 export function processNamespacedProperty(
   key: string,
