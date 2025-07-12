@@ -1,3 +1,35 @@
+/**
+ * DDOM Signal Management System
+ * 
+ * This module provides comprehensive signal management for reactive programming in DDOM.
+ * It includes both component-level and global signal watchers for efficient reactive updates,
+ * following TC39 signal specification patterns for modern JavaScript applications.
+ * 
+ * Key Features:
+ * - Component-level signal isolation with explicit resource management
+ * - Global signal watcher for simple use cases
+ * - Automatic effect creation and cleanup
+ * - Memory leak prevention with proper disposal patterns
+ * - Integration with TC39 signal polyfill
+ * 
+ * @example
+ * ```typescript
+ * // Component-level signal watcher (recommended)
+ * const watcher = new ComponentSignalWatcher();
+ * const count = new Signal.State(0);
+ * const cleanup = createEffect(() => {
+ *   console.log('Count:', count.get());
+ * }, watcher);
+ * 
+ * // Clean up when component unmounts
+ * watcher.dispose();
+ * ```
+ * 
+ * @module core/signals
+ * @version 0.4.1
+ * @author Declarative DOM Working Group
+ */
+
 export { Signal } from 'signal-polyfill';
 import { Signal } from 'signal-polyfill';
 
