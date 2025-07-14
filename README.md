@@ -208,8 +208,8 @@ const app = DDOM({
   $isVisible: true,
   
   // Template literals become Computed signals
-  $displayText: 'Count is ${this.$count.get()}',
-  $status: '${this.$isVisible.get() ? "Visible" : "Hidden"}',
+  $displayText: 'Count is ${this.$count}',
+  $status: '${this.$isVisible ? "Visible" : "Hidden"}',
   
   // Functions are shared in scope (as functions, not signals)
   $increment: function() {
@@ -255,7 +255,7 @@ const app = DDOM({
   className: 'container',
   
   // But can be signal-driven with templates or getters
-  textContent: 'Name: ${this.$name.get()}',
+  textContent: 'Name: ${this.$name}',
   title: function () {
     return `User: ${this.$name.get()} (${this.$age.get()})`;
   }
@@ -287,7 +287,7 @@ Create dynamic lists that automatically update when data changes using the proto
         $todoItem: {},
         $todoIndex: 0,
 
-        textContent: '${this.$todoItem.get().text}' // ← Explicit signal access
+        textContent: '${this.$todoItem.text}' // ← Explicit signal access
     }],
     
     // Document body structure
