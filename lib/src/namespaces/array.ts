@@ -31,7 +31,7 @@ export interface ArrayConfig<T = any, R = any> extends PrototypeConfig {
 /**
  * Array Signal - Signal.Computed for processed arrays  
  */
-export interface ArraySignal<T = any[]> extends Signal.Computed<T> {
+export interface ArraySignal<T = unknown[]> extends Signal.Computed<T> {
   // Enhanced signal that includes mutable props metadata
   getMutableProps?(): string[];
 }
@@ -40,7 +40,7 @@ export interface ArraySignal<T = any[]> extends Signal.Computed<T> {
  * Resolves source signal from different input types with comprehensive support.
  * Handles arrays, signals, property accessors, expressions, and functions from production code.
  */
-function resolveSourceSignal(items: ArrayConfig["items"], parentElement?: Element): Signal.State<any[]> | Signal.Computed<any[]> {
+function resolveSourceSignal(items: ArrayConfig["items"], parentElement?: Element): Signal.State<unknown[]> | Signal.Computed<unknown[]> {
   // Handle different source types
   if (Array.isArray(items)) {
     return new Signal.State(items);
@@ -64,7 +64,7 @@ function resolveSourceSignal(items: ArrayConfig["items"], parentElement?: Elemen
     }
   } else if (isSignal(items)) {
     // If it's already a signal, return it directly
-    return items as Signal.State<any[]>;
+    return items as Signal.State<unknown[]>;
   } else {
     throw new Error('ArrayNamespace items must be an array, Signal, or property accessor string');
   }
@@ -76,7 +76,7 @@ function resolveSourceSignal(items: ArrayConfig["items"], parentElement?: Elemen
 export const createArrayNamespace = (
   config: ArrayConfig,
   key: string,
-  element: any
+  element: Record<string, unknown>
 ): ArraySignal => {
   // Config is already validated by the main namespace index
 
@@ -172,7 +172,7 @@ function createEmptyCollection(prototype: ArrayConfig['prototype']): any {
 /**
  * Converts a processed array to the target collection type
  */
-function convertToTargetType(items: any[], prototype: ArrayConfig['prototype']): any {
+function convertToTargetType(items: unknown[], prototype: ArrayConfig['prototype']): unknown {
   switch (prototype) {
     case 'Set':
       return new Set(items);
@@ -209,7 +209,7 @@ function convertToTargetType(items: any[], prototype: ArrayConfig['prototype']):
 /**
  * Applies an array of filter expressions to items
  */
-export function applyFilters(items: any[], filters: FilterCriteria[], el: any): any[] {
+export function applyFilters(items: unknown[], filters: FilterCriteria[], el: Record<string, unknown>): unknown[] {
   const context = {
     item: null, // Current item being processed
     index: 0, // Current index in the array
@@ -231,7 +231,7 @@ export function applyFilters(items: any[], filters: FilterCriteria[], el: any): 
 /**
  * Applies an array of sort criteria to items using modern stable sorting
  */
-export function applySorting(items: any[], sortCriteria: SortCriteria[]): any[] {
+export function applySorting(items: unknown[], sortCriteria: SortCriteria[]): unknown[] {
   if (!sortCriteria || sortCriteria.length === 0) return items;
   
   // Create a copy to avoid mutating the original
@@ -365,7 +365,7 @@ const ACCESSOR_REGEX = /^(item|index|window|document)/;
  * Applies a mapping template to items
  * Supports only declarative templates: object templates and string templates
  */
-export function applyMapping(items: any[], mapTemplate: any): any[] {
+export function applyMapping(items: unknown[], mapTemplate: unknown): unknown[] {
   try {
     if (typeof mapTemplate === 'string') {
       // String template mapping

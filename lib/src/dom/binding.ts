@@ -63,7 +63,7 @@ export function applyPropertyBinding(
   spec: DOMSpec,
   el: DOMNode,
   key: string,
-  value: any,
+  value: unknown,
   options: DOMSpecOptions = {}
 ): void {
   // Skip ignored keys
@@ -151,7 +151,7 @@ export function applyPropertyBinding(
 function applyStandardPropertyBinding(
   el: DOMNode,
   key: string,
-  value: any,
+  value: unknown,
   _options: DOMSpecOptions
 ): void {
   // Use specialized native property processor
@@ -322,7 +322,7 @@ function applyAttributesBinding(element: Element, attributes: Record<string, any
  * Sets an attribute value with proper type handling.
  * Handles boolean attributes, null/undefined values, and string conversion.
  */
-function setAttributeValue(element: Element, name: string, value: any): void {
+function setAttributeValue(element: Element, name: string, value: unknown): void {
   if (typeof value === 'boolean') {
     value ? element.setAttribute(name, '') : element.removeAttribute(name);
   } else if (value == null) {
@@ -368,7 +368,7 @@ export function bindReactiveArray(
 
   // Keep track of rendered elements by stable keys for efficient updates
   const renderedElements = new Map<string, Element>();
-  let previousItems: any[] = [];
+  let previousItems: unknown[] = [];
 
   // Get mutable properties if available for surgical updates
   const mutableProps = typeof arraySignal.getMutableProps === 'function' 
@@ -376,9 +376,9 @@ export function bindReactiveArray(
     : [];
 
   // Function to update the current array state with fine-grained updates
-  const updateArray = (items: any[]) => {
+  const updateArray = (items: unknown[]) => {
     // Consistent key generation function
-    const getItemKey = (item: any) => item.id || JSON.stringify(item);
+    const getItemKey = (item: Record<string, unknown>) => (item as any).id || JSON.stringify(item);
 
     // Track components by stable keys, not indices
     const currentKeys = new Set<string>();
@@ -392,9 +392,9 @@ export function bindReactiveArray(
       previousItems.map((item) => getItemKey(item))
     );
 
-    items.forEach((item: any) => {
-      if (item && typeof item === 'object' && item.tagName) {
-        const key = getItemKey(item);
+    items.forEach((item: unknown) => {
+      if (item && typeof item === 'object' && (item as any).tagName) {
+        const key = getItemKey(item as Record<string, unknown>);
         currentKeys.add(key);
 
         if (previousKeys.has(key)) {
@@ -547,16 +547,16 @@ function updateDOMOrder(parentElement: Element, orderedElements: Element[]): voi
  * Efficient deep equality comparison with Object.is optimization.
  * Used for determining if array items have changed and need updates.
  */
-function deepEqual(a: any, b: any): boolean {
+function deepEqual(a: unknown, b: unknown): boolean {
   if (Object.is(a, b)) return true;
   if (a == null || b == null) return false;
   if (typeof a !== typeof b || typeof a !== 'object') return false;
 
-  const keysA = Object.keys(a);
-  const keysB = Object.keys(b);
+  const keysA = Object.keys(a as object);
+  const keysB = Object.keys(b as object);
 
   return (
     keysA.length === keysB.length &&
-    keysA.every((key) => deepEqual(a[key], b[key]))
+    keysA.every((key) => deepEqual((a as any)[key], (b as any)[key]))
   );
 }

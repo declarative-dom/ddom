@@ -32,7 +32,7 @@ export interface ProcessedProperty {
   /** The type/type of the processed value (Signal.State, Signal.Computed, string, number, etc.) */
   type: string;
   /** The processed value (signal, primitive, or complex object) */
-  value: any;
+  value: unknown;
   /** Whether the processed value is valid for use */
   isValid: boolean;
   /** Error information if processing failed */
@@ -53,7 +53,7 @@ export const IMMUTABLE_PROPERTIES = new Set(['id', 'tagName']);
  * Creates a reactive computed signal for template strings.
  * Uses safe template resolution with automatic signal dependency tracking.
  */
-function createTemplateSignal(template: string, contextNode: any): Signal.Computed<string> {
+function createTemplateSignal(template: string, contextNode: Record<string, unknown>): Signal.Computed<string> {
   // Clean context - all contextNode properties accessible via 'this'
   const context = {
     this: contextNode,
@@ -74,11 +74,11 @@ function createTemplateSignal(template: string, contextNode: any): Signal.Comput
 const VALUE_PATTERNS = {
   TEMPLATE: /\$\{/,           // Template literals: 'Hello ${name}'
   ACCESSOR: /^(window\.|document\.|this\.)/,  // Property accessors: 'window.data'
-  FUNCTION: (v: any) => typeof v === 'function',
-  STRING: (v: any) => typeof v === 'string',
-  OBJECT: (v: any) => v !== null && typeof v === 'object' && !Array.isArray(v),
-  ARRAY: (v: any) => Array.isArray(v),
-  PRIMITIVE: (v: any) => ['number', 'boolean'].includes(typeof v)
+  FUNCTION: (v: unknown) => typeof v === 'function',
+  STRING: (v: unknown) => typeof v === 'string',
+  OBJECT: (v: unknown) => v !== null && typeof v === 'object' && !Array.isArray(v),
+  ARRAY: (v: unknown) => Array.isArray(v),
+  PRIMITIVE: (v: unknown) => ['number', 'boolean'].includes(typeof v)
 } as const;
 
 /**
@@ -88,7 +88,7 @@ const VALUE_PATTERNS = {
  * @param value - Property value to classify
  * @returns Pattern string for switch statement matching
  */
-export function classifyProperty(value: any): string {
+export function classifyProperty(value: unknown): string {
   // Determine value pattern (order matters - most specific first)
   if (VALUE_PATTERNS.FUNCTION(value)) {
     return 'function';
@@ -100,7 +100,7 @@ export function classifyProperty(value: any): string {
     } else {
       return 'string';
     }
-  } else if (VALUE_PATTERNS.OBJECT(value) && value?.prototype && typeof value.prototype === 'string') {
+  } else if (VALUE_PATTERNS.OBJECT(value) && (value as any)?.prototype && typeof (value as any).prototype === 'string') {
     return 'namespaced';
   } else if (VALUE_PATTERNS.ARRAY(value)) {
     return 'array';
@@ -120,7 +120,7 @@ export function classifyProperty(value: any): string {
  * These handle the common patterns without caring about scope context.
  */
 const ValueProcessors = {
-  template: (_key: string, value: string, contextNode: any): ProcessedProperty => {
+  template: (_key: string, value: string, contextNode: Record<string, unknown>): ProcessedProperty => {
     try {
       const computed = createTemplateSignal(value, contextNode);
       return {
@@ -133,7 +133,7 @@ const ValueProcessors = {
     }
   },
 
-  accessor: (_key: string, value: string, contextNode: any): ProcessedProperty => {
+  accessor: (_key: string, value: string, contextNode: Record<string, unknown>): ProcessedProperty => {
     try {
       const context = {
         this: contextNode,
@@ -159,19 +159,19 @@ const ValueProcessors = {
     }
   },
 
-  function: (_key: string, value: Function, contextNode: any): ProcessedProperty => ({
+  function: (_key: string, value: Function, contextNode: Record<string, unknown>): ProcessedProperty => ({
     type: 'function',
     value: value.bind(contextNode), // ← Pre-bind to the element
     isValid: true
   }),
 
-  namespaced: (key: string, value: any, contextNode: any): ProcessedProperty => ({
+  namespaced: (key: string, value: unknown, contextNode: Record<string, unknown>): ProcessedProperty => ({
     type: 'namespaced',
-    value: processNamespacedProperty(key, value, contextNode),
+    value: processNamespacedProperty(key, value as any, contextNode),
     isValid: true
   }),
 
-  primitive: (_key: string, value: any): ProcessedProperty => ({
+  primitive: (_key: string, value: unknown): ProcessedProperty => ({
     type: getValueType(value),
     value: value,
     isValid: true  // All primitive values are valid for signals
@@ -181,7 +181,7 @@ const ValueProcessors = {
 /**
  * Creates an error ProcessedProperty.
  */
-function createErrorProperty(error: string, originalValue?: any): ProcessedProperty {
+function createErrorProperty(error: string, originalValue?: unknown): ProcessedProperty {
   return {
     type: 'error',
     value: originalValue || null,
@@ -204,8 +204,8 @@ function createErrorProperty(error: string, originalValue?: any): ProcessedPrope
  */
 export function processScopeProperty(
   key: string,
-  value: any,
-  contextNode: any
+  value: unknown,
+  contextNode: Record<string, unknown>
 ): ProcessedProperty {
   try {
     const pattern = classifyProperty(value);
@@ -214,7 +214,7 @@ export function processScopeProperty(
     switch (pattern) {
       case 'function':
         // Scope functions remain as functions (unusual but valid)
-        return ValueProcessors.function(key, value, contextNode);
+        return ValueProcessors.function(key, value as Function, contextNode);
 
       case 'namespaced':
         // Scope namespaced objects
@@ -222,11 +222,11 @@ export function processScopeProperty(
 
       case 'template':
         // Template → Computed Signal
-        return ValueProcessors.template(key, value, contextNode);
+        return ValueProcessors.template(key, value as string, contextNode);
 
       case 'accessor':
         // Accessor → Resolve then wrap in signal if needed
-        return ValueProcessors.accessor(key, value, contextNode);
+        return ValueProcessors.accessor(key, value as string, contextNode);
 
       case 'string':
       case 'primitive':
@@ -260,8 +260,8 @@ export function processScopeProperty(
  */
 export function processProperty(
   key: string,
-  value: any,
-  contextNode: any
+  value: unknown,
+  contextNode: Record<string, unknown>
 ): ProcessedProperty {
   try {
     const pattern = classifyProperty(value);
@@ -269,7 +269,7 @@ export function processProperty(
     switch (pattern) {
       case 'function':
         // Functions stay as functions (events, callbacks)
-        return ValueProcessors.function(key, value, contextNode);
+        return ValueProcessors.function(key, value as Function, contextNode);
 
       case 'namespaced':
         // Namespaced objects for complex behaviors
@@ -277,11 +277,11 @@ export function processProperty(
 
       case 'template':
         // Templates become computed for reactivity
-        return ValueProcessors.template(key, value, contextNode);
+        return ValueProcessors.template(key, value as string, contextNode);
 
       case 'accessor':
         // Accessors get resolved
-        return ValueProcessors.accessor(key, value, contextNode);
+        return ValueProcessors.accessor(key, value as string, contextNode);
 
       case 'string':
       case 'primitive':
@@ -310,8 +310,8 @@ export function processProperty(
  */
 export function processAttributeValue(
   attributeName: string,
-  value: any,
-  contextNode: any
+  value: unknown,
+  contextNode: Record<string, unknown>
 ): ProcessedProperty {
   try {
     const pattern = classifyProperty(value);
@@ -319,16 +319,16 @@ export function processAttributeValue(
     switch (pattern) {
       case 'template':
         // Templates always become computed for reactive attributes
-        return ValueProcessors.template(attributeName, value, contextNode);
+        return ValueProcessors.template(attributeName, value as string, contextNode);
 
       case 'accessor':
         // Accessors get resolved
-        return ValueProcessors.accessor(attributeName, value, contextNode);
+        return ValueProcessors.accessor(attributeName, value as string, contextNode);
 
       case 'function':
         // Functions become computed signals for reactive attribute updates
         try {
-          const computed = new Signal.Computed(value.bind(contextNode));
+          const computed = new Signal.Computed((value as Function).bind(contextNode));
           return {
             type: 'Signal.Computed',
             value: computed,
@@ -369,7 +369,7 @@ function validateComputedValue(computed: Signal.Computed<any>): boolean {
  * Determines the type/type of a value for the ProcessedProperty format.
  * Handles signals, primitives, objects, arrays, and complex types.
  */
-function getValueType(value: any): string {
+function getValueType(value: unknown): string {
   if (value === null) return 'null';
   if (value === undefined) return 'undefined';
 

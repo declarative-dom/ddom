@@ -78,7 +78,7 @@ export { resolveAccessor as resolvePropertyAccessor } from './core/evaluation';
  * });
  * ```
  */
-function DDOM(spec: any) {
+function DDOM(spec: unknown) {
 	adoptWindow(spec);
 }
 
