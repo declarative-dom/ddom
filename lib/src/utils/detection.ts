@@ -73,7 +73,7 @@ const VALUE_PATTERNS = {
    * 'arg1, "hello world", func(x)'.match(VALUE_PATTERNS.ARG_SPLIT); 
    * // ['arg1', '"hello world"', 'func(x)']
    */
-  ARG_SPLIT: /(?:[^,"'()\[\]]+|"[^"]*"|'[^']*'|\([^)]*\)|\[[^\]]*\])+/g,
+  ARG_SPLIT: /(?:[^,"'([]+|"[^"]*"|'[^']*'|\([^)]*\)|\[[^\]]*\])+/g,
 
   /**
    * Quoted string literal pattern.
@@ -147,7 +147,7 @@ const VALUE_PATTERNS = {
    * VALUE_PATTERNS.COMPLEX_ACCESSOR.test('getData().result'); // true
    * VALUE_PATTERNS.COMPLEX_ACCESSOR.test('simple'); // false
    */
-  COMPLEX_ACCESSOR: /[.\[\s()]/,
+  COMPLEX_ACCESSOR: /[.[\s(]/,
 
   /**
    * Array index access pattern with property.
