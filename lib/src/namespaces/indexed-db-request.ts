@@ -9,7 +9,7 @@
 import { Signal, createEffect, ComponentSignalWatcher } from '../core/signals';
 import { resolveConfig } from '.';
 import { PrototypeConfig, FilterCriteria, SortCriteria } from '../types';
-import { resolveTemplateProperty, resolveOperand, evaluateComparison } from '../utils/evaluation';
+import { resolveTemplateProperty, resolveOperand, evaluateComparison } from '../core/evaluation';
 import { IndexedDBStoreFactory } from './indexed-db';
 
 /**

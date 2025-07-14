@@ -60,7 +60,7 @@ export { Signal } from 'signal-polyfill';
 
 // Export property utilities that tests expect
 export { processProperty as createReactiveProperty } from './core/properties';
-export { resolveAccessor as resolvePropertyAccessor } from './utils/evaluation';
+export { resolveAccessor as resolvePropertyAccessor } from './core/evaluation';
 
 /**
  * Main DDOM function for adopting window-level specifications.

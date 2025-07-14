@@ -8,7 +8,8 @@
  */
 
 import { Signal } from '../core/signals';
-import { evaluateFilter, isSignal, resolveAccessor, resolveOperand, resolveTemplate } from '../utils/evaluation';
+import { evaluateFilter, resolveAccessor, resolveOperand, resolveTemplate } from '../core/evaluation';
+import { isSignal } from '../utils/detection';
 import { PrototypeConfig, FilterCriteria, SortCriteria } from './types';
 import { detectMutableProps } from '../utils';
 

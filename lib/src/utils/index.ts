@@ -5,7 +5,7 @@
  */
 
 // Evaluation utilities
-export * from './evaluation';
+export * from '../core/evaluation';
 
 // Helper utilities
 export * from './helpers';

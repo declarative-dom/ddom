@@ -9,6 +9,8 @@
  * 
  */
 
+import { isLiteral, VALUE_PATTERNS } from '../utils/detection';
+
 /**
  * Automatically unwraps TC39 signals by calling their .get() method.
  * Only used in template contexts where values need to be displayed.
@@ -44,7 +46,7 @@ const resolveAccessor = (obj: any, path: string, fallback: any = null): any => {
     return fallback;
   }
   try {
-    if (/[.\[\s()]/.test(path)) {
+    if (VALUE_PATTERNS.COMPLEX_ACCESSOR.test(path)) {
       // if it's an advanced accessor, evaluate the chain
       return evaluateChain(obj, path) ?? fallback;
     } else if (Object.hasOwn(obj, path)) {
@@ -77,8 +79,8 @@ const evaluateChain = (obj: any, path: string): any => {
 
   return parts.reduce((current, part, _index) => {
     // Handle optional chaining - check for ? at the END of the part (from ?.split)
-    const isOptional = part.endsWith('?');
-    const cleanPart = part.replace(/\?$/, '').trim();
+    const isOptional = VALUE_PATTERNS.OPTIONAL_CHAIN.test(part);
+    const cleanPart = part.replace(VALUE_PATTERNS.OPTIONAL_CHAIN, '').trim();
 
     if (isOptional && current == null) {
       return undefined;
@@ -93,7 +95,7 @@ const evaluateChain = (obj: any, path: string): any => {
     if (!current) return current;
 
     // Handle array access with property: item[1]
-    const arrayMatch = cleanPart.match(/^([a-zA-Z_$][\w$]*)\[(\d+)\]$/);
+    const arrayMatch = cleanPart.match(VALUE_PATTERNS.ARRAY_ACCESS);
     if (arrayMatch) {
       const [, baseName, indexStr] = arrayMatch;
       const base = current[baseName];
@@ -101,7 +103,7 @@ const evaluateChain = (obj: any, path: string): any => {
     }
 
     // Handle function call: method()
-    const funcMatch = cleanPart.match(/^([a-zA-Z_$][\w$]*)\(([^)]*)\)$/);
+    const funcMatch = cleanPart.match(VALUE_PATTERNS.FUNCTION_PARSE);
     if (funcMatch) {
       const [, name, argsStr] = funcMatch;
       const func = current[name];
@@ -133,43 +135,12 @@ const parseArgs = (argsStr: string, context: any): any[] => {
   if (!argsStr.trim()) return [];
 
   // Regex to split on commas while respecting quotes and nested parens/brackets
-  const args = argsStr.match(/(?:[^,"'()\[\]]+|"[^"]*"|'[^']*'|\([^)]*\)|\[[^\]]*\])+/g) || [];
+  const args = argsStr.match(VALUE_PATTERNS.ARG_SPLIT) || [];
 
   return args.map(arg => {
     const trimmed = arg.replace(/^,+|,+$/g, '').trim(); // Remove leading/trailing commas
     return isLiteral(trimmed) ? parseLiteral(trimmed) : resolveAccessor(context, trimmed);
   });
-};
-
-/**
- * Value type classification with regex patterns and functions.
- * Simplified for template display and concatenation use cases.
- */
-const VALUE_PATTERNS = {
-  TEMPLATE: /\$\{/,           // Template literals: 'Hello ${name}'
-  ACCESSOR: /^(window\.|document\.|this\.)/,  // Property accessors: 'window.data'
-  // ACCESSOR: /^[a-zA-Z_$][\w$]*(\.[a-zA-Z_$][\w$]*|\[\d+\](\.[a-zA-Z_$][\w$]*)*)*(\(\))?$/,  // more complex property accessors detection (not used currently)
-  FUNCTION_CALL: /^[a-zA-Z_$][\w.$]*\([^)]*\)$/,  // Function calls: 'getData()', 'user.getName()'
-  LITERAL_STRING: /^(['"`]).*\1$/,  // Quoted strings: '"hello"', "'world'"
-  LITERAL_NUMBER: /^\d+(\.\d+)?$/,  // Numbers: '42', '3.14'
-  LITERAL_BOOLEAN: /^(true|false)$/,  // Booleans: 'true', 'false'
-  LITERAL_NULL: /^(null|undefined)$/,  // Null values: 'null', 'undefined'
-  HAS_OPERATORS: /(\|\||&&|===|!==|==|!=|>=|<=|>|<|\+|includes|startsWith|endsWith|matches|in)/,
-  TERNARY: /^(.+?)\s*(?<!\?)\?\s*(?!\.)(.+?)\s*:\s*(.+)$/,
-  SIGNAL: (v: any) => v?.get && typeof v.get === 'function',
-  FUNCTION: (v: any) => typeof v === 'function'
-} as const;
-
-/**
- * Detects if a string represents a literal value.
- * Uses VALUE_PATTERNS for consistent classification.
- */
-const isLiteral = (str: string): boolean => {
-  const trimmed = str.trim();
-  return VALUE_PATTERNS.LITERAL_STRING.test(trimmed) ||
-    VALUE_PATTERNS.LITERAL_NUMBER.test(trimmed) ||
-    VALUE_PATTERNS.LITERAL_BOOLEAN.test(trimmed) ||
-    VALUE_PATTERNS.LITERAL_NULL.test(trimmed);
 };
 
 /**
@@ -207,7 +178,7 @@ const parseLiteral = (str: string): any => {
 const evaluateFunction = (expr: string, context: any): any => {
   if (!VALUE_PATTERNS.FUNCTION_CALL.test(expr)) return null;
 
-  const match = expr.match(/^([a-zA-Z_$][\w.$]*)\(([^)]*)\)$/);
+  const match = expr.match(VALUE_PATTERNS.FUNCTION_PARSE);
   if (!match) return null;
 
   const [, funcPath, argsStr] = match;
@@ -265,9 +236,6 @@ const evaluateFilter = (filter: any, context: any): boolean => {
     const leftValue = unwrapSignal(resolveAccessor(context, filter.leftOperand));
     const rightValue = unwrapSignal(resolveAccessor(context, filter.rightOperand));
 
-    // debug
-    console.debug('Evaluating filter:', filter, { leftValue, rightValue });
-
     // Direct operator lookup for maximum performance
     switch (filter.operator) {
       case '===': return leftValue === rightValue;
@@ -308,9 +276,7 @@ const evaluateFilter = (filter: any, context: any): boolean => {
  */
 const evaluateComparison = (expr: string, context: any): boolean | null => {
   // Operator patterns ordered by specificity (longer operators first)
-  const operatorRegex = /^(.+?)\s*(===|!==|>=|<=|==|!=|>|<|includes|startsWith|endsWith|&&|\|\|)\s*(.+)$/;
-
-  const match = expr.trim().match(operatorRegex);
+  const match = expr.trim().match(VALUE_PATTERNS.COMPARISON_OPS);
 
   if (match) {
     const [, left, operator, right] = match;
@@ -450,7 +416,7 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
  * resolveTemplate('${user.age >= 18 ? "adult" : "minor"}', context); // "adult"
  */
 const resolveTemplate = (template: string, context: any): string =>
-  template.replace(/\$\{([^}]+)\}/g, (match, expr) => {
+  template.replace(VALUE_PATTERNS.TEMPLATE_REPLACEMENT, (match, expr) => {
     try {
       const result = evaluateTemplateExpression(expr.trim(), context);
       return String(result ?? match);
@@ -480,7 +446,7 @@ const resolveTemplateProperty = (context: any, path: string, fallback: any = nul
     // Handle property accessor strings (not template literals)
     if (typeof path === 'string' && !path.includes('${') && !path.includes('(')) {
       // Special case: 'this.$name' as a string should resolve to the signal
-      if (/^(this|window|document)\./.test(path)) {
+      if (VALUE_PATTERNS.GLOBAL_ACCESSOR.test(path)) {
         return resolveAccessor(context, path, fallback);
       }
       // Regular strings are returned as-is
@@ -536,51 +502,6 @@ const resolveOperand = (operand: any, item: any, additionalContext?: any): any =
   return result;
 };
 
-/**
- * Validates if a string is a valid property accessor pattern.
- * Supports property chains, array indexing, and optional function calls.
- * 
- * @param {string} str - The string to validate
- * @returns {boolean} True if the string is a valid accessor pattern
- * 
- * @example
- * isValidAccessor('user.name'); // true
- * isValidAccessor('items[0].data'); // true
- * isValidAccessor('getData()'); // true
- * isValidAccessor('user..name'); // false
- */
-const isValidAccessor = (str: string): boolean =>
-  VALUE_PATTERNS.ACCESSOR.test(str)
-
-/**
- * Detects if a string represents a function call with arguments.
- * Uses VALUE_PATTERNS for consistent pattern matching.
- * 
- * @param {string} str - The string to test
- * @returns {boolean} True if the string is a function call pattern
- * 
- * @example
- * isFunctionCall('getData()'); // true
- * isFunctionCall('process(arg1, arg2)'); // true
- * isFunctionCall('user.name'); // false
- */
-const isFunctionCall = (str: string): boolean =>
-  VALUE_PATTERNS.FUNCTION_CALL.test(str);
-
-/**
- * Detects if an object is a Signal.
- * Uses VALUE_PATTERNS for consistent pattern matching.
- * 
- * @param {any} obj - The object to test
- * @returns {boolean} True if the object is a Signal
- * 
- * @example
- * isSignal(new Signal(42)); // true
- * isSignal({}); // false
- */
-const isSignal = (obj: any): boolean =>
-  VALUE_PATTERNS.SIGNAL(obj);
-
 
 /**
  * Context builder for DDOM components that automatically includes signals.
@@ -618,7 +539,4 @@ export {
   resolveAccessor,
   resolveOperand,
   buildContext,
-  isValidAccessor,
-  isFunctionCall,
-  isSignal
 };

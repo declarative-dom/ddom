@@ -18,7 +18,7 @@
  */
 
 import { Signal } from './signals';
-import { resolveTemplateProperty, resolveTemplate } from '../utils/evaluation';
+import { resolveTemplateProperty, resolveTemplate } from './evaluation';
 import { processNamespacedProperty } from '../namespaces/index';
 
 
