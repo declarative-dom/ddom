@@ -287,7 +287,7 @@ const evaluateFilter = (filter: Record<string, unknown>, context: Record<string,
  * evaluateComparison('user.age >= 18', context); // true/false
  * evaluateComparison('status === "active"', context); // true/false
  */
-const evaluateComparison = (expr: string, context: any): boolean | null => {
+const evaluateComparison = (expr: string, context: Record<string, unknown>): boolean | null => {
   // Operator patterns ordered by specificity (longer operators first)
   const match = expr.trim().match(VALUE_PATTERNS.COMPARISON_OPS);
 
@@ -312,10 +312,10 @@ const evaluateComparison = (expr: string, context: any): boolean | null => {
  * Handles the core template use cases without complex tokenization.
  * 
  * @param {string} expr - The template expression to evaluate
- * @param {any} context - Context object for variable resolution
- * @returns {any} The evaluated result with signals unwrapped
+ * @param {Record<string, unknown>} context - Context object for variable resolution
+ * @returns {unknown} The evaluated result with signals unwrapped
  */
-const evaluateTemplateExpression = (expr: string, context: any): any => {
+const evaluateTemplateExpression = (expr: string, context: Record<string, unknown>): unknown => {
   // String concatenation: operand + operand (simple case)
   if (expr.includes(' + ') && !expr.includes('?')) {
     const parts = expr.split(' + ').map(part => {
@@ -325,12 +325,12 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
       // Handle function calls in concatenation
       if (VALUE_PATTERNS.FUNCTION_CALL.test(trimmed)) {
         const result = evaluateFunction(trimmed, context);
-        return VALUE_PATTERNS.SIGNAL(result) ? result.get() : result;
+        return isSignalLike(result) ? result.get() : result;
       }
 
       // Resolve and unwrap automatically
       const resolved = resolveAccessor(context, trimmed);
-      return VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+      return isSignalLike(resolved) ? resolved.get() : resolved;
     });
     return parts.join('');
   }
@@ -347,11 +347,11 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
         conditionResult = evaluateComparison(condition.trim(), context);
         if (conditionResult === null) {
           const resolved = resolveAccessor(context, condition.trim());
-          conditionResult = VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+          conditionResult = isSignalLike(resolved) ? resolved.get() : resolved;
         }
       } else {
         const resolved = resolveAccessor(context, condition.trim());
-        conditionResult = VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+        conditionResult = isSignalLike(resolved) ? resolved.get() : resolved;
       }
 
       const resultPath = conditionResult ? truthy.trim() : falsy.trim();
@@ -365,7 +365,7 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
       } else {
         // Simple property access
         const resolved = resolveAccessor(context, resultPath);
-        return VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+        return isSignalLike(resolved) ? resolved.get() : resolved;
       }
     }
   }
@@ -376,7 +376,7 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
       const trimmed = part.trim();
       const value = isLiteral(trimmed) ? parseLiteral(trimmed) : (() => {
         const resolved = resolveAccessor(context, trimmed);
-        return VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+        return isSignalLike(resolved) ? resolved.get() : resolved;
       })();
       if (value) return value;
     }
@@ -390,7 +390,7 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
       const trimmed = part.trim();
       const value = isLiteral(trimmed) ? parseLiteral(trimmed) : (() => {
         const resolved = resolveAccessor(context, trimmed);
-        return VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+        return isSignalLike(resolved) ? resolved.get() : resolved;
       })();
       result = result && value;
       if (!result) return false;
@@ -405,12 +405,12 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
   // Function call - only if the entire expression is a function call
   if (VALUE_PATTERNS.FUNCTION_CALL.test(expr)) {
     const result = evaluateFunction(expr, context);
-    return VALUE_PATTERNS.SIGNAL(result) ? result.get() : result;
+    return isSignalLike(result) ? result.get() : result;
   }
 
   // Simple property access - resolve and unwrap
   const resolved = resolveAccessor(context, expr);
-  return VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+  return isSignalLike(resolved) ? resolved.get() : resolved;
 };
 
 
@@ -420,7 +420,7 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
  * Processes ${...} expressions in template strings using safe evaluation.
  * 
  * @param {string} template - The template string containing ${...} expressions
- * @param {any} context - Context object for resolving template variables
+ * @param {Record<string, unknown>} context - Context object for resolving template variables
  * @returns {string} The resolved template string with expressions evaluated
  * 
  * @example
@@ -428,7 +428,7 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
  * resolveTemplate('Count: ${items.length || 0}', context); // "Count: 5"
  * resolveTemplate('${user.age >= 18 ? "adult" : "minor"}', context); // "adult"
  */
-const resolveTemplate = (template: string, context: any): string =>
+const resolveTemplate = (template: string, context: Record<string, unknown>): string =>
   template.replace(VALUE_PATTERNS.TEMPLATE_REPLACEMENT, (match, expr) => {
     try {
       const result = evaluateTemplateExpression(expr.trim(), context);
@@ -444,17 +444,17 @@ const resolveTemplate = (template: string, context: any): string =>
  * Returns actual signal objects rather than their unwrapped values,
  * allowing for manual .get()/.set() operations.
  * 
- * @param {any} context - Context object to resolve properties from
+ * @param {Record<string, unknown>} context - Context object to resolve properties from
  * @param {string} path - Property path or function call to resolve
- * @param {any} [fallback=null] - Value to return if resolution fails
- * @returns {any} The resolved value, preserving signal objects
+ * @param {unknown} [fallback=null] - Value to return if resolution fails
+ * @returns {unknown} The resolved value, preserving signal objects
  * 
  * @example
  * resolveTemplateProperty(context, 'user.$name'); // Returns signal object
  * resolveTemplateProperty(context, 'this.$count'); // Returns signal object
  * resolveTemplateProperty(context, 'getData()'); // Returns function result
  */
-const resolveTemplateProperty = (context: any, path: string, fallback: any = null): any => {
+const resolveTemplateProperty = (context: Record<string, unknown>, path: string, fallback: unknown = null): unknown => {
   try {
     // Handle property accessor strings (not template literals)
     if (typeof path === 'string' && !path.includes('${') && !path.includes('(')) {
@@ -484,17 +484,17 @@ const resolveTemplateProperty = (context: any, path: string, fallback: any = nul
  * Used in array mapping, filtering, and other collection operations where
  * the final values are typically needed rather than signal objects.
  * 
- * @param {any} operand - The operand to resolve (string path, template, or direct value)
- * @param {any} item - The current item context (becomes 'this' in resolution)
- * @param {any} [additionalContext] - Additional context properties to include
- * @returns {any} The resolved and potentially unwrapped value
+ * @param {unknown} operand - The operand to resolve (string path, template, or direct value)
+ * @param {Record<string, unknown>} item - The current item context (becomes 'this' in resolution)
+ * @param {Record<string, unknown>} [additionalContext] - Additional context properties to include
+ * @returns {unknown} The resolved and potentially unwrapped value
  * 
  * @example
  * resolveOperand('${item.name}', item, context); // "John" (unwrapped)
  * resolveOperand('item.active', item, context); // true (unwrapped)
  * resolveOperand(42, item, context); // 42 (direct value)
  */
-const resolveOperand = (operand: any, item: any, additionalContext?: any): any => {
+const resolveOperand = (operand: unknown, item: Record<string, unknown>, additionalContext?: Record<string, unknown>): unknown => {
   if (typeof operand !== 'string') return operand;
 
   const context = {
@@ -520,15 +520,15 @@ const resolveOperand = (operand: any, item: any, additionalContext?: any): any =
  * Context builder for DDOM components that automatically includes signals.
  * Scans component for $-prefixed properties and includes them in context.
  * 
- * @param {any} component - The DDOM component object
- * @param {any} [additionalProps] - Additional properties to include in context
- * @returns {object} Complete context object with component signals and globals
+ * @param {Record<string, unknown>} component - The DDOM component object
+ * @param {Record<string, unknown>} [additionalProps] - Additional properties to include in context
+ * @returns {Record<string, unknown>} Complete context object with component signals and globals
  * 
  * @example
  * const context = buildContext(component, { extra: 'data' });
  * // Returns: { this: component, window: globalThis.window, $count: signal, ... }
  */
-const buildContext = (component: any, additionalProps?: any) => ({
+const buildContext = (component: Record<string, unknown>, additionalProps?: Record<string, unknown>): Record<string, unknown> => ({
   this: component,
   window: globalThis.window,
   document: globalThis.document,
