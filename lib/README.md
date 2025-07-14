@@ -24,11 +24,11 @@ const app = DDOM.customElements.define({
   children: [
     {
       tagName: 'h1',
-      textContent: 'Hello ${this.parentNode.name.get()}!'
+      textContent: 'Hello ${this.parentNode.name}!'
     },
     {
       tagName: 'p',
-      textContent: 'Count: ${this.parentNode.count.get()}'
+      textContent: 'Count: ${this.parentNode.count}'
     },
     {
       tagName: 'button',
