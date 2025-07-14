@@ -12,36 +12,50 @@
 import { isLiteral, VALUE_PATTERNS } from '../utils/detection';
 
 /**
+ * Interface for signal-like objects that can be unwrapped
+ */
+interface SignalLike {
+  get(): unknown;
+}
+
+/**
+ * Type guard to check if a value is a signal-like object
+ */
+function isSignalLike(value: unknown): value is SignalLike {
+  return typeof value === 'object' && value !== null && 'get' in value && typeof (value as any).get === 'function';
+}
+
+/**
  * Automatically unwraps TC39 signals by calling their .get() method.
  * Only used in template contexts where values need to be displayed.
  * 
- * @param {any} value - The value to potentially unwrap
- * @returns {any} The unwrapped value if it's a signal, otherwise the original value
+ * @param {unknown} value - The value to potentially unwrap
+ * @returns {unknown} The unwrapped value if it's a signal, otherwise the original value
  * 
  * @example
  * const signal = new Signal(42);
  * unwrapSignal(signal); // 42
  * unwrapSignal("hello"); // "hello"
  */
-const unwrapSignal = (value: any): any =>
-  value?.get && typeof value.get === 'function' ? value.get() : value;
+const unwrapSignal = (value: unknown): unknown =>
+  isSignalLike(value) ? value.get() : value;
 
 /**
  * Simple accessor expression resolver that preserves signals and handles function calls.
  * Used for direct property access, namespace configs, and maintaining reactivity.
  * Does NOT unwrap signals - returns them as-is for manual .get()/.set() operations.
  * 
- * @param {any} obj - The root object to traverse
+ * @param {Record<string, unknown>} obj - The root object to traverse
  * @param {string} path - Property path to resolve (e.g., 'user.name', 'this.$coords().lat')
- * @param {any} [fallback=null] - Value to return if resolution fails
- * @returns {any} The resolved value, preserving signal objects
+ * @param {unknown} [fallback=null] - Value to return if resolution fails
+ * @returns {unknown} The resolved value, preserving signal objects
  * 
  * @example
  * resolveAccessor(obj, 'user.$name'); // Returns Signal object
  * resolveAccessor(obj, 'this.$coords().lat'); // Calls function, accesses property
  * resolveAccessor(obj, 'items[0].data'); // Array access with property
  */
-const resolveAccessor = (obj: any, path: string, fallback: any = null): any => {
+const resolveAccessor = (obj: Record<string, unknown>, path: string, fallback: unknown = null): unknown => {
   if (!path) {
     return fallback;
   }
@@ -65,19 +79,19 @@ const resolveAccessor = (obj: any, path: string, fallback: any = null): any => {
  * Chain evaluator using regex-based parsing with optional chaining support.
  * Handles complex property chains including function calls, array indexing, and optional chaining.
  * 
- * @param {any} obj - The starting object for chain evaluation
+ * @param {Record<string, unknown>} obj - The starting object for chain evaluation
  * @param {string} path - The property chain path to evaluate
- * @returns {any} The final resolved value from the chain
+ * @returns {unknown} The final resolved value from the chain
  * 
  * @example
  * evaluateChain(obj, 'user.getName().toUpperCase()'); 
  * evaluateChain(obj, 'user?.profile?.name'); // Optional chaining
  * evaluateChain(obj, 'this.$currentCoords()?.lat'); // Mixed optional chaining
  */
-const evaluateChain = (obj: any, path: string): any => {
+const evaluateChain = (obj: Record<string, unknown>, path: string): unknown => {
   const parts = path.split('.');
 
-  return parts.reduce((current, part, _index) => {
+  return parts.reduce((current: any, part, _index) => {
     // Handle optional chaining - check for ? at the END of the part (from ?.split)
     const isOptional = VALUE_PATTERNS.OPTIONAL_CHAIN.test(part);
     const cleanPart = part.replace(VALUE_PATTERNS.OPTIONAL_CHAIN, '').trim();
@@ -87,7 +101,7 @@ const evaluateChain = (obj: any, path: string): any => {
     }
 
     // Always unwrap signals before accessing properties
-    if (current?.get && typeof current.get === 'function') {
+    if (isSignalLike(current)) {
       current = current.get();
       if (isOptional && current == null) return undefined;
     }
@@ -98,7 +112,7 @@ const evaluateChain = (obj: any, path: string): any => {
     const arrayMatch = cleanPart.match(VALUE_PATTERNS.ARRAY_ACCESS);
     if (arrayMatch) {
       const [, baseName, indexStr] = arrayMatch;
-      const base = current[baseName];
+      const base = (current as any)[baseName];
       return base ? base[parseInt(indexStr)] : undefined;
     }
 
@@ -106,7 +120,7 @@ const evaluateChain = (obj: any, path: string): any => {
     const funcMatch = cleanPart.match(VALUE_PATTERNS.FUNCTION_PARSE);
     if (funcMatch) {
       const [, name, argsStr] = funcMatch;
-      const func = current[name];
+      const func = (current as any)[name];
       if (typeof func === 'function') {
         const args = parseArgs(argsStr, current);
         return func.call(current, ...args);
@@ -115,7 +129,7 @@ const evaluateChain = (obj: any, path: string): any => {
     }
 
     // Simple property access
-    return current[cleanPart];
+    return (current as any)[cleanPart];
   }, obj);
 };
 
@@ -124,14 +138,14 @@ const evaluateChain = (obj: any, path: string): any => {
  * Respects quoted strings, nested parentheses, and brackets while splitting on commas.
  * 
  * @param {string} argsStr - The arguments string from a function call
- * @param {any} context - Context object for resolving argument references
- * @returns {any[]} Array of parsed and resolved argument values
+ * @param {Record<string, unknown>} context - Context object for resolving argument references
+ * @returns {unknown[]} Array of parsed and resolved argument values
  * 
  * @example
  * parseArgs('user.name, "hello world", func(a, b)', context);
  * // Returns: [resolvedUserName, "hello world", functionResult]
  */
-const parseArgs = (argsStr: string, context: any): any[] => {
+const parseArgs = (argsStr: string, context: Record<string, unknown>): unknown[] => {
   if (!argsStr.trim()) return [];
 
   // Regex to split on commas while respecting quotes and nested parens/brackets
@@ -148,7 +162,7 @@ const parseArgs = (argsStr: string, context: any): any[] => {
  * Uses VALUE_PATTERNS for consistent classification.
  * 
  * @param {string} str - The literal string to parse
- * @returns {any} The parsed JavaScript value
+ * @returns {unknown} The parsed JavaScript value
  * 
  * @example
  * parseLiteral('"hello"'); // "hello"
@@ -156,7 +170,7 @@ const parseArgs = (argsStr: string, context: any): any[] => {
  * parseLiteral('true'); // true
  * parseLiteral('null'); // null
  */
-const parseLiteral = (str: string): any => {
+const parseLiteral = (str: string): unknown => {
   const trimmed = str.trim();
   if (VALUE_PATTERNS.LITERAL_STRING.test(trimmed)) return trimmed.slice(1, -1);
   if (VALUE_PATTERNS.LITERAL_NUMBER.test(trimmed)) return Number(trimmed);
@@ -172,10 +186,10 @@ const parseLiteral = (str: string): any => {
  * Uses VALUE_PATTERNS for consistent pattern matching.
  * 
  * @param {string} expr - The function call expression to evaluate
- * @param {any} context - Context object for resolving function and arguments
- * @returns {any} The result of the function call, or null if function not found/safe
+ * @param {Record<string, unknown>} context - Context object for resolving function and arguments
+ * @returns {unknown} The result of the function call, or null if function not found/safe
  */
-const evaluateFunction = (expr: string, context: any): any => {
+const evaluateFunction = (expr: string, context: Record<string, unknown>): unknown => {
   if (!VALUE_PATTERNS.FUNCTION_CALL.test(expr)) return null;
 
   const match = expr.match(VALUE_PATTERNS.FUNCTION_PARSE);
@@ -185,7 +199,7 @@ const evaluateFunction = (expr: string, context: any): any => {
 
   // Parse arguments with the same context that has access to window, etc.
   const args = parseArgs(argsStr, context).map(arg =>
-    arg?._resolveLater ? resolveAccessor(context, arg._resolveLater) : arg
+    (arg as any)?._resolveLater ? resolveAccessor(context, (arg as any)._resolveLater) : arg
   );
 
   // Safe globals - prevents arbitrary code execution
@@ -197,7 +211,7 @@ const evaluateFunction = (expr: string, context: any): any => {
     'Array.isArray': Array.isArray,
     'JSON.stringify': JSON.stringify,
     'JSON.parse': JSON.parse,
-    'Date': ((...args: any[]) => new (Date as any)(...args)) as (...args: any[]) => Date,
+    'Date': ((...args: unknown[]) => new Date(...(args as ConstructorParameters<typeof Date>))) as (...args: unknown[]) => Date,
     'Date.now': Date.now
   };
 
@@ -210,7 +224,7 @@ const evaluateFunction = (expr: string, context: any): any => {
   // Context method calls - resolve object path and call method
   const obj = resolveAccessor(context, funcPath.split('.').slice(0, -1).join('.')) || context;
   const methodName = funcPath.split('.').pop()!;
-  const method = obj?.[methodName];
+  const method = (obj as any)?.[methodName];
 
   return typeof method === 'function' ? method.call(obj, ...args) : null;
 };
@@ -221,20 +235,19 @@ const evaluateFunction = (expr: string, context: any): any => {
  * Efficient comparison evaluator built around FilterCriteria.
  * Performs single operator lookup and evaluation for optimal performance.
  * 
- * @param {FilterCriteria} filter - The filter criteria with left/right operands and operator
- * @param {any} item - The current item being evaluated (for array filtering)
- * @param {any} context - Context for resolving operand values
+ * @param {Record<string, unknown>} filter - The filter criteria with left/right operands and operator
+ * @param {Record<string, unknown>} context - Context for resolving operand values
  * @returns {boolean} The comparison result
  * 
  * @example
- * evaluateFilter({ leftOperand: 'item.age', operator: '>=', rightOperand: 18 }, item, context);
- * evaluateFilter({ leftOperand: 'item.name', operator: 'includes', rightOperand: 'John' }, item, context);
+ * evaluateFilter({ leftOperand: 'item.age', operator: '>=', rightOperand: 18 }, context);
+ * evaluateFilter({ leftOperand: 'item.name', operator: 'includes', rightOperand: 'John' }, context);
  */
-const evaluateFilter = (filter: any, context: any): boolean => {
+const evaluateFilter = (filter: Record<string, unknown>, context: Record<string, unknown>): boolean => {
   try {
     // Resolve operand values
-    const leftValue = unwrapSignal(resolveAccessor(context, filter.leftOperand));
-    const rightValue = unwrapSignal(resolveAccessor(context, filter.rightOperand));
+    const leftValue = unwrapSignal(resolveAccessor(context, filter.leftOperand as string));
+    const rightValue = unwrapSignal(resolveAccessor(context, filter.rightOperand as string));
 
     // Direct operator lookup for maximum performance
     switch (filter.operator) {

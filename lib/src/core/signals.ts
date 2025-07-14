@@ -36,7 +36,7 @@ import { Signal } from 'signal-polyfill';
 /**
  * Union type for all signal node types
  */
-export type SignalNode<T = any> = Signal.State<T> | Signal.Computed<T>;
+export type SignalNode<T = unknown> = Signal.State<T> | Signal.Computed<T>;
 
 /**
  * Component-level signal watcher with explicit resource management.

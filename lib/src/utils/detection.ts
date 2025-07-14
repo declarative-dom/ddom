@@ -195,7 +195,7 @@ const VALUE_PATTERNS = {
    * VALUE_PATTERNS.SIGNAL({ get: () => 'value' }); // true
    * VALUE_PATTERNS.SIGNAL({}); // false
    */
-  SIGNAL: (v: any) => v?.get && typeof v.get === 'function',
+  SIGNAL: (v: unknown) => v?.get && typeof v.get === 'function',
 
   /**
    * Function type detector.
@@ -205,7 +205,7 @@ const VALUE_PATTERNS = {
    * VALUE_PATTERNS.FUNCTION(function() {}); // true
    * VALUE_PATTERNS.FUNCTION({}); // false
    */
-  FUNCTION: (v: any) => typeof v === 'function',
+  FUNCTION: (v: unknown) => typeof v === 'function',
 } as const;
 
 /**
@@ -250,7 +250,7 @@ const isFunctionCall = (str: string): boolean =>
  * isSignal(new Signal(42)); // true
  * isSignal({}); // false
  */
-const isSignal = (obj: any): boolean =>
+const isSignal = (obj: unknown): boolean =>
   VALUE_PATTERNS.SIGNAL(obj);
 
 /**

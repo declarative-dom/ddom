@@ -16,7 +16,7 @@ const DATE_MARKER = '__DATE__';
 /**
  * Replacer function for JSON.stringify - converts Date objects to marked format
  */
-function replacer(key: string, value: any): any {
+function replacer(key: string, value: unknown): unknown {
   if (value instanceof Date) {
     return { [DATE_MARKER]: value.toISOString() };
   }
@@ -26,7 +26,7 @@ function replacer(key: string, value: any): any {
 /**
  * Reviver function for JSON.parse - converts marked date strings back to Date objects
  */
-function reviver(key: string, value: any): any {
+function reviver(key: string, value: unknown): unknown {
   if (value && typeof value === 'object' && value[DATE_MARKER]) {
     return new Date(value[DATE_MARKER]);
   }

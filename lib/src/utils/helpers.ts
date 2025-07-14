@@ -29,7 +29,7 @@ export function debounce<T extends (...args: any[]) => any>(
   func: T,
   delay: number
 ): (...args: Parameters<T>) => void {
-  let timeoutId: any;
+  let timeoutId: ReturnType<typeof setTimeout>;
   
   return (...args: Parameters<T>) => {
     clearTimeout(timeoutId);
@@ -53,7 +53,7 @@ export function debounce<T extends (...args: any[]) => any>(
  * safeString(function() {}); // '[object Function]'
  * ```
  */
-export function safeString(value: any): string {
+export function safeString(value: unknown): string {
   if (value == null) return '';
   if (typeof value === 'string') return value;
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
@@ -80,7 +80,7 @@ export function safeString(value: any): string {
  * safeNumber(true); // 1
  * ```
  */
-export function safeNumber(value: any): number {
+export function safeNumber(value: unknown): number {
   if (typeof value === 'number') return value;
   const num = Number(value);
   return isNaN(num) ? 0 : num;
@@ -106,7 +106,7 @@ export function shallowClone<T>(obj: T): T {
     return [...obj] as T;
   }
   if (obj && typeof obj === 'object') {
-    return { ...obj as any } as T;
+    return { ...obj as object } as T;
   }
   return obj;
 }
@@ -114,7 +114,7 @@ export function shallowClone<T>(obj: T): T {
 /**
  * Checks if two values are equal using shallow comparison
  */
-export function shallowEqual(a: any, b: any): boolean {
+export function shallowEqual(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   
   if (Array.isArray(a) && Array.isArray(b)) {
@@ -137,7 +137,7 @@ export function shallowEqual(a: any, b: any): boolean {
 /**
  * Checks if a value references item or index data
  */
-export function isMutableProp(value: any): boolean {
+export function isMutableProp(value: unknown): boolean {
   if (typeof value === 'string') {
     // Check for property accessor patterns like 'item.id', 'item.name', 'index'
     return (
@@ -156,7 +156,7 @@ export function isMutableProp(value: any): boolean {
  * Analyzes a mapping configuration object and returns the properties
  * that reference item or index data and need surgical updates
  */
-export function detectMutableProps(mapConfig: any): string[] {
+export function detectMutableProps(mapConfig: Record<string, unknown>): string[] {
   if (!mapConfig || typeof mapConfig !== 'object') {
     return [];
   }
@@ -180,10 +180,10 @@ export function detectMutableProps(mapConfig: any): string[] {
  * @param template - The template object to analyze
  * @returns Array of property names that contain item/index references
  */
-export function analyzeMutableProperties(template: any): string[] {
+export function analyzeMutableProperties(template: unknown): string[] {
   const mutableProps: string[] = [];
 
-  function analyze(obj: any, propPath: string = ''): void {
+  function analyze(obj: unknown, propPath: string = ''): void {
     if (typeof obj === 'string') {
       // Check for template literals containing item or index
       if (isMutableProp(obj)) {
