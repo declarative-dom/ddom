@@ -18,7 +18,7 @@ import { detectMutableProps } from '../utils';
  */
 export interface ArrayConfig<T = any, R = any> extends PrototypeConfig {
   prototype: 'Array' | 'Set' | 'Map' | 'Int8Array' | 'Uint8Array' | 'Int16Array' | 'Uint16Array' | 'Int32Array' | 'Uint32Array' | 'Float32Array' | 'Float64Array';
-  items: string | T[] | Object; // Source array or signal
+  items: string | T[] | object; // Source array or signal
   map?: R;
   filter?: FilterCriteria<T>[];
   sort?: SortCriteria<T>[];
@@ -220,7 +220,7 @@ export function applyFilters(items: any[], filters: FilterCriteria[], el: any): 
     // All filters must pass (AND logic)
     context.item = item;
     context.index = index;
-    const result = filters.every(filter => evaluateFilter(filter, item, context));
+    const result = filters.every(filter => evaluateFilter(filter, context));
     return result;
   });
 }
@@ -324,7 +324,7 @@ function compareValues(valueA: any, valueB: any, direction: 'asc' | 'desc'): num
       const strB = String(valueB);
       comparison = strA.localeCompare(strB);
     }
-  } catch (error) {
+  } catch {
     // Fallback to basic comparison on error
     comparison = valueA < valueB ? -1 : (valueA > valueB ? 1 : 0);
   }

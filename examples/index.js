@@ -68,6 +68,7 @@ export default {
       $example: '',
 
       attributes: {
+        'data-current-example': '${window.$currentExample}',
         'data-active': '${window.$currentExample === this.$example}',
       },
 

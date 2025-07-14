@@ -39,15 +39,16 @@ const unwrapSignal = (value: any): any =>
  * resolveAccessor(obj, 'this.$coords().lat'); // Calls function, accesses property
  * resolveAccessor(obj, 'items[0].data'); // Array access with property
  */
-export const resolveAccessor = (obj: any, path: string, fallback: any = null): any => {
+const resolveAccessor = (obj: any, path: string, fallback: any = null): any => {
   if (!path) {
     return fallback;
   }
   try {
-    // If there's no dot in the path, return the property directly from the object
-    if (path.toString().includes('.')) {
+    if (/[.\[\s()]/.test(path)) {
+      // if it's an advanced accessor, evaluate the chain
       return evaluateChain(obj, path) ?? fallback;
     } else if (Object.hasOwn(obj, path)) {
+      // if it's a basic accessor, return the property directly
       return obj[path] ?? fallback;
     } else {
       return path ?? fallback;
@@ -258,11 +259,14 @@ const evaluateFunction = (expr: string, context: any): any => {
  * evaluateFilter({ leftOperand: 'item.age', operator: '>=', rightOperand: 18 }, item, context);
  * evaluateFilter({ leftOperand: 'item.name', operator: 'includes', rightOperand: 'John' }, item, context);
  */
-export const evaluateFilter = (filter: any, item: any, context: any): boolean => {
+const evaluateFilter = (filter: any, context: any): boolean => {
   try {
     // Resolve operand values
-    const leftValue = resolveAccessor(context, filter.leftOperand);
-    const rightValue = resolveAccessor(context, filter.rightOperand);
+    const leftValue = unwrapSignal(resolveAccessor(context, filter.leftOperand));
+    const rightValue = unwrapSignal(resolveAccessor(context, filter.rightOperand));
+
+    // debug
+    console.debug('Evaluating filter:', filter, { leftValue, rightValue });
 
     // Direct operator lookup for maximum performance
     switch (filter.operator) {
@@ -302,11 +306,12 @@ export const evaluateFilter = (filter: any, item: any, context: any): boolean =>
  * evaluateComparison('user.age >= 18', context); // true/false
  * evaluateComparison('status === "active"', context); // true/false
  */
-export const evaluateComparison = (expr: string, context: any): boolean | null => {
+const evaluateComparison = (expr: string, context: any): boolean | null => {
   // Operator patterns ordered by specificity (longer operators first)
   const operatorRegex = /^(.+?)\s*(===|!==|>=|<=|==|!=|>|<|includes|startsWith|endsWith|&&|\|\|)\s*(.+)$/;
 
   const match = expr.trim().match(operatorRegex);
+
   if (match) {
     const [, left, operator, right] = match;
 
@@ -317,7 +322,7 @@ export const evaluateComparison = (expr: string, context: any): boolean | null =
       rightOperand: right.trim()
     };
 
-    return evaluateFilter(filter, context.this || {}, context);
+    return evaluateFilter(filter, context);
   }
 
   return null; // Not a comparison expression
@@ -444,7 +449,7 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
  * resolveTemplate('Count: ${items.length || 0}', context); // "Count: 5"
  * resolveTemplate('${user.age >= 18 ? "adult" : "minor"}', context); // "adult"
  */
-export const resolveTemplate = (template: string, context: any): string =>
+const resolveTemplate = (template: string, context: any): string =>
   template.replace(/\$\{([^}]+)\}/g, (match, expr) => {
     try {
       const result = evaluateTemplateExpression(expr.trim(), context);
@@ -470,7 +475,7 @@ export const resolveTemplate = (template: string, context: any): string =>
  * resolveTemplateProperty(context, 'this.$count'); // Returns signal object
  * resolveTemplateProperty(context, 'getData()'); // Returns function result
  */
-export const resolveTemplateProperty = (context: any, path: string, fallback: any = null): any => {
+const resolveTemplateProperty = (context: any, path: string, fallback: any = null): any => {
   try {
     // Handle property accessor strings (not template literals)
     if (typeof path === 'string' && !path.includes('${') && !path.includes('(')) {
@@ -510,7 +515,7 @@ export const resolveTemplateProperty = (context: any, path: string, fallback: an
  * resolveOperand('item.active', item, context); // true (unwrapped)
  * resolveOperand(42, item, context); // 42 (direct value)
  */
-export const resolveOperand = (operand: any, item: any, additionalContext?: any): any => {
+const resolveOperand = (operand: any, item: any, additionalContext?: any): any => {
   if (typeof operand !== 'string') return operand;
 
   const context = {
@@ -544,7 +549,7 @@ export const resolveOperand = (operand: any, item: any, additionalContext?: any)
  * isValidAccessor('getData()'); // true
  * isValidAccessor('user..name'); // false
  */
-export const isValidAccessor = (str: string): boolean =>
+const isValidAccessor = (str: string): boolean =>
   VALUE_PATTERNS.ACCESSOR.test(str)
 
 /**
@@ -559,7 +564,7 @@ export const isValidAccessor = (str: string): boolean =>
  * isFunctionCall('process(arg1, arg2)'); // true
  * isFunctionCall('user.name'); // false
  */
-export const isFunctionCall = (str: string): boolean =>
+const isFunctionCall = (str: string): boolean =>
   VALUE_PATTERNS.FUNCTION_CALL.test(str);
 
 /**
@@ -573,7 +578,7 @@ export const isFunctionCall = (str: string): boolean =>
  * isSignal(new Signal(42)); // true
  * isSignal({}); // false
  */
-export const isSignal = (obj: any): boolean =>
+const isSignal = (obj: any): boolean =>
   VALUE_PATTERNS.SIGNAL(obj);
 
 
@@ -589,7 +594,7 @@ export const isSignal = (obj: any): boolean =>
  * const context = buildContext(component, { extra: 'data' });
  * // Returns: { this: component, window: globalThis.window, $count: signal, ... }
  */
-export const buildContext = (component: any, additionalProps?: any) => ({
+const buildContext = (component: any, additionalProps?: any) => ({
   this: component,
   window: globalThis.window,
   document: globalThis.document,
@@ -605,8 +610,9 @@ export const buildContext = (component: any, additionalProps?: any) => ({
  * Default export containing all public API methods.
  * Provides both individual functions and convenient DDOM-specific methods.
  */
-export default {
+export {
   evaluateComparison,
+  evaluateFilter,
   resolveTemplate,
   resolveTemplateProperty,
   resolveAccessor,

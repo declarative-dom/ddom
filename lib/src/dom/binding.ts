@@ -121,7 +121,7 @@ export function applyPropertyBinding(
       options.ignoreKeys = []; // reset ignoreKeys prior to children processing
       if (Array.isArray(value)) {
         // Static children array - use simple element creation since binding.ts shouldn't depend on element.ts
-        value.forEach((child: HTMLElementSpec, index) => {
+        value.forEach((child: HTMLElementSpec, _index) => {
           if (child && typeof child === 'object' && child.tagName) {
             appendChild(child, el, options);
           }

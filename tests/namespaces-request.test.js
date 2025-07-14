@@ -162,7 +162,7 @@ describe('Namespaced Properties - Request Namespace', () => {
       try {
         await element.$userData.fetch();
         vi.runAllTicks();
-      } catch (e) {
+      } catch {
         // Expected to throw
       }
 
@@ -191,7 +191,7 @@ describe('Namespaced Properties - Request Namespace', () => {
       try {
         await element.$userData.fetch();
         vi.runAllTicks();
-      } catch (e) {
+      } catch {
         // Expected to throw
       }
 
@@ -256,7 +256,7 @@ describe('Namespaced Properties - Request Namespace', () => {
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
       const fetchCall = mockFetch.mock.calls[0];
-      const [url, options] = fetchCall;
+      const [_url, options] = fetchCall;
 
       // Check that the body was serialized as JSON
       expect(options.body).toBe(JSON.stringify({ name: 'John', age: 30 }));
@@ -291,7 +291,7 @@ describe('Namespaced Properties - Request Namespace', () => {
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
       const fetchCall = mockFetch.mock.calls[0];
-      const [url, options] = fetchCall;
+      const [_url, options] = fetchCall;
 
       expect(options.method).toBe('POST');
       expect(options.mode).toBe('cors');
