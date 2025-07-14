@@ -255,12 +255,12 @@ const evaluateFilter = (filter: Record<string, unknown>, context: Record<string,
       case '!==': return leftValue !== rightValue;
       case '==': return leftValue == rightValue;
       case '!=': return leftValue != rightValue;
-      case '>=': return leftValue >= rightValue;
-      case '<=': return leftValue <= rightValue;
-      case '>': return leftValue > rightValue;
-      case '<': return leftValue < rightValue;
-      case '&&': return leftValue && rightValue;
-      case '||': return leftValue || rightValue;
+      case '>=': return (leftValue as any) >= (rightValue as any);
+      case '<=': return (leftValue as any) <= (rightValue as any);
+      case '>': return (leftValue as any) > (rightValue as any);
+      case '<': return (leftValue as any) < (rightValue as any);
+      case '&&': return Boolean(leftValue) && Boolean(rightValue);
+      case '||': return Boolean(leftValue) || Boolean(rightValue);
       case '!': return !leftValue;
       case 'includes': return String(leftValue).includes(String(rightValue));
       case 'startsWith': return String(leftValue).startsWith(String(rightValue));
@@ -392,7 +392,7 @@ const evaluateTemplateExpression = (expr: string, context: Record<string, unknow
         const resolved = resolveAccessor(context, trimmed);
         return isSignalLike(resolved) ? resolved.get() : resolved;
       })();
-      result = result && value;
+      result = result && Boolean(value);
       if (!result) return false;
     }
     return result;

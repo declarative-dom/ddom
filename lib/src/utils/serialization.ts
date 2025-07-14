@@ -27,8 +27,8 @@ function replacer(key: string, value: unknown): unknown {
  * Reviver function for JSON.parse - converts marked date strings back to Date objects
  */
 function reviver(key: string, value: unknown): unknown {
-  if (value && typeof value === 'object' && value[DATE_MARKER]) {
-    return new Date(value[DATE_MARKER]);
+  if (value && typeof value === 'object' && (value as any)[DATE_MARKER]) {
+    return new Date((value as any)[DATE_MARKER]);
   }
   return value;
 }

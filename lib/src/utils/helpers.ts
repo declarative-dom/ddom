@@ -128,7 +128,7 @@ export function shallowEqual(a: unknown, b: unknown): boolean {
     
     if (keysA.length !== keysB.length) return false;
     
-    return keysA.every(key => a[key] === b[key]);
+    return keysA.every(key => (a as any)[key] === (b as any)[key]);
   }
   
   return false;

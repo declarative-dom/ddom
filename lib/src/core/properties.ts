@@ -100,7 +100,7 @@ export function classifyProperty(value: unknown): string {
     } else {
       return 'string';
     }
-  } else if (VALUE_PATTERNS.OBJECT(value) && value?.prototype && typeof value.prototype === 'string') {
+  } else if (VALUE_PATTERNS.OBJECT(value) && (value as any)?.prototype && typeof (value as any).prototype === 'string') {
     return 'namespaced';
   } else if (VALUE_PATTERNS.ARRAY(value)) {
     return 'array';
@@ -167,7 +167,7 @@ const ValueProcessors = {
 
   namespaced: (key: string, value: unknown, contextNode: Record<string, unknown>): ProcessedProperty => ({
     type: 'namespaced',
-    value: processNamespacedProperty(key, value, contextNode),
+    value: processNamespacedProperty(key, value as any, contextNode),
     isValid: true
   }),
 
@@ -214,7 +214,7 @@ export function processScopeProperty(
     switch (pattern) {
       case 'function':
         // Scope functions remain as functions (unusual but valid)
-        return ValueProcessors.function(key, value, contextNode);
+        return ValueProcessors.function(key, value as Function, contextNode);
 
       case 'namespaced':
         // Scope namespaced objects
@@ -222,11 +222,11 @@ export function processScopeProperty(
 
       case 'template':
         // Template → Computed Signal
-        return ValueProcessors.template(key, value, contextNode);
+        return ValueProcessors.template(key, value as string, contextNode);
 
       case 'accessor':
         // Accessor → Resolve then wrap in signal if needed
-        return ValueProcessors.accessor(key, value, contextNode);
+        return ValueProcessors.accessor(key, value as string, contextNode);
 
       case 'string':
       case 'primitive':
@@ -269,7 +269,7 @@ export function processProperty(
     switch (pattern) {
       case 'function':
         // Functions stay as functions (events, callbacks)
-        return ValueProcessors.function(key, value, contextNode);
+        return ValueProcessors.function(key, value as Function, contextNode);
 
       case 'namespaced':
         // Namespaced objects for complex behaviors
@@ -277,11 +277,11 @@ export function processProperty(
 
       case 'template':
         // Templates become computed for reactivity
-        return ValueProcessors.template(key, value, contextNode);
+        return ValueProcessors.template(key, value as string, contextNode);
 
       case 'accessor':
         // Accessors get resolved
-        return ValueProcessors.accessor(key, value, contextNode);
+        return ValueProcessors.accessor(key, value as string, contextNode);
 
       case 'string':
       case 'primitive':
@@ -319,16 +319,16 @@ export function processAttributeValue(
     switch (pattern) {
       case 'template':
         // Templates always become computed for reactive attributes
-        return ValueProcessors.template(attributeName, value, contextNode);
+        return ValueProcessors.template(attributeName, value as string, contextNode);
 
       case 'accessor':
         // Accessors get resolved
-        return ValueProcessors.accessor(attributeName, value, contextNode);
+        return ValueProcessors.accessor(attributeName, value as string, contextNode);
 
       case 'function':
         // Functions become computed signals for reactive attribute updates
         try {
-          const computed = new Signal.Computed(value.bind(contextNode));
+          const computed = new Signal.Computed((value as Function).bind(contextNode));
           return {
             type: 'Signal.Computed',
             value: computed,

@@ -195,7 +195,7 @@ const VALUE_PATTERNS = {
    * VALUE_PATTERNS.SIGNAL({ get: () => 'value' }); // true
    * VALUE_PATTERNS.SIGNAL({}); // false
    */
-  SIGNAL: (v: unknown) => v?.get && typeof v.get === 'function',
+  SIGNAL: (v: unknown) => v && typeof v === 'object' && 'get' in v && typeof (v as any).get === 'function',
 
   /**
    * Function type detector.
