@@ -8,7 +8,7 @@
  */
 
 import { Signal } from '../core/signals';
-import { evaluateFilter, resolveAccessor, resolveOperand, resolveTemplate } from '../core/evaluation';
+import { evaluateFilter, resolveAccessor, resolveOperand, resolveTemplate, unwrapSignal } from '../core/evaluation';
 import { isSignal } from '../utils/detection';
 import { PrototypeConfig, FilterCriteria, SortCriteria } from './types';
 import { detectMutableProps } from '../utils';
@@ -40,31 +40,22 @@ export interface ArraySignal<T = any[]> extends Signal.Computed<T> {
  * Resolves source signal from different input types with comprehensive support.
  * Handles arrays, signals, property accessors, expressions, and functions from production code.
  */
-function resolveSourceSignal(items: ArrayConfig["items"], parentElement?: Element): Signal.State<any[]> | Signal.Computed<any[]> {
+function resolveSourceSignal<T>(items: ArrayConfig["items"], parentElement?: Element): Array<T[]> | Signal.State<T[]> | Signal.Computed<T[]> {
   // Handle different source types
   if (Array.isArray(items)) {
-    return new Signal.State(items);
+    return items;
   } else if (typeof items === 'string') {
     // Handle property accessor resolution and expression evaluation
     const resolved = resolveOperand(items, parentElement || document.body);
     if (resolved !== null) {
-      // Check if it's a signal
-      if (isSignal(resolved)) {
-        return resolved;
-      } else if (Array.isArray(resolved)) {
-        // Static array - wrap in a signal
-        return new Signal.State(resolved);
-      } else {
-        console.error('ArrayNamespace: Property accessor resolved to non-array value:', resolved);
-        throw new Error(`Property accessor "${items}" must resolve to an array or Signal containing an array`);
-      }
+      return resolved;
     } else {
       console.error('ArrayNamespace: Failed to resolve property accessor:', items);
       throw new Error(`Cannot resolve property accessor: ${items}`);
     }
   } else if (isSignal(items)) {
     // If it's already a signal, return it directly
-    return items as Signal.State<any[]>;
+    return items as Signal.State<T[]>;
   } else {
     throw new Error('ArrayNamespace items must be an array, Signal, or property accessor string');
   }
@@ -89,7 +80,7 @@ export const createArrayNamespace = (
   // Create computed signal that processes the array
   const computedArray = new Signal.Computed(() => {
     // Get the source array from the resolved signal
-    const sourceArray = sourceSignal.get();
+    const sourceArray = unwrapSignal(sourceSignal);
 
     if (!Array.isArray(sourceArray)) {
       console.warn('ArrayNamespace: Source signal does not contain an array:', sourceArray);
@@ -347,7 +338,7 @@ function getSortValue(item: any, sortBy: string | ((item: any) => any)): any {
     if (typeof sortBy === 'string') {
       // Property path resolution using the evaluation system
       // This handles: 'item.name', 'item.user.profile.age', etc.
-      return resolveAccessor({item}, sortBy);
+      return resolveAccessor(sortBy, {item});
     }
     
     // Direct value
@@ -463,5 +454,5 @@ export function evaluateAccessor(accessor: string, item: any, index: number): an
     document: globalThis.document
   };
 
-  return resolveAccessor(context, accessor, accessor);
+  return resolveAccessor(accessor, context, accessor);
 }

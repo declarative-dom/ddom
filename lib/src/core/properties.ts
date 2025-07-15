@@ -141,7 +141,7 @@ const ValueProcessors = {
         document: globalThis.document,
         // ...contextNode
       };
-      const resolved = resolveTemplateProperty(context, value);
+      const resolved = resolveTemplateProperty(value, context);
       if (resolved !== null) {
         return {
           type: getValueType(resolved),

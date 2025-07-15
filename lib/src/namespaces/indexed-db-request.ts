@@ -236,21 +236,21 @@ async function executeOperation(store: IDBObjectStore, config: IDBRequestConfig,
     if (typeof config.query === 'function') {
       query = config.query();
     } else if (typeof config.query === 'string') {
-      query = resolveTemplateProperty(context, config.query);
+      query = resolveTemplateProperty(config.query, context);
     }
     
     let key = config.key;
     if (typeof config.key === 'function') {
       key = config.key();
     } else if (typeof config.key === 'string') {
-      key = resolveTemplateProperty(context, config.key);
+      key = resolveTemplateProperty(config.key, context);
     }
     
     let value = config.value;
     if (typeof config.value === 'function') {
       value = config.value();
     } else if (typeof config.value === 'string') {
-      value = resolveTemplateProperty(context, config.value);
+      value = resolveTemplateProperty(config.value, context);
     }
     
     // Execute the operation

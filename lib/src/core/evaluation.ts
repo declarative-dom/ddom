@@ -31,27 +31,27 @@ const unwrapSignal = (value: any): any =>
  * Used for direct property access, namespace configs, and maintaining reactivity.
  * Does NOT unwrap signals - returns them as-is for manual .get()/.set() operations.
  * 
- * @param {any} obj - The root object to traverse
  * @param {string} path - Property path to resolve (e.g., 'user.name', 'this.$coords().lat')
+ * @param {any} context - The root object to traverse
  * @param {any} [fallback=null] - Value to return if resolution fails
  * @returns {any} The resolved value, preserving signal objects
  * 
  * @example
- * resolveAccessor(obj, 'user.$name'); // Returns Signal object
- * resolveAccessor(obj, 'this.$coords().lat'); // Calls function, accesses property
- * resolveAccessor(obj, 'items[0].data'); // Array access with property
+ * resolveAccessor('user.$name', obj); // Returns Signal object
+ * resolveAccessor('this.$coords().lat', obj); // Calls function, accesses property
+ * resolveAccessor('items[0].data', obj); // Array access with property
  */
-const resolveAccessor = (obj: any, path: string, fallback: any = null): any => {
+const resolveAccessor = (path: string, context: any, fallback: any = null): any => {
   if (!path) {
     return fallback;
   }
   try {
     if (VALUE_PATTERNS.COMPLEX_ACCESSOR.test(path)) {
       // if it's an advanced accessor, evaluate the chain
-      return evaluateChain(obj, path) ?? fallback;
-    } else if (Object.hasOwn(obj, path)) {
+      return evaluateChain(path, context) ?? fallback;
+    } else if (Object.hasOwn(context, path)) {
       // if it's a basic accessor, return the property directly
-      return obj[path] ?? fallback;
+      return context[path] ?? fallback;
     } else {
       return path ?? fallback;
     }
@@ -65,16 +65,16 @@ const resolveAccessor = (obj: any, path: string, fallback: any = null): any => {
  * Chain evaluator using regex-based parsing with optional chaining support.
  * Handles complex property chains including function calls, array indexing, and optional chaining.
  * 
- * @param {any} obj - The starting object for chain evaluation
  * @param {string} path - The property chain path to evaluate
+ * @param {any} obj - The starting object for chain evaluation
  * @returns {any} The final resolved value from the chain
  * 
  * @example
- * evaluateChain(obj, 'user.getName().toUpperCase()'); 
- * evaluateChain(obj, 'user?.profile?.name'); // Optional chaining
- * evaluateChain(obj, 'this.$currentCoords()?.lat'); // Mixed optional chaining
+ * evaluateChain('user.getName().toUpperCase()', obj); 
+ * evaluateChain('user?.profile?.name', obj); // Optional chaining
+ * evaluateChain('this.$currentCoords()?.lat', obj); // Mixed optional chaining
  */
-const evaluateChain = (obj: any, path: string): any => {
+const evaluateChain = (path: string, obj: any): any => {
   const parts = path.split('.');
 
   return parts.reduce((current, part, _index) => {
@@ -134,12 +134,12 @@ const evaluateChain = (obj: any, path: string): any => {
 const parseArgs = (argsStr: string, context: any): any[] => {
   if (!argsStr.trim()) return [];
 
-  // Regex to split on commas while respecting quotes and nested parens/brackets
+  // Regex to split on commas while respecting quotes and nested parens/brackets  // Regex to split on commas while respecting quotes and nested parens/brackets
   const args = argsStr.match(VALUE_PATTERNS.ARG_SPLIT) || [];
 
   return args.map(arg => {
     const trimmed = arg.replace(/^,+|,+$/g, '').trim(); // Remove leading/trailing commas
-    return isLiteral(trimmed) ? parseLiteral(trimmed) : resolveAccessor(context, trimmed);
+    return isLiteral(trimmed) ? parseLiteral(trimmed) : resolveAccessor(trimmed, context);
   });
 };
 
@@ -185,7 +185,7 @@ const evaluateFunction = (expr: string, context: any): any => {
 
   // Parse arguments with the same context that has access to window, etc.
   const args = parseArgs(argsStr, context).map(arg =>
-    arg?._resolveLater ? resolveAccessor(context, arg._resolveLater) : arg
+    arg?._resolveLater ? resolveAccessor(arg._resolveLater, context) : arg
   );
 
   // Safe globals - prevents arbitrary code execution
@@ -208,7 +208,7 @@ const evaluateFunction = (expr: string, context: any): any => {
   }
 
   // Context method calls - resolve object path and call method
-  const obj = resolveAccessor(context, funcPath.split('.').slice(0, -1).join('.')) || context;
+  const obj = resolveAccessor(funcPath.split('.').slice(0, -1).join('.'), context) || context;
   const methodName = funcPath.split('.').pop()!;
   const method = obj?.[methodName];
 
@@ -222,19 +222,18 @@ const evaluateFunction = (expr: string, context: any): any => {
  * Performs single operator lookup and evaluation for optimal performance.
  * 
  * @param {FilterCriteria} filter - The filter criteria with left/right operands and operator
- * @param {any} item - The current item being evaluated (for array filtering)
  * @param {any} context - Context for resolving operand values
  * @returns {boolean} The comparison result
  * 
  * @example
- * evaluateFilter({ leftOperand: 'item.age', operator: '>=', rightOperand: 18 }, item, context);
- * evaluateFilter({ leftOperand: 'item.name', operator: 'includes', rightOperand: 'John' }, item, context);
+ * evaluateFilter({ leftOperand: 'item.age', operator: '>=', rightOperand: 18 }, context);
+ * evaluateFilter({ leftOperand: 'item.name', operator: 'includes', rightOperand: 'John' }, context);
  */
 const evaluateFilter = (filter: any, context: any): boolean => {
   try {
     // Resolve operand values
-    const leftValue = unwrapSignal(resolveAccessor(context, filter.leftOperand));
-    const rightValue = unwrapSignal(resolveAccessor(context, filter.rightOperand));
+    const leftValue = unwrapSignal(resolveAccessor(filter.leftOperand, context));
+    const rightValue = unwrapSignal(resolveAccessor(filter.rightOperand, context));
 
     // Direct operator lookup for maximum performance
     switch (filter.operator) {
@@ -312,12 +311,10 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
       // Handle function calls in concatenation
       if (VALUE_PATTERNS.FUNCTION_CALL.test(trimmed)) {
         const result = evaluateFunction(trimmed, context);
-        return VALUE_PATTERNS.SIGNAL(result) ? result.get() : result;
-      }
-
-      // Resolve and unwrap automatically
-      const resolved = resolveAccessor(context, trimmed);
-      return VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+        return unwrapSignal(result);
+      }        // Resolve and unwrap automatically
+        const resolved = resolveAccessor(trimmed, context);
+        return unwrapSignal(resolved);
     });
     return parts.join('');
   }
@@ -334,11 +331,11 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
         conditionResult = evaluateComparison(condition.trim(), context);
         if (conditionResult === null) {
           const resolved = resolveAccessor(context, condition.trim());
-          conditionResult = VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+          conditionResult = unwrapSignal(resolved);
         }
       } else {
         const resolved = resolveAccessor(context, condition.trim());
-        conditionResult = VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+        conditionResult = unwrapSignal(resolved);
       }
 
       const resultPath = conditionResult ? truthy.trim() : falsy.trim();
@@ -352,7 +349,7 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
       } else {
         // Simple property access
         const resolved = resolveAccessor(context, resultPath);
-        return VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+        return unwrapSignal(resolved);
       }
     }
   }
@@ -362,8 +359,8 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
     for (const part of expr.split(' || ')) {
       const trimmed = part.trim();
       const value = isLiteral(trimmed) ? parseLiteral(trimmed) : (() => {
-        const resolved = resolveAccessor(context, trimmed);
-        return VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+        const resolved = resolveAccessor(trimmed, context);
+        return unwrapSignal(resolved);
       })();
       if (value) return value;
     }
@@ -376,8 +373,8 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
     for (const part of expr.split(' && ')) {
       const trimmed = part.trim();
       const value = isLiteral(trimmed) ? parseLiteral(trimmed) : (() => {
-        const resolved = resolveAccessor(context, trimmed);
-        return VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+        const resolved = resolveAccessor(trimmed, context);
+        return unwrapSignal(resolved);
       })();
       result = result && value;
       if (!result) return false;
@@ -392,12 +389,12 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
   // Function call - only if the entire expression is a function call
   if (VALUE_PATTERNS.FUNCTION_CALL.test(expr)) {
     const result = evaluateFunction(expr, context);
-    return VALUE_PATTERNS.SIGNAL(result) ? result.get() : result;
+    return unwrapSignal(result);
   }
 
   // Simple property access - resolve and unwrap
-  const resolved = resolveAccessor(context, expr);
-  return VALUE_PATTERNS.SIGNAL(resolved) ? resolved.get() : resolved;
+  const resolved = resolveAccessor(expr, context);
+  return unwrapSignal(resolved);
 };
 
 
@@ -431,23 +428,23 @@ const resolveTemplate = (template: string, context: any): string =>
  * Returns actual signal objects rather than their unwrapped values,
  * allowing for manual .get()/.set() operations.
  * 
- * @param {any} context - Context object to resolve properties from
  * @param {string} path - Property path or function call to resolve
+ * @param {any} context - Context object to resolve properties from
  * @param {any} [fallback=null] - Value to return if resolution fails
  * @returns {any} The resolved value, preserving signal objects
  * 
  * @example
- * resolveTemplateProperty(context, 'user.$name'); // Returns signal object
- * resolveTemplateProperty(context, 'this.$count'); // Returns signal object
- * resolveTemplateProperty(context, 'getData()'); // Returns function result
+ * resolveTemplateProperty('user.$name', context); // Returns signal object
+ * resolveTemplateProperty('this.$count', context); // Returns signal object
+ * resolveTemplateProperty('getData()', context); // Returns function result
  */
-const resolveTemplateProperty = (context: any, path: string, fallback: any = null): any => {
+const resolveTemplateProperty = (path: string, context: any, fallback: any = null): any => {
   try {
     // Handle property accessor strings (not template literals)
     if (typeof path === 'string' && !path.includes('${') && !path.includes('(')) {
       // Special case: 'this.$name' as a string should resolve to the signal
       if (VALUE_PATTERNS.GLOBAL_ACCESSOR.test(path)) {
-        return resolveAccessor(context, path, fallback);
+        return resolveAccessor(path, context, fallback);
       }
       // Regular strings are returned as-is
       return path;
@@ -459,7 +456,7 @@ const resolveTemplateProperty = (context: any, path: string, fallback: any = nul
     }
 
     // Property access - preserve signals
-    return resolveAccessor(context, path, fallback);
+    return resolveAccessor(path, context, fallback);
   } catch (error) {
     console.warn('Property resolution failed:', path, error);
     return fallback;
@@ -497,7 +494,7 @@ const resolveOperand = (operand: any, item: any, additionalContext?: any): any =
   }
 
   // Property access - preserve signals unless explicitly unwrapping
-  const result = resolveTemplateProperty(context, operand);
+  const result = resolveTemplateProperty(operand, context);
 
   return result;
 };
@@ -534,9 +531,9 @@ const buildContext = (component: any, additionalProps?: any) => ({
 export {
   evaluateComparison,
   evaluateFilter,
-  resolveTemplate,
-  resolveTemplateProperty,
   resolveAccessor,
   resolveOperand,
-  buildContext,
+  resolveTemplate,
+  resolveTemplateProperty,
+  unwrapSignal,
 };
