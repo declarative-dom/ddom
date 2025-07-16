@@ -21,10 +21,10 @@ import { isLiteral, VALUE_PATTERNS } from '../utils/detection';
  * 
  * @example
  * const signal = new Signal(42);
- * unwrapSignal(signal); // 42
- * unwrapSignal("hello"); // "hello"
+ * getValue(signal); // 42
+ * getValue("hello"); // "hello"
  */
-const unwrapSignal = (value: any): any =>
+const getValue = (value: any): any =>
   value?.get && typeof value.get === 'function' ? value.get() : value;
 
 /**
@@ -38,18 +38,18 @@ const unwrapSignal = (value: any): any =>
  * @returns {any} The resolved value, preserving signal objects
  * 
  * @example
- * resolveAccessor('user.$name', obj); // Returns Signal object
- * resolveAccessor('this.$coords().lat', obj); // Calls function, accesses property
- * resolveAccessor('items[0].data', obj); // Array access with property
+ * getPropertyValue('user.$name', obj); // Returns Signal object
+ * getPropertyValue('this.$coords().lat', obj); // Calls function, accesses property
+ * getPropertyValue('items[0].data', obj); // Array access with property
  */
-const resolveAccessor = (path: string, context: any, fallback: any = null): any => {
+const getPropertyValue = (path: string, context: any, fallback: any = null): any => {
   if (!path) {
     return fallback;
   }
   try {
     if (VALUE_PATTERNS.COMPLEX_ACCESSOR.test(path)) {
       // if it's an advanced accessor, evaluate the chain
-      return evaluateChain(path, context) ?? fallback;
+      return traversePropertyPath(path, context) ?? fallback;
     } else if (Object.hasOwn(context, path)) {
       // if it's a basic accessor, return the property directly
       return context[path] ?? fallback;
@@ -71,11 +71,11 @@ const resolveAccessor = (path: string, context: any, fallback: any = null): any 
  * @returns {any} The final resolved value from the chain
  * 
  * @example
- * evaluateChain('user.getName().toUpperCase()', obj); 
- * evaluateChain('user?.profile?.name', obj); // Optional chaining
- * evaluateChain('this.$currentCoords()?.lat', obj); // Mixed optional chaining
+ * traversePropertyPath('user.getName().toUpperCase()', obj); 
+ * traversePropertyPath('user?.profile?.name', obj); // Optional chaining
+ * traversePropertyPath('this.$currentCoords()?.lat', obj); // Mixed optional chaining
  */
-const evaluateChain = (path: string, obj: any): any => {
+const traversePropertyPath = (path: string, obj: any): any => {
   const parts = path.split('.');
 
   return parts.reduce((current, part, index) => {
@@ -150,7 +150,7 @@ const parseArgs = (argsStr: string, context: any): any[] => {
 
   return args.map(arg => {
     const trimmed = arg.replace(/^,+|,+$/g, '').trim(); // Remove leading/trailing commas
-    return isLiteral(trimmed) ? parseLiteral(trimmed) : resolveAccessor(trimmed, context);
+    return isLiteral(trimmed) ? parseValue(trimmed) : getPropertyValue(trimmed, context);
   });
 };
 
@@ -162,12 +162,12 @@ const parseArgs = (argsStr: string, context: any): any[] => {
  * @returns {any} The parsed JavaScript value
  * 
  * @example
- * parseLiteral('"hello"'); // "hello"
- * parseLiteral('42'); // 42
- * parseLiteral('true'); // true
- * parseLiteral('null'); // null
+ * parseValue('"hello"'); // "hello"
+ * parseValue('42'); // 42
+ * parseValue('true'); // true
+ * parseValue('null'); // null
  */
-const parseLiteral = (str: string): any => {
+const parseValue = (str: string): any => {
   const trimmed = str.trim();
   if (VALUE_PATTERNS.LITERAL_STRING.test(trimmed)) return trimmed.slice(1, -1);
   if (VALUE_PATTERNS.LITERAL_NUMBER.test(trimmed)) return Number(trimmed);
@@ -186,7 +186,7 @@ const parseLiteral = (str: string): any => {
  * @param {any} context - Context object for resolving function and arguments
  * @returns {any} The result of the function call, or null if function not found/safe
  */
-const evaluateFunction = (expr: string, context: any): any => {
+const callFunction = (expr: string, context: any): any => {
   if (!VALUE_PATTERNS.FUNCTION_CALL.test(expr)) return null;
 
   const match = expr.match(VALUE_PATTERNS.FUNCTION_PARSE);
@@ -212,12 +212,12 @@ const evaluateFunction = (expr: string, context: any): any => {
 
   if (globals[funcPath]) {
     // Unwrap any signal arguments for global functions
-    const unwrappedArgs = args.map(arg => unwrapSignal(arg));
+    const unwrappedArgs = args.map(arg => getValue(arg));
     return globals[funcPath](...unwrappedArgs);
   }
 
   // Context method calls - resolve object path and call method
-  const obj = resolveAccessor(funcPath.split('.').slice(0, -1).join('.'), context) || context;
+  const obj = getPropertyValue(funcPath.split('.').slice(0, -1).join('.'), context) || context;
   const methodName = funcPath.split('.').pop()!;
   const method = obj?.[methodName];
 
@@ -247,9 +247,9 @@ const evaluateFilter = (filter: any, context: any): boolean => {
       console.debug('Evaluating filter function:', filter.leftOperand, context.item);
       leftValue = filter.leftOperand.call(context.item);
     } else {
-      leftValue = unwrapSignal(resolveAccessor(filter.leftOperand, context));
+      leftValue = getValue(getPropertyValue(filter.leftOperand, context));
     }
-    const rightValue = unwrapSignal(resolveAccessor(filter.rightOperand, context));
+    const rightValue = getValue(getPropertyValue(filter.rightOperand, context));
 
     // Direct operator lookup for maximum performance
     switch (filter.operator) {
@@ -286,10 +286,10 @@ const evaluateFilter = (filter: any, context: any): boolean => {
  * @returns {boolean | null} The comparison result, or null if not a comparison expression
  * 
  * @example
- * evaluateComparison('user.age >= 18', context); // true/false
- * evaluateComparison('status === "active"', context); // true/false
+ * compareValues('user.age >= 18', context); // true/false
+ * compareValues('status === "active"', context); // true/false
  */
-const evaluateComparison = (expr: string, context: any): boolean | null => {
+const compareValues = (expr: string, context: any): boolean | null => {
   // Operator patterns ordered by specificity (longer operators first)
   const match = expr.trim().match(VALUE_PATTERNS.COMPARISON_OPS);
 
@@ -322,16 +322,16 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
   if (expr.includes(' + ') && !expr.includes('?')) {
     const parts = expr.split(' + ').map(part => {
       const trimmed = part.trim();
-      if (isLiteral(trimmed)) return parseLiteral(trimmed);
+      if (isLiteral(trimmed)) return parseValue(trimmed);
 
       // Handle function calls in concatenation
       if (VALUE_PATTERNS.FUNCTION_CALL.test(trimmed)) {
-        const result = evaluateFunction(trimmed, context);
-        return unwrapSignal(result);
+        const result = callFunction(trimmed, context);
+        return getValue(result);
       }
       // Resolve and unwrap automatically
-      const resolved = resolveAccessor(trimmed, context);
-      return unwrapSignal(resolved);
+      const resolved = getPropertyValue(trimmed, context);
+      return getValue(resolved);
     });
     return parts.join('');
   }
@@ -345,28 +345,28 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
       // Evaluate condition: spaces = comparison, no spaces = truthiness
       let conditionResult;
       if (condition.trim().includes(' ')) {
-        conditionResult = evaluateComparison(condition.trim(), context);
+        conditionResult = compareValues(condition.trim(), context);
         if (conditionResult === null) {
-          const resolved = resolveAccessor(context, condition.trim());
-          conditionResult = unwrapSignal(resolved);
+          const resolved = getPropertyValue(context, condition.trim());
+          conditionResult = getValue(resolved);
         }
       } else {
-        const resolved = resolveAccessor(context, condition.trim());
-        conditionResult = unwrapSignal(resolved);
+        const resolved = getPropertyValue(context, condition.trim());
+        conditionResult = getValue(resolved);
       }
 
       const resultPath = conditionResult ? truthy.trim() : falsy.trim();
 
       // IMPORTANT: If the result branch contains operators, evaluate it as an expression!
       if (isLiteral(resultPath)) {
-        return parseLiteral(resultPath);
+        return parseValue(resultPath);
       } else if (resultPath.includes(' + ') || resultPath.includes('(')) {
         // It's an expression, evaluate it recursively
         return evaluateTemplateExpression(resultPath, context);
       } else {
         // Simple property access
-        const resolved = resolveAccessor(context, resultPath);
-        return unwrapSignal(resolved);
+        const resolved = getPropertyValue(context, resultPath);
+        return getValue(resolved);
       }
     }
   }
@@ -375,9 +375,9 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
   if (expr.includes(' || ')) {
     for (const part of expr.split(' || ')) {
       const trimmed = part.trim();
-      const value = isLiteral(trimmed) ? parseLiteral(trimmed) : (() => {
-        const resolved = resolveAccessor(trimmed, context);
-        return unwrapSignal(resolved);
+      const value = isLiteral(trimmed) ? parseValue(trimmed) : (() => {
+        const resolved = getPropertyValue(trimmed, context);
+        return getValue(resolved);
       })();
       if (value) return value;
     }
@@ -389,9 +389,9 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
     let result = true;
     for (const part of expr.split(' && ')) {
       const trimmed = part.trim();
-      const value = isLiteral(trimmed) ? parseLiteral(trimmed) : (() => {
-        const resolved = resolveAccessor(trimmed, context);
-        return unwrapSignal(resolved);
+      const value = isLiteral(trimmed) ? parseValue(trimmed) : (() => {
+        const resolved = getPropertyValue(trimmed, context);
+        return getValue(resolved);
       })();
       result = result && value;
       if (!result) return false;
@@ -399,19 +399,19 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
     return result;
   }
 
-  // Simple comparison - use existing evaluateComparison
-  const comparisonResult = evaluateComparison(expr, context);
+  // Simple comparison - use existing compareValues
+  const comparisonResult = compareValues(expr, context);
   if (comparisonResult !== null) return comparisonResult;
 
   // Function call - only if the entire expression is a function call
   if (VALUE_PATTERNS.FUNCTION_CALL.test(expr)) {
-    const result = evaluateFunction(expr, context);
-    return unwrapSignal(result);
+    const result = callFunction(expr, context);
+    return getValue(result);
   }
 
   // Simple property access - resolve and unwrap
-  const resolved = resolveAccessor(expr, context);
-  return unwrapSignal(resolved);
+  const resolved = getPropertyValue(expr, context);
+  return getValue(resolved);
 };
 
 
@@ -462,9 +462,9 @@ const resolveExpression = (path: string, context: any, fallback: any = null): an
       if (VALUE_PATTERNS.GLOBAL_ACCESSOR.test(path)) {
         if (path.includes('?.')) {
           // Handle optional chaining - create deferred accessor
-          return createDeferredAccessor(path, context);
+          return createAccessorSignal(path, context);
         }
-        return resolveAccessor(path, context, fallback);
+        return getPropertyValue(path, context, fallback);
       }
       // Regular strings are returned as-is
       return path;
@@ -472,11 +472,11 @@ const resolveExpression = (path: string, context: any, fallback: any = null): an
 
     // Function call with args - return result directly
     if (VALUE_PATTERNS.FUNCTION_CALL.test(path)) {
-      return evaluateFunction(path, context);
+      return callFunction(path, context);
     }
 
     // Property access - preserve signals
-    return resolveAccessor(path, context, fallback);
+    return getPropertyValue(path, context, fallback);
   } catch (error) {
     console.warn('Property resolution failed:', path, error);
     return fallback;
@@ -505,7 +505,7 @@ const resolveExpression = (path: string, context: any, fallback: any = null): an
 const resolveOperand = (operand: any, item: any, additionalContext?: any): any => {
   if (typeof operand !== 'string') return operand;
 
-  const context = buildContext(item, additionalContext);
+  const context = createContext(item, additionalContext);
 
   // Template literal - auto-unwrap for final values
   if (operand.includes('${')) {
@@ -527,22 +527,22 @@ const resolveOperand = (operand: any, item: any, additionalContext?: any): any =
  * @returns {any} A function that resolves the value or the resolved value directly
  * 
  * @example
- * createDeferredAccessor('this.$data?.message', context); // Function that safely gets $data.message
+ * createAccessorSignal('this.$data?.message', context); // Function that safely gets $data.message
  */
-const createDeferredAccessor = (path: string, context: any): any => {
+const createAccessorSignal = (path: string, context: any): any => {
   // Split on the first ?. to separate base signal from property chain
   const [basePath, ...propertyParts] = path.split('?.');
   const propertyChain = propertyParts.join('?.');
 
   try {
     // Resolve the base signal
-    const base = resolveAccessor(basePath.trim(), context);
+    const base = getPropertyValue(basePath.trim(), context);
 
     // If it's not a signal, resolve the full path normally with optional chaining
     if (!VALUE_PATTERNS.SIGNAL(base)) {
       // Convert ?. back to regular property access and resolve
       const safePath = path.replace(/\?\./g, '.');
-      return resolveAccessor(safePath, context);
+      return getPropertyValue(safePath, context);
     }
 
     // For signals, return a special deferred accessor object
@@ -552,7 +552,7 @@ const createDeferredAccessor = (path: string, context: any): any => {
       if (baseValue == null) return undefined; // Handle null/undefined base
 
       // Resolve the full property chain on the base value
-      return evaluateChain(propertyChain, baseValue);
+      return traversePropertyPath(propertyChain, baseValue);
     });
   } catch (error) {
     console.warn('Deferred accessor creation failed:', path, error);
@@ -569,10 +569,10 @@ const createDeferredAccessor = (path: string, context: any): any => {
  * @returns {object} Complete context object with component signals and globals
  * 
  * @example
- * const context = buildContext(component, { extra: 'data' });
+ * const context = createContext(component, { extra: 'data' });
  * // Returns: { this: component, window: globalThis.window, $count: signal, ... }
  */
-const buildContext = (component: any, additionalProps?: any) => ({
+const createContext = (component: any, additionalProps?: any) => ({
   this: component,
   window: globalThis.window,
   document: globalThis.document,
@@ -584,11 +584,11 @@ const buildContext = (component: any, additionalProps?: any) => ({
  * Provides both individual functions and convenient DDOM-specific methods.
  */
 export {
-  evaluateComparison,
+  compareValues,
   evaluateFilter,
-  resolveAccessor,
+  getPropertyValue,
   resolveOperand,
   resolveTemplate,
   resolveExpression,
-  unwrapSignal,
+  getValue,
 };

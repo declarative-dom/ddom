@@ -9,7 +9,7 @@
 import { Signal, createEffect, ComponentSignalWatcher } from '../core/signals';
 import { resolveConfig } from '.';
 import { PrototypeConfig, FilterCriteria, SortCriteria } from '../types';
-import { resolveExpression, resolveOperand, evaluateComparison } from '../core/evaluation';
+import { resolveExpression, resolveOperand, compareValues } from '../core/evaluation';
 import { IndexedDBStoreFactory } from './indexed-db';
 
 /**
@@ -352,7 +352,7 @@ async function processResults(results: any[], config: IDBRequestConfig, context:
           const comparisonExpr = `leftValue ${filterConfig.operator} rightValue`;
           const comparisonContext = { leftValue, rightValue };
           
-          return evaluateComparison(comparisonExpr, comparisonContext) === true;
+          return compareValues(comparisonExpr, comparisonContext) === true;
         } catch (error) {
           console.warn('Filter evaluation failed:', error);
           return false;

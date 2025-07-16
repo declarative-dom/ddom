@@ -8,7 +8,7 @@
  */
 
 import { Signal } from '../core/signals';
-import { evaluateFilter, resolveAccessor, resolveOperand, resolveTemplate, unwrapSignal } from '../core/evaluation';
+import { evaluateFilter, getPropertyValue, resolveOperand, resolveTemplate, getValue } from '../core/evaluation';
 import { isSignal } from '../utils/detection';
 import { PrototypeConfig, FilterCriteria, SortCriteria } from './types';
 import { detectMutableProps } from '../utils';
@@ -79,7 +79,7 @@ export const createArrayNamespace = (
   // Create computed signal that processes the array
   const computedArray = new Signal.Computed(() => {
     // Get the source array from the resolved signal
-    const sourceArray = unwrapSignal(sourceSignal);
+    const sourceArray = getValue(sourceSignal);
 
     // debug: temporary: assign signal to global window for inspection
     if (!Object.hasOwn(globalThis.window, "DDOMArrays")) (globalThis.window as any).DDOMArrays = {};
@@ -346,7 +346,7 @@ function getSortValue(item: any, sortBy: string | ((item: any) => any)): any {
     if (typeof sortBy === 'string') {
       // Property path resolution using the evaluation system
       // This handles: 'item.name', 'item.user.profile.age', etc.
-      return resolveAccessor(sortBy, { item });
+      return getPropertyValue(sortBy, { item });
     }
 
     // Direct value
@@ -465,5 +465,5 @@ export function resolveArrayAccessor(accessor: string, item: any, index: number,
     document: globalThis.document
   };
 
-  return resolveAccessor(accessor, context, accessor);
+  return getPropertyValue(accessor, context, accessor);
 }
