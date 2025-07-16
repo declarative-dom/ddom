@@ -47,12 +47,11 @@ function resolveSourceSignal<T>(items: ArrayConfig["items"], parentElement?: Ele
   } else if (typeof items === 'string') {
     // Handle property accessor resolution and expression evaluation
     const resolved = resolveOperand(items, parentElement || document.body);
-    if (resolved !== null) {
-      return resolved;
-    } else {
-      console.error('ArrayNamespace: Failed to resolve property accessor:', items);
-      throw new Error(`Cannot resolve property accessor: ${items}`);
+    if (typeof resolved === 'function') {
+      // Handle property accessor resolution and expression evaluation
+      return new Signal.Computed(resolved as () => T[]);
     }
+    return resolved;
   } else if (isSignal(items)) {
     // If it's already a signal, return it directly
     return items as Signal.State<T[]>;
@@ -82,8 +81,17 @@ export const createArrayNamespace = (
     // Get the source array from the resolved signal
     const sourceArray = unwrapSignal(sourceSignal);
 
+    // debug: temporary: assign signal to global window for inspection
+    if (!Object.hasOwn(globalThis.window, "DDOMArrays")) (globalThis.window as any).DDOMArrays = {};
+    (window as any).DDOMArrays[key] = sourceArray;
+
     if (!Array.isArray(sourceArray)) {
       console.warn('ArrayNamespace: Source signal does not contain an array:', sourceArray);
+      return createEmptyCollection(config.prototype);
+    }
+
+    if (sourceArray.length === 0) {
+      // If the source array is empty, return an empty collection of the specified type
       return createEmptyCollection(config.prototype);
     }
 
@@ -102,7 +110,7 @@ export const createArrayNamespace = (
 
     // Apply mapping
     if (config.map) {
-      processedArray = applyMapping(processedArray, config.map);
+      processedArray = applyMapping(processedArray, config.map, element);
     }
 
     // Apply unshift (prepend items to the array)
@@ -224,32 +232,32 @@ export function applyFilters(items: any[], filters: FilterCriteria[], el: any): 
  */
 export function applySorting(items: any[], sortCriteria: SortCriteria[]): any[] {
   if (!sortCriteria || sortCriteria.length === 0) return items;
-  
+
   // Create a copy to avoid mutating the original
   const sortedItems = [...items];
-  
+
   // Pre-compute sort values for all items to avoid redundant calculations
   const sortKeys = sortedItems.map((item, index) => ({
     item,
     originalIndex: index, // For stable sorting
     keys: sortCriteria.map(criteria => getSortValue(item, criteria.sortBy))
   }));
-  
+
   // Perform the sort using a multi-criteria comparator
   sortKeys.sort((a, b) => {
     for (let i = 0; i < sortCriteria.length; i++) {
       const criteria = sortCriteria[i];
       const comparison = compareValues(a.keys[i], b.keys[i], criteria.direction || 'asc');
-      
+
       if (comparison !== 0) {
         return comparison;
       }
     }
-    
+
     // Stable sort: maintain original order for equal items
     return a.originalIndex - b.originalIndex;
   });
-  
+
   // Extract the sorted items
   return sortKeys.map(entry => entry.item);
 }
@@ -262,13 +270,13 @@ function compareValues(valueA: any, valueB: any, direction: 'asc' | 'desc'): num
   if (valueA == null && valueB == null) return 0;
   if (valueA == null) return 1;
   if (valueB == null) return -1;
-  
+
   let comparison: number = 0;
-  
+
   // Get types for optimized comparison
   const typeA = typeof valueA;
   const typeB = typeof valueB;
-  
+
   try {
     if (typeA === typeB) {
       // Same types - use optimized comparison
@@ -280,7 +288,7 @@ function compareValues(valueA: any, valueB: any, direction: 'asc' | 'desc'): num
           if (isNaN(valueB)) return -1;
           comparison = valueA - valueB;
           break;
-          
+
         case 'string':
           // Use locale-aware comparison for proper unicode handling
           comparison = valueA.localeCompare(valueB, undefined, {
@@ -289,16 +297,16 @@ function compareValues(valueA: any, valueB: any, direction: 'asc' | 'desc'): num
             ignorePunctuation: false
           });
           break;
-          
+
         case 'boolean':
           // false < true
           comparison = valueA === valueB ? 0 : (valueA ? 1 : -1);
           break;
-          
+
         case 'bigint':
           comparison = valueA < valueB ? -1 : (valueA > valueB ? 1 : 0);
           break;
-          
+
         default:
           // For objects, check if they're dates
           if (valueA instanceof Date && valueB instanceof Date) {
@@ -320,7 +328,7 @@ function compareValues(valueA: any, valueB: any, direction: 'asc' | 'desc'): num
     // Fallback to basic comparison on error
     comparison = valueA < valueB ? -1 : (valueA > valueB ? 1 : 0);
   }
-  
+
   // Apply direction multiplier
   return direction === 'desc' ? -comparison : comparison;
 }
@@ -334,13 +342,13 @@ function getSortValue(item: any, sortBy: string | ((item: any) => any)): any {
       // Function-based sorting (for backward compatibility)
       return sortBy(item);
     }
-    
+
     if (typeof sortBy === 'string') {
       // Property path resolution using the evaluation system
       // This handles: 'item.name', 'item.user.profile.age', etc.
-      return resolveAccessor(sortBy, {item});
+      return resolveAccessor(sortBy, { item });
     }
-    
+
     // Direct value
     return sortBy;
   } catch (error) {
@@ -350,20 +358,20 @@ function getSortValue(item: any, sortBy: string | ((item: any) => any)): any {
 }
 
 
-const ACCESSOR_REGEX = /^(item|index|window|document)/;
+const ACCESSOR_REGEX = /^(document|index|item|this|window)/;
 
 /**
  * Applies a mapping template to items
  * Supports only declarative templates: object templates and string templates
  */
-export function applyMapping(items: any[], mapTemplate: any): any[] {
+export function applyMapping(items: any[], mapTemplate: any, parentElement?: any): any[] {
   try {
     if (typeof mapTemplate === 'string') {
       // String template mapping
-      return items.map((item, index) => transformTemplate(mapTemplate, item, index));
+      return items.map((item, index) => transformTemplate(mapTemplate, item, index, parentElement));
     } else if (typeof mapTemplate === 'object' && mapTemplate !== null) {
       // Object template mapping
-      return items.map((item, index) => transformObject(mapTemplate, item, index));
+      return items.map((item, index) => transformObject(mapTemplate, item, index, parentElement));
     } else {
       // Direct value mapping (primitive values)
       return items.map(() => mapTemplate);
@@ -377,12 +385,13 @@ export function applyMapping(items: any[], mapTemplate: any): any[] {
 /**
  * Transforms a string template with item context
  */
-function transformTemplate(template: string, item: any, index: number): string {
+function transformTemplate(template: string, item: any, index: number, parentElement?: any): string {
   try {
-    // Create evaluation context with item, index, and common globals
+    // Create evaluation context with item, index, parent element, and common globals
     const context = {
       item: item,
       index: index,
+      this: parentElement || item, // Use parent element for 'this' context if available
       window: globalThis.window,
       document: globalThis.document
     };
@@ -398,10 +407,10 @@ function transformTemplate(template: string, item: any, index: number): string {
 /**
  * Transforms an object template with item context
  */
-function transformObject(template: object, item: any, index: number): any {
+function transformObject(template: object, item: any, index: number, parentElement?: any): any {
   if (Array.isArray(template)) {
     // Handle arrays recursively
-    return template.map(element => transformObject(element, item, index));
+    return template.map(element => transformObject(element, item, index, parentElement));
   }
 
   if (typeof template !== 'object' || template === null) {
@@ -416,10 +425,10 @@ function transformObject(template: object, item: any, index: number): any {
     if (typeof value === 'string') {
       if (value.includes('${')) {
         // String template properties - evaluate with item context
-        result[key] = transformTemplate(value, item, index);
+        result[key] = transformTemplate(value, item, index, parentElement);
       } else if (ACCESSOR_REGEX.test(value)) {
-        // Use shared operand resolution for property accessors like 'item[0]', 'item[1].name'
-        const resolved = evaluateAccessor(value, item, index);
+        // Use shared operand resolution for property accessors like 'item[0]', 'item[1].name', 'this.$signal'
+        const resolved = resolveArrayAccessor(value, item, index, parentElement);
         result[key] = resolved;
       } else {
         // Direct value string
@@ -427,7 +436,7 @@ function transformObject(template: object, item: any, index: number): any {
       }
     } else if (typeof value === 'object' && value !== null) {
       // Nested objects - recurse
-      result[key] = transformObject(value, item, index);
+      result[key] = transformObject(value, item, index, parentElement);
     } else {
       // Direct values (strings, numbers, booleans, etc.)
       result[key] = value;
@@ -440,9 +449,10 @@ function transformObject(template: object, item: any, index: number): any {
 
 /**
  * Evaluates a property accessor string like 'item.id' or 'index' 
- * with the given item and index values
+ * with the given item and index values. Also handles parent context 
+ * references like 'this.$signal' for signal inheritance in nested arrays.
  */
-export function evaluateAccessor(accessor: string, item: any, index: number): any {
+export function resolveArrayAccessor(accessor: string, item: any, index: number, parentElement?: any): any {
   // Special cases for array mapping context
   if (accessor === 'item') return item;
   if (accessor === 'index') return index;
@@ -450,6 +460,7 @@ export function evaluateAccessor(accessor: string, item: any, index: number): an
   const context = {
     item: item,
     index: index,
+    this: parentElement || item, // Use parent element for 'this' context if available
     window: globalThis.window,
     document: globalThis.document
   };

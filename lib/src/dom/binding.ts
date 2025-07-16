@@ -24,7 +24,7 @@
 
 import type { DOMSpec, DOMNode, DOMSpecOptions, HTMLElementSpec } from '../types';
 import { generatePathSelector } from '../utils/helpers';
-import { adoptDocument, appendChild, createElement } from './element';
+import { adoptDocument, adoptWindow, appendChild, createElement } from './element';
 import { createEffect, Signal, ComponentSignalWatcher } from '../core/signals';
 import { processProperty, processAttributeValue } from '../core/properties';
 import { processNamespacedProperty } from '../namespaces/index';
@@ -73,6 +73,14 @@ export function applyPropertyBinding(
 
   // Handle special DOM properties with dedicated handlers
   switch (key) {
+    case 'window':
+      // Special handling for window property - adopt into existing window instead of replacing
+      if (value && typeof value === 'object') {
+        adoptWindow(value);
+        return;
+      }
+      break;
+
     case 'document':
       // Special handling for document property - adopt into existing document instead of replacing
       if (value && typeof value === 'object' && el === window) {
@@ -156,24 +164,24 @@ function applyStandardPropertyBinding(
 ): void {
   // Use specialized native property processor
   const processed = processProperty(key, value, el);
-  
+
   if (!processed.isValid) {
     console.warn(`❌ Invalid property ${key}:`, processed.error);
     return;
   }
-  
+
   // Apply binding based on the processed property's type
   switch (processed.type) {
     case 'Signal.State':
     case 'Signal.Computed':
       bindSignalToProperty(el, key, processed.value);
       break;
-      
+
     case 'function':
     case 'namespaced':
       (el as any)[key] = processed.value;
       break;
-      
+
     default:
       // Primitive value: direct assignment
       (el as any)[key] = processed.value;
@@ -288,12 +296,12 @@ function applyAttributesBinding(element: Element, attributes: Record<string, any
   Object.entries(attributes).forEach(([attrName, attrValue]) => {
     // Use specialized attribute value processor
     const processed = processAttributeValue(attrName, attrValue, element);
-    
+
     if (!processed.isValid) {
       console.warn(`❌ Invalid attribute ${attrName}:`, processed.error);
       return;
     }
-    
+
     // Apply attribute binding based on the processed property's type
     switch (processed.type) {
       case 'Signal.State':
@@ -301,7 +309,7 @@ function applyAttributesBinding(element: Element, attributes: Record<string, any
         // Signal/computed value - set up reactive binding
         bindSignalToAttribute(element, attrName, processed.value);
         break;
-        
+
       case 'function':
         // Function → Convert to computed signal and bind consistently
         const computed = new Signal.Computed(processed.value);
@@ -309,7 +317,7 @@ function applyAttributesBinding(element: Element, attributes: Record<string, any
         break;
 
       case 'boolean':
-        
+
       default:
         // Static value
         setAttributeValue(element, attrName, processed.value);
@@ -371,8 +379,8 @@ export function bindReactiveArray(
   let previousItems: any[] = [];
 
   // Get mutable properties if available for surgical updates
-  const mutableProps = typeof arraySignal.getMutableProps === 'function' 
-    ? arraySignal.getMutableProps() 
+  const mutableProps = typeof arraySignal.getMutableProps === 'function'
+    ? arraySignal.getMutableProps()
     : [];
 
   // Function to update the current array state with fine-grained updates

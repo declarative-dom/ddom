@@ -18,7 +18,8 @@
  */
 
 import { Signal } from './signals';
-import { resolveTemplateProperty, resolveTemplate } from './evaluation';
+import { resolveExpression, resolveTemplate } from './evaluation';
+import { isSignal } from '../utils/detection';
 import { processNamespacedProperty } from '../namespaces/index';
 
 
@@ -141,7 +142,7 @@ const ValueProcessors = {
         document: globalThis.document,
         // ...contextNode
       };
-      const resolved = resolveTemplateProperty(value, context);
+      const resolved = resolveExpression(value, context);
       if (resolved !== null) {
         return {
           type: getValueType(resolved),
@@ -233,6 +234,14 @@ export function processScopeProperty(
       case 'array':
       case 'object':
       default:
+        // If value is already a signal, use it directly to avoid signal-within-signal
+        if (isSignal(value)) {
+          return {
+            type: 'Signal.State',
+            value: value,
+            isValid: true
+          };
+        }
         // Everything else becomes a reactive signal
         const signal = new Signal.State(value);
         return {

@@ -9,7 +9,7 @@
 import { Signal, createEffect, ComponentSignalWatcher } from '../core/signals';
 import { resolveConfig } from '.';
 import { PrototypeConfig, FilterCriteria, SortCriteria } from '../types';
-import { resolveTemplateProperty, resolveOperand, evaluateComparison } from '../core/evaluation';
+import { resolveExpression, resolveOperand, evaluateComparison } from '../core/evaluation';
 import { IndexedDBStoreFactory } from './indexed-db';
 
 /**
@@ -236,21 +236,21 @@ async function executeOperation(store: IDBObjectStore, config: IDBRequestConfig,
     if (typeof config.query === 'function') {
       query = config.query();
     } else if (typeof config.query === 'string') {
-      query = resolveTemplateProperty(config.query, context);
+      query = resolveExpression(config.query, context);
     }
     
     let key = config.key;
     if (typeof config.key === 'function') {
       key = config.key();
     } else if (typeof config.key === 'string') {
-      key = resolveTemplateProperty(config.key, context);
+      key = resolveExpression(config.key, context);
     }
     
     let value = config.value;
     if (typeof config.value === 'function') {
       value = config.value();
     } else if (typeof config.value === 'string') {
-      value = resolveTemplateProperty(config.value, context);
+      value = resolveExpression(config.value, context);
     }
     
     // Execute the operation

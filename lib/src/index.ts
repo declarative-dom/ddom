@@ -17,7 +17,7 @@
  * @example
  * ```typescript
  * // Create a reactive button with dynamic text
- * const count = new Signal.State(0);
+ * const count = 0;
  * const button = createElement({
  *   tagName: 'button',
  *   textContent: 'Count: ${this.count}',

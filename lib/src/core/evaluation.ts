@@ -9,6 +9,7 @@
  * 
  */
 
+import { Signal } from '../core/signals';
 import { isLiteral, VALUE_PATTERNS } from '../utils/detection';
 
 /**
@@ -77,7 +78,7 @@ const resolveAccessor = (path: string, context: any, fallback: any = null): any 
 const evaluateChain = (path: string, obj: any): any => {
   const parts = path.split('.');
 
-  return parts.reduce((current, part, _index) => {
+  return parts.reduce((current, part, index) => {
     // Handle optional chaining - check for ? at the END of the part (from ?.split)
     const isOptional = VALUE_PATTERNS.OPTIONAL_CHAIN.test(part);
     const cleanPart = part.replace(VALUE_PATTERNS.OPTIONAL_CHAIN, '').trim();
@@ -86,36 +87,46 @@ const evaluateChain = (path: string, obj: any): any => {
       return undefined;
     }
 
-    // Always unwrap signals before accessing properties
-    if (current?.get && typeof current.get === 'function') {
-      current = current.get();
-      if (isOptional && current == null) return undefined;
-    }
-
-    if (!current) return current;
-
-    // Handle array access with property: item[1]
-    const arrayMatch = cleanPart.match(VALUE_PATTERNS.ARRAY_ACCESS);
-    if (arrayMatch) {
-      const [, baseName, indexStr] = arrayMatch;
-      const base = current[baseName];
-      return base ? base[parseInt(indexStr)] : undefined;
-    }
-
-    // Handle function call: method()
-    const funcMatch = cleanPart.match(VALUE_PATTERNS.FUNCTION_PARSE);
-    if (funcMatch) {
-      const [, name, argsStr] = funcMatch;
-      const func = current[name];
-      if (typeof func === 'function') {
-        const args = parseArgs(argsStr, current);
-        return func.call(current, ...args);
+    // If the property exists in the current context, use it directly
+    if (Object.hasOwn(current || obj, cleanPart)) {
+      current = (current || obj)[cleanPart];
+    } else {
+      // Only unwrap signals if we're NOT at the final part AND there are more properties to access
+      const isLastPart = index === parts.length - 1;
+      const needsUnwrapping = !isLastPart && current?.get && typeof current.get === 'function';
+      
+      if (needsUnwrapping) {
+        current = current.get();
+        if (isOptional && current == null) return undefined;
       }
-      return undefined;
+
+      if (!current) return current;
+
+      // Handle array access with property: item[1]
+      const arrayMatch = cleanPart.match(VALUE_PATTERNS.ARRAY_ACCESS);
+      if (arrayMatch) {
+        const [, baseName, indexStr] = arrayMatch;
+        const base = current[baseName];
+        return base ? base[parseInt(indexStr)] : undefined;
+      }
+
+      // Handle function call: method()
+      const funcMatch = cleanPart.match(VALUE_PATTERNS.FUNCTION_PARSE);
+      if (funcMatch) {
+        const [, name, argsStr] = funcMatch;
+        const func = current[name];
+        if (typeof func === 'function') {
+          const args = parseArgs(argsStr, current);
+          return func.call(current, ...args);
+        }
+        return undefined;
+      }
+
+      // Simple property access
+      current = current[cleanPart];
     }
 
-    // Simple property access
-    return current[cleanPart];
+    return current;
   }, obj);
 };
 
@@ -184,9 +195,7 @@ const evaluateFunction = (expr: string, context: any): any => {
   const [, funcPath, argsStr] = match;
 
   // Parse arguments with the same context that has access to window, etc.
-  const args = parseArgs(argsStr, context).map(arg =>
-    arg?._resolveLater ? resolveAccessor(arg._resolveLater, context) : arg
-  );
+  const args = parseArgs(argsStr, context);
 
   // Safe globals - prevents arbitrary code execution
   const globals: Record<string, Function> = {
@@ -232,7 +241,14 @@ const evaluateFunction = (expr: string, context: any): any => {
 const evaluateFilter = (filter: any, context: any): boolean => {
   try {
     // Resolve operand values
-    const leftValue = unwrapSignal(resolveAccessor(filter.leftOperand, context));
+    let leftValue;
+    if (typeof filter.leftOperand === 'function') {
+      // If left operand is a function, call it with context
+      console.debug('Evaluating filter function:', filter.leftOperand, context.item);
+      leftValue = filter.leftOperand.call(context.item);
+    } else {
+      leftValue = unwrapSignal(resolveAccessor(filter.leftOperand, context));
+    }
     const rightValue = unwrapSignal(resolveAccessor(filter.rightOperand, context));
 
     // Direct operator lookup for maximum performance
@@ -312,9 +328,10 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
       if (VALUE_PATTERNS.FUNCTION_CALL.test(trimmed)) {
         const result = evaluateFunction(trimmed, context);
         return unwrapSignal(result);
-      }        // Resolve and unwrap automatically
-        const resolved = resolveAccessor(trimmed, context);
-        return unwrapSignal(resolved);
+      }
+      // Resolve and unwrap automatically
+      const resolved = resolveAccessor(trimmed, context);
+      return unwrapSignal(resolved);
     });
     return parts.join('');
   }
@@ -434,16 +451,19 @@ const resolveTemplate = (template: string, context: any): string =>
  * @returns {any} The resolved value, preserving signal objects
  * 
  * @example
- * resolveTemplateProperty('user.$name', context); // Returns signal object
- * resolveTemplateProperty('this.$count', context); // Returns signal object
- * resolveTemplateProperty('getData()', context); // Returns function result
+ * resolveExpression('user.$name', context); // Returns signal object
+ * resolveExpression('this.$count', context); // Returns signal object
+ * resolveExpression('getData()', context); // Returns function result
  */
-const resolveTemplateProperty = (path: string, context: any, fallback: any = null): any => {
+const resolveExpression = (path: string, context: any, fallback: any = null): any => {
   try {
     // Handle property accessor strings (not template literals)
     if (typeof path === 'string' && !path.includes('${') && !path.includes('(')) {
-      // Special case: 'this.$name' as a string should resolve to the signal
       if (VALUE_PATTERNS.GLOBAL_ACCESSOR.test(path)) {
+        if (path.includes('?.')) {
+          // Handle optional chaining - create deferred accessor
+          return createDeferredAccessor(path, context);
+        }
         return resolveAccessor(path, context, fallback);
       }
       // Regular strings are returned as-is
@@ -464,41 +484,81 @@ const resolveTemplateProperty = (path: string, context: any, fallback: any = nul
 };
 
 /**
- * Operand resolver for array operations that unwraps values when needed.
- * Used in array mapping, filtering, and other collection operations where
- * the final values are typically needed rather than signal objects.
+ * Operand resolver for array operations that preserves signal reactivity.
+ * Used in array mapping, filtering, and other collection operations.
+ * 
+ * Key behavior:
+ * - Template literals (${...}) are evaluated and unwrapped
+ * - Direct property accessors preserve signals for reactivity
+ * - Optional chaining (?.property) creates deferred signal accessors
  * 
  * @param {any} operand - The operand to resolve (string path, template, or direct value)
  * @param {any} item - The current item context (becomes 'this' in resolution)
  * @param {any} [additionalContext] - Additional context properties to include
- * @returns {any} The resolved and potentially unwrapped value
+ * @returns {any} The resolved value (signal or unwrapped depending on context)
  * 
  * @example
  * resolveOperand('${item.name}', item, context); // "John" (unwrapped)
- * resolveOperand('item.active', item, context); // true (unwrapped)
- * resolveOperand(42, item, context); // 42 (direct value)
+ * resolveOperand('this.$data', item, context); // Signal object (preserved)
+ * resolveOperand('this.$data?.message', item, context); // Deferred accessor signal
  */
 const resolveOperand = (operand: any, item: any, additionalContext?: any): any => {
   if (typeof operand !== 'string') return operand;
 
-  const context = {
-    this: item,
-    window: globalThis.window,
-    document: globalThis.document,
-    ...additionalContext
-  };
+  const context = buildContext(item, additionalContext);
 
-  // Template literal - auto-unwrap
+  // Template literal - auto-unwrap for final values
   if (operand.includes('${')) {
     return resolveTemplate(operand, context);
   }
 
-  // Property access - preserve signals unless explicitly unwrapping
-  const result = resolveTemplateProperty(operand, context);
-
-  return result;
+  // Direct property access - preserve signals for reactivity
+  return resolveExpression(operand, context);
 };
 
+
+/**
+ * Creates a deferred accessor for optional chaining on signals.
+ * This handles cases like 'this.$data?.message' where the signal may not have resolved yet.
+ * Returns a function that can be called to get the current value safely.
+ * 
+ * @param {string} path - The property path with optional chaining (e.g., 'this.$data?.message')
+ * @param {any} context - Context for resolving the base signal
+ * @returns {any} A function that resolves the value or the resolved value directly
+ * 
+ * @example
+ * createDeferredAccessor('this.$data?.message', context); // Function that safely gets $data.message
+ */
+const createDeferredAccessor = (path: string, context: any): any => {
+  // Split on the first ?. to separate base signal from property chain
+  const [basePath, ...propertyParts] = path.split('?.');
+  const propertyChain = propertyParts.join('?.');
+
+  try {
+    // Resolve the base signal
+    const base = resolveAccessor(basePath.trim(), context);
+
+    // If it's not a signal, resolve the full path normally with optional chaining
+    if (!VALUE_PATTERNS.SIGNAL(base)) {
+      // Convert ?. back to regular property access and resolve
+      const safePath = path.replace(/\?\./g, '.');
+      return resolveAccessor(safePath, context);
+    }
+
+    // For signals, return a special deferred accessor object
+    return new Signal.Computed(() => {
+      // Resolve the base signal value
+      const baseValue = base.get();
+      if (baseValue == null) return undefined; // Handle null/undefined base
+
+      // Resolve the full property chain on the base value
+      return evaluateChain(propertyChain, baseValue);
+    });
+  } catch (error) {
+    console.warn('Deferred accessor creation failed:', path, error);
+    return undefined;
+  }
+};
 
 /**
  * Context builder for DDOM components that automatically includes signals.
@@ -517,11 +577,6 @@ const buildContext = (component: any, additionalProps?: any) => ({
   window: globalThis.window,
   document: globalThis.document,
   ...additionalProps,
-  // Auto-include all $-prefixed properties from component
-  ...Object.fromEntries(
-    Object.entries(component)
-      .filter(([key]) => key.startsWith('$'))
-  )
 });
 
 /**
@@ -534,6 +589,6 @@ export {
   resolveAccessor,
   resolveOperand,
   resolveTemplate,
-  resolveTemplateProperty,
+  resolveExpression,
   unwrapSignal,
 };

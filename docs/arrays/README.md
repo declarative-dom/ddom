@@ -11,7 +11,7 @@ Array namespaces are modeled after the ECMAScript `Array.from(items, mapper)` me
 * **`map`** - Object or string template for transformation (declarative alternative to `Array.from` mapper)
 * **`filter`** - Declarative filtering expressions (equivalent to `Array.prototype.filter`)
 * **`sort`** - Declarative sorting expressions (equivalent to `Array.prototype.sort`)
-* **`prepend`/`append`** - Additional items for list composition
+* **`unshift`/`concat`** - Additional items for list composition
 
 ## Syntax
 
@@ -22,8 +22,8 @@ Array namespaces are modeled after the ECMAScript `Array.from(items, mapper)` me
   map?: string | object,         // Object template or string template (declarative only)
   filter?: FilterCriteria[],         // Optional filtering expressions
   sort?: SortCriteria[],            // Optional sorting expressions  
-  prepend?: R[],                // Optional items to prepend
-  append?: R[]                  // Optional items to append
+  unshift?: R[],                // Optional items to prepend
+  concat?: R[]                  // Optional items to append
 }
 ```
 
@@ -153,8 +153,8 @@ Array namespaces excel at:
   children: {
     prototype: 'Array',
     items: [{ text: 'Products', href: '/products' }],
-    prepend: [{ tagName: 'a', textContent: 'Home', href: '/' }],
-    append: [{ tagName: 'a', textContent: 'Contact', href: '/contact' }],
+    unshift: [{ tagName: 'a', textContent: 'Home', href: '/' }],
+    concat: [{ tagName: 'a', textContent: 'Contact', href: '/contact' }],
     map: {
       tagName: 'a',
       textContent: '${item.text}',
@@ -177,7 +177,7 @@ Array namespaces excel at:
       id: 'user-${item.id}',
       $textContent: '${item.name}',        // Reactive property
       $className: 'user-${item.role}',     // Updates automatically
-      onclick: 'selectUser(${item.id})'    // Declarative event handler
+    }
 }
 ```
 
