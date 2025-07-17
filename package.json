@@ -1,6 +1,6 @@
 {
 	"name": "declarative-dom-monorepo",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"description": "Declarative DOM monorepo",
 	"author": "Declarative DOM Working Group",
 	"license": "MIT",
