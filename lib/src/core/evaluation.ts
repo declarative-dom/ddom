@@ -10,18 +10,43 @@
  */
 
 import { isLiteral, VALUE_PATTERNS } from '../utils/detection';
+import type { ElementSpec, DOMNode } from '../dom/types';
 
 /**
  * Interface for signal-like objects that can be unwrapped
  */
 interface SignalLike {
-  get(): unknown;
+  get(): PropertyValue;
 }
+
+/**
+ * Valid DDOM property values that can be assigned to element properties
+ */
+type PropertyValue = 
+  | string 
+  | number 
+  | boolean 
+  | null 
+  | undefined
+  | Function
+  | object
+  | PropertyValue[];
+
+/**
+ * Context object for property evaluation and template resolution
+ * More flexible typing to accommodate the various context shapes in DDOM
+ */
+type EvaluationContext = Record<string, any> & {
+  // Common DDOM context properties that may be present
+  window?: any;
+  document?: any;
+  this?: any; // Could be ElementSpec or other context objects
+};
 
 /**
  * Type guard to check if a value is a signal-like object
  */
-function isSignalLike(value: unknown): value is SignalLike {
+function isSignalLike(value: PropertyValue): value is SignalLike {
   return typeof value === 'object' && value !== null && 'get' in value && typeof (value as any).get === 'function';
 }
 
@@ -29,15 +54,15 @@ function isSignalLike(value: unknown): value is SignalLike {
  * Automatically unwraps TC39 signals by calling their .get() method.
  * Only used in template contexts where values need to be displayed.
  * 
- * @param {unknown} value - The value to potentially unwrap
- * @returns {unknown} The unwrapped value if it's a signal, otherwise the original value
+ * @param {PropertyValue} value - The value to potentially unwrap
+ * @returns {PropertyValue} The unwrapped value if it's a signal, otherwise the original value
  * 
  * @example
  * const signal = new Signal(42);
  * unwrapSignal(signal); // 42
  * unwrapSignal("hello"); // "hello"
  */
-const unwrapSignal = (value: unknown): unknown =>
+const unwrapSignal = (value: PropertyValue): PropertyValue =>
   isSignalLike(value) ? value.get() : value;
 
 /**
@@ -45,17 +70,17 @@ const unwrapSignal = (value: unknown): unknown =>
  * Used for direct property access, namespace configs, and maintaining reactivity.
  * Does NOT unwrap signals - returns them as-is for manual .get()/.set() operations.
  * 
- * @param {Record<string, unknown>} obj - The root object to traverse
+ * @param {EvaluationContext} obj - The root object to traverse
  * @param {string} path - Property path to resolve (e.g., 'user.name', 'this.$coords().lat')
- * @param {unknown} [fallback=null] - Value to return if resolution fails
- * @returns {unknown} The resolved value, preserving signal objects
+ * @param {PropertyValue} [fallback=null] - Value to return if resolution fails
+ * @returns {PropertyValue} The resolved value, preserving signal objects
  * 
  * @example
  * resolveAccessor(obj, 'user.$name'); // Returns Signal object
  * resolveAccessor(obj, 'this.$coords().lat'); // Calls function, accesses property
  * resolveAccessor(obj, 'items[0].data'); // Array access with property
  */
-const resolveAccessor = (obj: Record<string, unknown>, path: string, fallback: unknown = null): unknown => {
+const resolveAccessor = (obj: EvaluationContext, path: string, fallback: PropertyValue = null): PropertyValue => {
   if (!path) {
     return fallback;
   }
@@ -79,16 +104,16 @@ const resolveAccessor = (obj: Record<string, unknown>, path: string, fallback: u
  * Chain evaluator using regex-based parsing with optional chaining support.
  * Handles complex property chains including function calls, array indexing, and optional chaining.
  * 
- * @param {Record<string, unknown>} obj - The starting object for chain evaluation
+ * @param {EvaluationContext} obj - The starting object for chain evaluation
  * @param {string} path - The property chain path to evaluate
- * @returns {unknown} The final resolved value from the chain
+ * @returns {PropertyValue} The final resolved value from the chain
  * 
  * @example
  * evaluateChain(obj, 'user.getName().toUpperCase()'); 
  * evaluateChain(obj, 'user?.profile?.name'); // Optional chaining
  * evaluateChain(obj, 'this.$currentCoords()?.lat'); // Mixed optional chaining
  */
-const evaluateChain = (obj: Record<string, unknown>, path: string): unknown => {
+const evaluateChain = (obj: EvaluationContext, path: string): PropertyValue => {
   const parts = path.split('.');
 
   return parts.reduce((current: any, part, _index) => {
@@ -138,14 +163,14 @@ const evaluateChain = (obj: Record<string, unknown>, path: string): unknown => {
  * Respects quoted strings, nested parentheses, and brackets while splitting on commas.
  * 
  * @param {string} argsStr - The arguments string from a function call
- * @param {Record<string, unknown>} context - Context object for resolving argument references
- * @returns {unknown[]} Array of parsed and resolved argument values
+ * @param {EvaluationContext} context - Context object for resolving argument references
+ * @returns {PropertyValue[]} Array of parsed and resolved argument values
  * 
  * @example
  * parseArgs('user.name, "hello world", func(a, b)', context);
  * // Returns: [resolvedUserName, "hello world", functionResult]
  */
-const parseArgs = (argsStr: string, context: Record<string, unknown>): unknown[] => {
+const parseArgs = (argsStr: string, context: EvaluationContext): PropertyValue[] => {
   if (!argsStr.trim()) return [];
 
   // Regex to split on commas while respecting quotes and nested parens/brackets
@@ -162,7 +187,7 @@ const parseArgs = (argsStr: string, context: Record<string, unknown>): unknown[]
  * Uses VALUE_PATTERNS for consistent classification.
  * 
  * @param {string} str - The literal string to parse
- * @returns {unknown} The parsed JavaScript value
+ * @returns {PropertyValue} The parsed JavaScript value
  * 
  * @example
  * parseLiteral('"hello"'); // "hello"
@@ -170,7 +195,7 @@ const parseArgs = (argsStr: string, context: Record<string, unknown>): unknown[]
  * parseLiteral('true'); // true
  * parseLiteral('null'); // null
  */
-const parseLiteral = (str: string): unknown => {
+const parseLiteral = (str: string): PropertyValue => {
   const trimmed = str.trim();
   if (VALUE_PATTERNS.LITERAL_STRING.test(trimmed)) return trimmed.slice(1, -1);
   if (VALUE_PATTERNS.LITERAL_NUMBER.test(trimmed)) return Number(trimmed);
@@ -186,10 +211,10 @@ const parseLiteral = (str: string): unknown => {
  * Uses VALUE_PATTERNS for consistent pattern matching.
  * 
  * @param {string} expr - The function call expression to evaluate
- * @param {Record<string, unknown>} context - Context object for resolving function and arguments
- * @returns {unknown} The result of the function call, or null if function not found/safe
+ * @param {EvaluationContext} context - Context object for resolving function and arguments
+ * @returns {PropertyValue} The result of the function call, or null if function not found/safe
  */
-const evaluateFunction = (expr: string, context: Record<string, unknown>): unknown => {
+const evaluateFunction = (expr: string, context: EvaluationContext): PropertyValue => {
   if (!VALUE_PATTERNS.FUNCTION_CALL.test(expr)) return null;
 
   const match = expr.match(VALUE_PATTERNS.FUNCTION_PARSE);
@@ -243,7 +268,14 @@ const evaluateFunction = (expr: string, context: Record<string, unknown>): unkno
  * evaluateFilter({ leftOperand: 'item.age', operator: '>=', rightOperand: 18 }, context);
  * evaluateFilter({ leftOperand: 'item.name', operator: 'includes', rightOperand: 'John' }, context);
  */
-const evaluateFilter = (filter: Record<string, unknown>, context: Record<string, unknown>): boolean => {
+/**
+ * Evaluation function for filter operations in array processing.
+ * 
+ * @param {Record<string, any>} filter - The filter criteria
+ * @param {EvaluationContext} context - Context object for resolving operands
+ * @returns {boolean} Whether the filter condition is satisfied
+ */
+const evaluateFilter = (filter: Record<string, any>, context: EvaluationContext): boolean => {
   try {
     // Resolve operand values
     const leftValue = unwrapSignal(resolveAccessor(context, filter.leftOperand as string));
@@ -287,7 +319,14 @@ const evaluateFilter = (filter: Record<string, unknown>, context: Record<string,
  * evaluateComparison('user.age >= 18', context); // true/false
  * evaluateComparison('status === "active"', context); // true/false
  */
-const evaluateComparison = (expr: string, context: Record<string, unknown>): boolean | null => {
+/**
+ * Comparison evaluator for template expressions and filter operations.
+ * 
+ * @param {string} expr - The comparison expression to evaluate  
+ * @param {EvaluationContext} context - Context object for resolving operands
+ * @returns {boolean | null} The comparison result, or null if expression is invalid
+ */
+const evaluateComparison = (expr: string, context: EvaluationContext): boolean | null => {
   // Operator patterns ordered by specificity (longer operators first)
   const match = expr.trim().match(VALUE_PATTERNS.COMPARISON_OPS);
 
@@ -315,7 +354,14 @@ const evaluateComparison = (expr: string, context: Record<string, unknown>): boo
  * @param {Record<string, unknown>} context - Context object for variable resolution
  * @returns {unknown} The evaluated result with signals unwrapped
  */
-const evaluateTemplateExpression = (expr: string, context: Record<string, unknown>): unknown => {
+/**
+ * Template expression evaluator with support for concatenation, conditionals, and function calls.
+ * 
+ * @param {string} expr - The template expression to evaluate
+ * @param {EvaluationContext} context - Context object for resolving variables and functions
+ * @returns {PropertyValue} The evaluated result of the template expression
+ */
+const evaluateTemplateExpression = (expr: string, context: EvaluationContext): PropertyValue => {
   // String concatenation: operand + operand (simple case)
   if (expr.includes(' + ') && !expr.includes('?')) {
     const parts = expr.split(' + ').map(part => {
@@ -428,7 +474,14 @@ const evaluateTemplateExpression = (expr: string, context: Record<string, unknow
  * resolveTemplate('Count: ${items.length || 0}', context); // "Count: 5"
  * resolveTemplate('${user.age >= 18 ? "adult" : "minor"}', context); // "adult"
  */
-const resolveTemplate = (template: string, context: Record<string, unknown>): string =>
+/**
+ * Template literal resolver with embedded expression evaluation.
+ * 
+ * @param {string} template - Template string with ${...} expressions
+ * @param {EvaluationContext} context - Context object for resolving template variables
+ * @returns {string} The resolved template string with expressions evaluated
+ */
+const resolveTemplate = (template: string, context: EvaluationContext): string =>
   template.replace(VALUE_PATTERNS.TEMPLATE_REPLACEMENT, (match, expr) => {
     try {
       const result = evaluateTemplateExpression(expr.trim(), context);
@@ -454,7 +507,15 @@ const resolveTemplate = (template: string, context: Record<string, unknown>): st
  * resolveTemplateProperty(context, 'this.$count'); // Returns signal object
  * resolveTemplateProperty(context, 'getData()'); // Returns function result
  */
-const resolveTemplateProperty = (context: Record<string, unknown>, path: string, fallback: unknown = null): unknown => {
+/**
+ * Template property resolver that handles property access and template evaluation.
+ * 
+ * @param {EvaluationContext} context - Context object for property resolution
+ * @param {string} path - Property path or template expression
+ * @param {PropertyValue} [fallback=null] - Fallback value if resolution fails
+ * @returns {PropertyValue} The resolved property value or evaluated template
+ */
+const resolveTemplateProperty = (context: EvaluationContext, path: string, fallback: PropertyValue = null): PropertyValue => {
   try {
     // Handle property accessor strings (not template literals)
     if (typeof path === 'string' && !path.includes('${') && !path.includes('(')) {
@@ -494,7 +555,15 @@ const resolveTemplateProperty = (context: Record<string, unknown>, path: string,
  * resolveOperand('item.active', item, context); // true (unwrapped)
  * resolveOperand(42, item, context); // 42 (direct value)
  */
-const resolveOperand = (operand: unknown, item: Record<string, unknown>, additionalContext?: Record<string, unknown>): unknown => {
+/**
+ * Operand resolver for array operations and template contexts.
+ * 
+ * @param {PropertyValue} operand - The operand to resolve (may be a string path or direct value)
+ * @param {Record<string, any>} item - The current item context for array operations
+ * @param {EvaluationContext} [additionalContext] - Additional context for resolution
+ * @returns {PropertyValue} The resolved operand value
+ */
+const resolveOperand = (operand: PropertyValue, item: Record<string, any>, additionalContext?: EvaluationContext): PropertyValue => {
   if (typeof operand !== 'string') return operand;
 
   const context = {
@@ -528,7 +597,14 @@ const resolveOperand = (operand: unknown, item: Record<string, unknown>, additio
  * const context = buildContext(component, { extra: 'data' });
  * // Returns: { this: component, window: globalThis.window, $count: signal, ... }
  */
-const buildContext = (component: Record<string, unknown>, additionalProps?: Record<string, unknown>): Record<string, unknown> => ({
+/**
+ * Context builder for component evaluation with additional properties.
+ * 
+ * @param {EvaluationContext} component - The base component context
+ * @param {EvaluationContext} [additionalProps] - Additional properties to merge
+ * @returns {EvaluationContext} Combined evaluation context
+ */
+const buildContext = (component: EvaluationContext, additionalProps?: EvaluationContext): EvaluationContext => ({
   this: component,
   window: globalThis.window,
   document: globalThis.document,

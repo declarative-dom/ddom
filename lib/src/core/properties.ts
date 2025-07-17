@@ -20,9 +20,20 @@
 import { Signal } from './signals';
 import { resolveTemplateProperty, resolveTemplate } from './evaluation';
 import { processNamespacedProperty } from '../namespaces/index';
+import type { ElementSpec } from '../dom/types';
 
-
-// === UNIVERSAL PROPERTY RETURN FORMAT ===
+/**
+ * Valid DDOM property values that can be assigned to element properties
+ */
+type PropertyValue = 
+  | string 
+  | number 
+  | boolean 
+  | null 
+  | undefined
+  | Function
+  | object
+  | PropertyValue[];
 
 /**
  * Universal processed property format returned by the properties module.
@@ -32,7 +43,7 @@ export interface ProcessedProperty {
   /** The type/type of the processed value (Signal.State, Signal.Computed, string, number, etc.) */
   type: string;
   /** The processed value (signal, primitive, or complex object) */
-  value: unknown;
+  value: PropertyValue;
   /** Whether the processed value is valid for use */
   isValid: boolean;
   /** Error information if processing failed */
@@ -53,7 +64,7 @@ export const IMMUTABLE_PROPERTIES = new Set(['id', 'tagName']);
  * Creates a reactive computed signal for template strings.
  * Uses safe template resolution with automatic signal dependency tracking.
  */
-function createTemplateSignal(template: string, contextNode: Record<string, unknown>): Signal.Computed<string> {
+function createTemplateSignal(template: string, contextNode: any): Signal.Computed<string> {
   // Clean context - all contextNode properties accessible via 'this'
   const context = {
     this: contextNode,
@@ -88,7 +99,7 @@ const VALUE_PATTERNS = {
  * @param value - Property value to classify
  * @returns Pattern string for switch statement matching
  */
-export function classifyProperty(value: unknown): string {
+export function classifyProperty(value: PropertyValue): string {
   // Determine value pattern (order matters - most specific first)
   if (VALUE_PATTERNS.FUNCTION(value)) {
     return 'function';
@@ -120,7 +131,7 @@ export function classifyProperty(value: unknown): string {
  * These handle the common patterns without caring about scope context.
  */
 const ValueProcessors = {
-  template: (_key: string, value: string, contextNode: Record<string, unknown>): ProcessedProperty => {
+  template: (_key: string, value: string, contextNode: any): ProcessedProperty => {
     try {
       const computed = createTemplateSignal(value, contextNode);
       return {
@@ -133,7 +144,7 @@ const ValueProcessors = {
     }
   },
 
-  accessor: (_key: string, value: string, contextNode: Record<string, unknown>): ProcessedProperty => {
+  accessor: (_key: string, value: string, contextNode: any): ProcessedProperty => {
     try {
       const context = {
         this: contextNode,
@@ -159,19 +170,19 @@ const ValueProcessors = {
     }
   },
 
-  function: (_key: string, value: Function, contextNode: Record<string, unknown>): ProcessedProperty => ({
+  function: (_key: string, value: Function, contextNode: any): ProcessedProperty => ({
     type: 'function',
     value: value.bind(contextNode), // ← Pre-bind to the element
     isValid: true
   }),
 
-  namespaced: (key: string, value: unknown, contextNode: Record<string, unknown>): ProcessedProperty => ({
+  namespaced: (key: string, value: PropertyValue, contextNode: any): ProcessedProperty => ({
     type: 'namespaced',
     value: processNamespacedProperty(key, value as any, contextNode),
     isValid: true
   }),
 
-  primitive: (_key: string, value: unknown): ProcessedProperty => ({
+  primitive: (_key: string, value: PropertyValue): ProcessedProperty => ({
     type: getValueType(value),
     value: value,
     isValid: true  // All primitive values are valid for signals
@@ -181,7 +192,7 @@ const ValueProcessors = {
 /**
  * Creates an error ProcessedProperty.
  */
-function createErrorProperty(error: string, originalValue?: unknown): ProcessedProperty {
+function createErrorProperty(error: string, originalValue?: PropertyValue): ProcessedProperty {
   return {
     type: 'error',
     value: originalValue || null,
@@ -204,8 +215,8 @@ function createErrorProperty(error: string, originalValue?: unknown): ProcessedP
  */
 export function processScopeProperty(
   key: string,
-  value: unknown,
-  contextNode: Record<string, unknown>
+  value: PropertyValue,
+  contextNode: any
 ): ProcessedProperty {
   try {
     const pattern = classifyProperty(value);
@@ -260,8 +271,8 @@ export function processScopeProperty(
  */
 export function processProperty(
   key: string,
-  value: unknown,
-  contextNode: Record<string, unknown>
+  value: PropertyValue,
+  contextNode: any
 ): ProcessedProperty {
   try {
     const pattern = classifyProperty(value);
@@ -310,8 +321,8 @@ export function processProperty(
  */
 export function processAttributeValue(
   attributeName: string,
-  value: unknown,
-  contextNode: Record<string, unknown>
+  value: PropertyValue,
+  contextNode: any
 ): ProcessedProperty {
   try {
     const pattern = classifyProperty(value);
@@ -369,7 +380,7 @@ function validateComputedValue(computed: Signal.Computed<any>): boolean {
  * Determines the type/type of a value for the ProcessedProperty format.
  * Handles signals, primitives, objects, arrays, and complex types.
  */
-function getValueType(value: unknown): string {
+function getValueType(value: PropertyValue): string {
   if (value === null) return 'null';
   if (value === undefined) return 'undefined';
 

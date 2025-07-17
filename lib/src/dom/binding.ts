@@ -22,7 +22,7 @@
  * @author Declarative DOM Working Group
  */
 
-import type { DOMSpec, DOMNode, DOMSpecOptions, HTMLElementSpec } from '../types';
+import type { DOMSpec, DOMNode, DOMSpecOptions, HTMLElementSpec, ElementSpec } from '../dom/types';
 import { generatePathSelector } from '../utils/helpers';
 import { adoptDocument, appendChild, createElement } from './element';
 import { createEffect, Signal, ComponentSignalWatcher } from '../core/signals';
@@ -31,6 +31,19 @@ import { processNamespacedProperty } from '../namespaces/index';
 import type { ArraySignal } from '../namespaces/array';
 import { insertRules } from './style-sheets';
 import { define } from './custom-elements';
+
+/**
+ * Valid DDOM property values that can be assigned to element properties
+ */
+type PropertyValue = 
+  | string 
+  | number 
+  | boolean 
+  | null 
+  | undefined
+  | Function
+  | object
+  | PropertyValue[];
 
 
 
@@ -60,10 +73,10 @@ import { define } from './custom-elements';
  * ```
  */
 export function applyPropertyBinding(
-  spec: DOMSpec,
-  el: DOMNode,
+  spec: any, // Can be various DDOM spec types
+  el: any,   // Can be various DOM node types  
   key: string,
-  value: unknown,
+  value: PropertyValue,
   options: DOMSpecOptions = {}
 ): void {
   // Skip ignored keys
