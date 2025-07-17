@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach } from 'vitest';
+import { describe, test, expect, afterEach, beforeEach, vi } from 'vitest';
 import DDOM from '../lib/dist/index.js';
 
 describe('Reactive Property Injection', () => {

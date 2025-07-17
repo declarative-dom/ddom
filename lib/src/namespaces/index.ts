@@ -68,7 +68,7 @@ const NAMESPACE_REGISTRY: Record<string, NamespaceEntry> = {
   'Uint32Array': { handler: createArrayNamespace, validator: arrayConfigValidator },
   'Float32Array': { handler: createArrayNamespace, validator: arrayConfigValidator },
   'Float64Array': { handler: createArrayNamespace, validator: arrayConfigValidator },
-  
+
   // Web API types
   'Request': { handler: createRequestNamespace, validator: typia.createIs<RequestConfig>() },
   'FormData': { handler: createFormDataNamespace, validator: typia.createIs<FormDataConfig>() },
@@ -76,7 +76,7 @@ const NAMESPACE_REGISTRY: Record<string, NamespaceEntry> = {
   'Blob': { handler: createBlobNamespace, validator: typia.createIs<BlobConfig>() },
   'ArrayBuffer': { handler: createArrayBufferNamespace, validator: typia.createIs<ArrayBufferConfig>() },
   'ReadableStream': { handler: createReadableStreamNamespace, validator: typia.createIs<ReadableStreamConfig>() },
-  
+
   // Storage API types
   'Cookie': { handler: createCookieNamespace, validator: typia.createIs<CookieConfig>() },
   'SessionStorage': { handler: createStorageNamespace, validator: storageConfigValidator },
@@ -119,18 +119,18 @@ export function processNamespacedProperty(
   element: any
 ): any {
   const entry = NAMESPACE_REGISTRY[config.prototype];
-  
+
   if (!entry) {
     console.warn(`No handler found for prototype: ${config.prototype}. Skipping.`);
     return null;
   }
-  
+
   // Centralized validation using typia
   if (!entry.validator(config)) {
     console.warn(`Invalid ${config.prototype}Config for ${key}:`, config);
     return null;
   }
-  
+
   try {
     return entry.handler(config, key, element);
   } catch (error) {
@@ -158,14 +158,16 @@ export function resolveConfig(config: any, contextNode: any): { value: any; isVa
     } else {
       // Use the unified property resolution from properties.ts
       const processedProp = processProperty(key, value, contextNode);
+      console.debug(`Processed property ${key}:`, processedProp);
       if (!processedProp.isValid) return { value: null, isValid: false };
-      
+
       // For templates and computed values, we need the unwrapped value for configs
       let resolvedValue = processedProp.value;
       if (resolvedValue?.get && typeof resolvedValue.get === 'function') {
         resolvedValue = resolvedValue.get();
+        console.debug(`Unwrapped value for ${key}:`, resolvedValue);
       }
-      
+
       processed[key] = resolvedValue;
     }
   }

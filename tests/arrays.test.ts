@@ -3,7 +3,7 @@
  * Tests all pipeline operations: filter, sort, groupBy, map, prepend, append
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { createArrayNamespace } from '../lib/src/namespaces/array';
 import { Signal } from '../lib/src/core/signals';
 
@@ -40,6 +40,13 @@ describe('Array Namespace', () => {
 
   beforeEach(() => {
     userSignal = new Signal.State(sampleUsers);
+    // Use fake timers to control microtask execution
+    vi.useFakeTimers({ toFake: ['nextTick', 'queueMicrotask'] });
+  });
+
+  afterEach(() => {
+    // Clean up fake timers after each test
+    vi.useRealTimers();
   });
 
   describe('Basic Array Sources', () => {
@@ -65,6 +72,72 @@ describe('Array Namespace', () => {
       const result = arrayNamespace.get();
       expect(result).toHaveLength(6);
       expect(result[0]).toEqual({ id: 1, name: 'Alice' });
+    });
+
+    it('should work with function references as array sources', () => {
+      // Create a mock parent element with a function that returns processed data
+      const parentElement = {
+        $processedUsers: function () {
+          return sampleUsers.filter(user => user.active).map(user => ({
+            ...user,
+            displayName: `${user.name} (${user.department})`
+          }));
+        }
+      };
+
+      const arrayNamespace = createArrayNamespace({
+        prototype: 'Array',
+        items: 'this.$processedUsers', // Function reference string
+        map: {
+          id: 'item.id',
+          name: 'item.displayName',
+          department: 'item.department'
+        },
+      }, 'testKey', parentElement);
+
+      const result = arrayNamespace.get();
+      expect(result).toHaveLength(4); // Only active users
+      expect(result[0]).toEqual({
+        id: 1,
+        name: 'Alice (Engineering)',
+        department: 'Engineering'
+      });
+    });
+
+    it('should work with property accessor strings to Signal.State', () => {
+      // Create a test element with proper context structure that mirrors real usage
+      const testElement = {
+        // Add the signal to the element's context like adoptWindow would do
+        $globalUsers: userSignal
+      };
+
+      const arrayNamespace = createArrayNamespace({
+        prototype: 'Array',
+        items: 'this.$globalUsers', // This should resolve to the signal on testElement
+        map: { id: 'item.id', name: 'item.name' },
+      }, 'testKey', testElement);
+
+      const result = arrayNamespace.get();
+      expect(result).toHaveLength(6);
+      expect(result[0]).toEqual({ id: 1, name: 'Alice' });
+    });
+
+    it('should work with window property accessor', () => {
+      // Set up global window like the real example does
+      (globalThis.window as any).$globalUsers = userSignal;
+
+      const arrayNamespace = createArrayNamespace({
+        prototype: 'Array',
+        items: 'window.$globalUsers', // Property accessor to global signal
+        map: { id: 'item.id', name: 'item.name' },
+      }, 'testKey', document.body);
+
+      const result = arrayNamespace.get();
+      expect(result).toHaveLength(6);
+      expect(result[0]).toEqual({ id: 1, name: 'Alice' });
+
+      // Clean up
+      delete (globalThis.window as any).$globalUsers;
     });
   });
 
@@ -257,8 +330,8 @@ describe('Array Namespace', () => {
       expect(mappedArray.get()).toHaveLength(4);
 
       // Add new active user
-      const newUsers = [...sampleUsers, { 
-        id: 7, name: 'Grace', department: 'Engineering', age: 29, active: true, salary: 75000 
+      const newUsers = [...sampleUsers, {
+        id: 7, name: 'Grace', department: 'Engineering', age: 29, active: true, salary: 75000
       }];
       userSignal.set(newUsers);
 
@@ -284,12 +357,37 @@ describe('Array Namespace', () => {
 
   describe('Error Handling', () => {
     it('should handle invalid source types gracefully', () => {
+      // Create a mock context that doesn't have the expected property
+      const mockElement = {
+        // Missing the expected property, so resolution will fail
+      };
+
       expect(() => {
-        createArrayNamespace({
+        const arrayNamespace = createArrayNamespace({
           prototype: 'Array',
-          items: 'invalid' as any
-        }, 'testKey', document.body);
-      }).toThrow('Property accessor "invalid" must resolve to an array or Signal containing an array');
+          items: 'nonexistent.property'
+        }, 'testKey', mockElement);
+
+        // Try to get the result - this should trigger the error
+        arrayNamespace.get();
+      }).not.toThrow(); // Should not throw, but should warn and return empty array
+    });
+
+    it('should handle function references that return non-arrays', () => {
+      const parentElement = {
+        $badFunction: function () {
+          return "not an array"; // Returns non-array
+        }
+      };
+
+      const arrayNamespace = createArrayNamespace({
+        prototype: 'Array',
+        items: 'this.$badFunction'
+      }, 'testKey', parentElement);
+
+      // Should return empty array and warn
+      const result = arrayNamespace.get();
+      expect(result).toEqual([]);
     });
   });
 

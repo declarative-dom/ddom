@@ -52,7 +52,7 @@ import { createEffect, ComponentSignalWatcher } from './core/signals';
 import { Signal } from 'signal-polyfill';
 
 // Named exports for compatibility
-export { adoptDocument, adoptNode, adoptWindow, createElement } from './dom/element';
+export { adoptDocument, adoptNode, adoptWindow, appendChild, createElement } from './dom/element';
 export { adoptStyleSheet, clearStyleSheet } from './dom/style-sheets';
 export { define } from './dom/custom-elements';
 export { createEffect, ComponentSignalWatcher } from './core/signals';
@@ -60,7 +60,7 @@ export { Signal } from 'signal-polyfill';
 
 // Export property utilities that tests expect
 export { processProperty as createReactiveProperty } from './core/properties';
-export { getPropertyValue as resolvePropertyAccessor } from './core/evaluation';
+export { getProperty as resolvePropertyAccessor } from './core/evaluation';
 
 /**
  * Main DDOM function for adopting window-level specifications.

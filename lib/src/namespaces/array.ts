@@ -8,7 +8,7 @@
  */
 
 import { Signal } from '../core/signals';
-import { evaluateFilter, getPropertyValue, resolveOperand, resolveTemplate, getValue } from '../core/evaluation';
+import { evaluateFilter, getProperty, resolveOperand, resolveTemplate, getValue } from '../core/evaluation';
 import { isSignal } from '../utils/detection';
 import { PrototypeConfig, FilterCriteria, SortCriteria } from './types';
 import { detectMutableProps } from '../utils';
@@ -346,7 +346,7 @@ function getSortValue(item: any, sortBy: string | ((item: any) => any)): any {
     if (typeof sortBy === 'string') {
       // Property path resolution using the evaluation system
       // This handles: 'item.name', 'item.user.profile.age', etc.
-      return getPropertyValue(sortBy, { item });
+      return getProperty(sortBy, { item });
     }
 
     // Direct value
@@ -465,5 +465,5 @@ export function resolveArrayAccessor(accessor: string, item: any, index: number,
     document: globalThis.document
   };
 
-  return getPropertyValue(accessor, context, accessor);
+  return getProperty(accessor, context, accessor);
 }
