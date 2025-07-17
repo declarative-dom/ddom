@@ -47,20 +47,18 @@
 
 import { adoptDocument, adoptNode, adoptWindow, appendChild, createElement } from './dom/element';
 import { adoptStyleSheet, clearStyleSheet } from './dom/style-sheets';
-import { define } from './dom/custom-elements';
 import { createEffect, ComponentSignalWatcher } from './core/signals';
+import { define } from './dom/custom-elements';
+import { getProperty, resolveOperand } from './core/evaluation';
 import { Signal } from 'signal-polyfill';
 
-// Named exports for compatibility
 export { adoptDocument, adoptNode, adoptWindow, appendChild, createElement } from './dom/element';
 export { adoptStyleSheet, clearStyleSheet } from './dom/style-sheets';
-export { define } from './dom/custom-elements';
 export { createEffect, ComponentSignalWatcher } from './core/signals';
+export { define } from './dom/custom-elements';
+export { getProperty, resolveOperand } from './core/evaluation';
+export { processProperty } from './core/properties';
 export { Signal } from 'signal-polyfill';
-
-// Export property utilities that tests expect
-export { processProperty as createReactiveProperty } from './core/properties';
-export { getProperty as resolvePropertyAccessor } from './core/evaluation';
 
 /**
  * Main DDOM function for adopting window-level specifications.
@@ -99,6 +97,8 @@ Object.assign(DDOM, {
 	},
 	createEffect,
 	ComponentSignalWatcher,
+	getProperty,
+	resolveOperand,
 	Signal,
 });
 

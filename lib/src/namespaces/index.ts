@@ -158,14 +158,13 @@ export function resolveConfig(config: any, contextNode: any): { value: any; isVa
     } else {
       // Use the unified property resolution from properties.ts
       const processedProp = processProperty(key, value, contextNode);
-      console.debug(`Processed property ${key}:`, processedProp);
       if (!processedProp.isValid) return { value: null, isValid: false };
 
       // For templates and computed values, we need the unwrapped value for configs
       let resolvedValue = processedProp.value;
       if (resolvedValue?.get && typeof resolvedValue.get === 'function') {
         resolvedValue = resolvedValue.get();
-        console.debug(`Unwrapped value for ${key}:`, resolvedValue);
+        if (!resolvedValue) return { value: null, isValid: false };
       }
 
       processed[key] = resolvedValue;

@@ -41,12 +41,14 @@ export interface ArraySignal<T = any[]> extends Signal.Computed<T> {
  * Handles arrays, signals, property accessors, expressions, and functions from production code.
  */
 function resolveSourceSignal<T>(items: ArrayConfig["items"], parentElement?: Element): Array<T[]> | Signal.State<T[]> | Signal.Computed<T[]> {
+
   // Handle different source types
   if (Array.isArray(items)) {
     return items;
   } else if (typeof items === 'string') {
     // Handle property accessor resolution and expression evaluation
     const resolved = resolveOperand(items, parentElement || document.body);
+
     if (typeof resolved === 'function') {
       // Handle property accessor resolution and expression evaluation
       return new Signal.Computed(resolved as () => T[]);
@@ -80,6 +82,8 @@ export const createArrayNamespace = (
   const computedArray = new Signal.Computed(() => {
     // Get the source array from the resolved signal
     const sourceArray = getValue(sourceSignal);
+
+    // Enhanced debugging
 
     // debug: temporary: assign signal to global window for inspection
     if (!Object.hasOwn(globalThis.window, "DDOMArrays")) (globalThis.window as any).DDOMArrays = {};
@@ -362,13 +366,18 @@ const ACCESSOR_REGEX = /^(document|index|item|this|window)/;
 
 /**
  * Applies a mapping template to items
- * Supports only declarative templates: object templates and string templates
+ * Supports declarative templates: object templates, string templates, and property accessors
  */
 export function applyMapping(items: any[], mapTemplate: any, parentElement?: any): any[] {
   try {
     if (typeof mapTemplate === 'string') {
-      // String template mapping
-      return items.map((item, index) => transformTemplate(mapTemplate, item, index, parentElement));
+      if (mapTemplate.includes('${')) {
+        // String template mapping
+        return items.map((item, index) => transformTemplate(mapTemplate, item, index, parentElement));
+      } else {
+        // Simple property accessor mapping (e.g., 'item.item_name', 'item.id')
+        return items.map((item, index) => resolveArrayAccessor(mapTemplate, item, index, parentElement));
+      }
     } else if (typeof mapTemplate === 'object' && mapTemplate !== null) {
       // Object template mapping
       return items.map((item, index) => transformObject(mapTemplate, item, index, parentElement));

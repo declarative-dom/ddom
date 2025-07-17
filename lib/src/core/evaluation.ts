@@ -84,12 +84,12 @@ const traversePropertyPath = (path: string, obj: any): any => {
   // Handle optional chaining by splitting on both . and ?.
   // We need to preserve information about which splits were optional
   const parts: Array<{ name: string; isOptional: boolean }> = [];
-  
+
   // Split the path while preserving optional chaining information
   const segments = path.split(/(\?\.|\.)/);
   let currentName = '';
   let isOptional = false;
-  
+
   for (let i = 0; i < segments.length; i++) {
     const segment = segments[i];
     if (segment === '?.') {
@@ -111,13 +111,11 @@ const traversePropertyPath = (path: string, obj: any): any => {
       currentName += segment;
     }
   }
-  
+
   // Add the final part
   if (currentName) {
     parts.push({ name: currentName, isOptional });
-  }
-
-  return parts.reduce((current, { name: part, isOptional }, index) => {
+  }  return parts.reduce((current, { name: part, isOptional }, index) => {
     // If this is an optional access and current is null/undefined, return undefined
     if (isOptional && current == null) {
       return undefined;
@@ -127,14 +125,12 @@ const traversePropertyPath = (path: string, obj: any): any => {
     if (Object.hasOwn(current || obj, part)) {
       current = (current || obj)[part];
     } else {
-      // Only unwrap signals if we're NOT at the final part AND there are more properties to access
-      const isLastPart = index === parts.length - 1;
-      const needsUnwrapping = !isLastPart && current?.get && typeof current.get === 'function';
-      
-      if (needsUnwrapping) {
+      // Check if current is a signal that needs unwrapping
+      // We should unwrap signals when we need to access properties on their value
+      if (current?.get && typeof current.get === 'function') {
         current = current.get();
         // After unwrapping, if the value is null/undefined and next access is optional, return undefined
-        if (current == null && index < parts.length - 1 && parts[index + 1].isOptional) {
+        if (current == null && isOptional) {
           return undefined;
         }
       }
@@ -287,7 +283,6 @@ const evaluateFilter = (filter: any, context: any): boolean => {
     let leftValue;
     if (typeof filter.leftOperand === 'function') {
       // If left operand is a function, call it with context
-      console.debug('Evaluating filter function:', filter.leftOperand, context.item);
       leftValue = filter.leftOperand.call(context.item);
     } else {
       leftValue = getValue(getProperty(filter.leftOperand, context));
