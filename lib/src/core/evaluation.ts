@@ -374,22 +374,47 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
     return parts.join('');
   }
 
+  // Unary NOT operators: !expression or !!expression
+  // Handle this early so it works in ternary conditions, but not for ternary expressions themselves
+  const unaryMatch = expr.match(VALUE_PATTERNS.UNARY_NOT);
+  if (unaryMatch && !VALUE_PATTERNS.TERNARY.test(expr)) {
+    const [, operator, operand] = unaryMatch;
+    const trimmedOperand = operand.trim();
+    
+    // Resolve the operand value
+    let value;
+    if (isLiteral(trimmedOperand)) {
+      value = parseValue(trimmedOperand);
+    } else {
+      const resolved = getProperty(trimmedOperand, context);
+      value = getValue(resolved);
+    }
+    
+    // Apply the NOT operator(s)
+    if (operator === '!') {
+      return !value;
+    } else if (operator === '!!') {
+      return !!value;
+    }
+  }
+
   // Ternary: condition ? true : false
   if (VALUE_PATTERNS.TERNARY.test(expr)) {
     const ternaryMatch = expr.match(VALUE_PATTERNS.TERNARY);
     if (ternaryMatch) {
       const [, condition, truthy, falsy] = ternaryMatch;
 
-      // Evaluate condition: spaces = comparison, no spaces = truthiness
+      // Evaluate condition: use recursive evaluation to handle all expression types
       let conditionResult;
-      if (condition.trim().includes(' ')) {
-        conditionResult = compareValues(condition.trim(), context);
-        if (conditionResult === null) {
-          const resolved = getProperty(condition.trim(), context);
-          conditionResult = getValue(resolved);
-        }
+      const trimmedCondition = condition.trim();
+      
+      // Check if condition contains operators or unary NOT
+      if (trimmedCondition.includes(' ') || VALUE_PATTERNS.UNARY_NOT.test(trimmedCondition)) {
+        // Use recursive evaluation for complex conditions
+        conditionResult = evaluateTemplateExpression(trimmedCondition, context);
       } else {
-        const resolved = getProperty(condition.trim(), context);
+        // Simple property access
+        const resolved = getProperty(trimmedCondition, context);
         conditionResult = getValue(resolved);
       }
 

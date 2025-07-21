@@ -178,6 +178,16 @@ const VALUE_PATTERNS = {
   COMPARISON_OPS: /^(.+?)\s*(===|!==|>=|<=|==|!=|>|<|includes|startsWith|endsWith|&&|\|\|)\s*(.+)$/,
 
   /**
+   * Unary NOT operator pattern for expressions.
+   * Matches single (!) and double (!!) NOT operators at the start of expressions.
+   * @example
+   * VALUE_PATTERNS.UNARY_NOT.test('!value'); // true
+   * VALUE_PATTERNS.UNARY_NOT.test('!!value'); // true  
+   * VALUE_PATTERNS.UNARY_NOT.test('value'); // false
+   */
+  UNARY_NOT: /^(!{1,2})(.+)$/,
+
+  /**
    * Optional chaining detection pattern.
    * Detects question mark at the end of property parts (from ?.split).
    * @example

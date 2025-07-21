@@ -5,9 +5,11 @@ describe('Template NOT Operators', () => {
   beforeEach(() => {
     // Clean up any global variables
     if (typeof window !== 'undefined') {
-      delete window.$testValue;
-      delete window.$isActive;
-      delete window.$isEmpty;
+      Object.keys(window).forEach(key => {
+        if (key.startsWith('$') || key.startsWith('negative') || key.startsWith('boolean') || key.startsWith('complex')) {
+          delete window[key];
+        }
+      });
     }
   });
 
@@ -29,14 +31,14 @@ describe('Template NOT Operators', () => {
       negativeEmptyString: '${!this.$emptyString}', // should be 'true'
     };
 
-    const app = DDOM(spec);
+    DDOM(spec);
     
-    expect(app.negativeActive).toBe('false');
-    expect(app.negativeEmpty).toBe('true');
-    expect(app.negativeNull).toBe('true');
-    expect(app.negativeUndefined).toBe('true');
-    expect(app.negativeZero).toBe('true');
-    expect(app.negativeEmptyString).toBe('true');
+    expect(window.negativeActive).toBe('false');
+    expect(window.negativeEmpty).toBe('true');
+    expect(window.negativeNull).toBe('true');
+    expect(window.negativeUndefined).toBe('true');
+    expect(window.negativeZero).toBe('true');
+    expect(window.negativeEmptyString).toBe('true');
   });
 
   test('should support double NOT operator (!!) in templates', () => {
@@ -61,16 +63,16 @@ describe('Template NOT Operators', () => {
       booleanPositiveNumber: '${!!this.$positiveNumber}', // should be 'true'
     };
 
-    const app = DDOM(spec);
+    DDOM(spec);
     
-    expect(app.booleanActive).toBe('true');
-    expect(app.booleanEmpty).toBe('false');
-    expect(app.booleanNull).toBe('false');
-    expect(app.booleanUndefined).toBe('false');
-    expect(app.booleanZero).toBe('false');
-    expect(app.booleanEmptyString).toBe('false');
-    expect(app.booleanNonEmptyString).toBe('true');
-    expect(app.booleanPositiveNumber).toBe('true');
+    expect(window.booleanActive).toBe('true');
+    expect(window.booleanEmpty).toBe('false');
+    expect(window.booleanNull).toBe('false');
+    expect(window.booleanUndefined).toBe('false');
+    expect(window.booleanZero).toBe('false');
+    expect(window.booleanEmptyString).toBe('false');
+    expect(window.booleanNonEmptyString).toBe('true');
+    expect(window.booleanPositiveNumber).toBe('true');
   });
 
   test('should work with complex expressions including NOT operators', () => {
@@ -84,11 +86,11 @@ describe('Template NOT Operators', () => {
       complexExpression3: '${!this.$count ? "zero" : "non-zero"}',
     };
 
-    const app = DDOM(spec);
+    DDOM(spec);
     
-    expect(app.complexExpression1).toBe('active');
-    expect(app.complexExpression2).toBe('has items');
-    expect(app.complexExpression3).toBe('non-zero');
+    expect(window.complexExpression1).toBe('active');
+    expect(window.complexExpression2).toBe('has items');
+    expect(window.complexExpression3).toBe('non-zero');
   });
 
   test('should work with NOT operators in DOM elements', () => {
@@ -106,8 +108,8 @@ describe('Template NOT Operators', () => {
     };
 
     expect(() => DDOM(spec)).not.toThrow();
-    const app = DDOM(spec);
-    const divElement = app.document.body.children[0];
+    DDOM(spec);
+    const divElement = document.body.children[0];
     
     expect(divElement.textContent).toBe('true');
     expect(divElement.className).toBe('visible');
