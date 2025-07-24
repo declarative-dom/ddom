@@ -15,6 +15,7 @@ import { createArrayNamespace, type ArrayConfig } from './array';
 import { createRequestNamespace, type RequestConfig } from './request';
 import { createFormDataNamespace, type FormDataConfig } from './form-data';
 import { createURLSearchParamsNamespace, type URLSearchParamsConfig } from './url-search-params';
+import { createURLNamespace, type URLConfig } from './url';
 import { createBlobNamespace, type BlobConfig } from './blob';
 import { createArrayBufferNamespace, type ArrayBufferConfig } from './array-buffer';
 import { createReadableStreamNamespace, type ReadableStreamConfig } from './readable-stream';
@@ -73,6 +74,7 @@ const NAMESPACE_REGISTRY: Record<string, NamespaceEntry> = {
   'Request': { handler: createRequestNamespace, validator: typia.createIs<RequestConfig>() },
   'FormData': { handler: createFormDataNamespace, validator: typia.createIs<FormDataConfig>() },
   'URLSearchParams': { handler: createURLSearchParamsNamespace, validator: typia.createIs<URLSearchParamsConfig>() },
+  'URL': { handler: createURLNamespace, validator: typia.createIs<URLConfig>() },
   'Blob': { handler: createBlobNamespace, validator: typia.createIs<BlobConfig>() },
   'ArrayBuffer': { handler: createArrayBufferNamespace, validator: typia.createIs<ArrayBufferConfig>() },
   'ReadableStream': { handler: createReadableStreamNamespace, validator: typia.createIs<ReadableStreamConfig>() },
@@ -149,26 +151,41 @@ export function resolveConfig(config: any, contextNode: any): { value: any; isVa
 
   for (const key of Object.keys(processed)) {
     const value = processed[key];
+    let resolvedValue: any;
 
     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-      // Recursively process nested objects (like headers)
-      const nestedResult = resolveConfig(value, contextNode);
-      if (!nestedResult.isValid) return { value: null, isValid: false };
-      processed[key] = nestedResult.value;
+      // Check if this is a namespace object (has prototype property)
+      if (value.prototype && NAMESPACE_REGISTRY[value.prototype]) {
+        // Process the namespace and get its resolved value
+        const namespaceResult = processNamespacedProperty(key, value, contextNode);
+        if (!namespaceResult) {
+          return { value: null, isValid: false };
+        }
+        resolvedValue = namespaceResult;
+      } else {
+        // Recursively process nested objects (like headers)
+        const nestedResult = resolveConfig(value, contextNode);
+        if (!nestedResult.isValid) return { value: null, isValid: false };
+        resolvedValue = nestedResult.value;
+      }
     } else {
       // Use the unified property resolution from properties.ts
       const processedProp = processProperty(key, value, contextNode);
       if (!processedProp.isValid) return { value: null, isValid: false };
-
-      // For templates and computed values, we need the unwrapped value for configs
-      let resolvedValue = processedProp.value;
-      if (resolvedValue?.get && typeof resolvedValue.get === 'function') {
-        resolvedValue = resolvedValue.get();
-        if (!resolvedValue) return { value: null, isValid: false };
-      }
-
-      processed[key] = resolvedValue;
+      resolvedValue = processedProp.value;
     }
+
+    // Unwrap signals and computed values
+    if (resolvedValue?.get && typeof resolvedValue.get === 'function') {
+      resolvedValue = resolvedValue.get();
+    }
+
+    // Only invalidate on null or undefined - allow explicit falsy values like '', false, 0
+    if (resolvedValue === null || resolvedValue === undefined) {
+      return { value: null, isValid: false };
+    }
+
+    processed[key] = resolvedValue;
   }
 
   return { value: processed, isValid: true };

@@ -15,7 +15,7 @@ import { PrototypeConfig } from './types';
  */
 export interface RequestConfig extends PrototypeConfig, RequestInit {
   prototype: 'Request';
-  url: string;
+  url: string | { prototype: 'URL'; base: string; searchParams?: Record<string, any> };
   manual?: boolean;
   debounce?: number;
   responseType?: XMLHttpRequestResponseType;
@@ -145,8 +145,13 @@ async function executeRequest(
 /**
  * Performs an HTTP fetch with DDOM-specific handling
  */
-export async function performFetch(config: RequestConfig): Promise<any> {
-  const { url, responseType = 'json', body, headers = {}, ...fetchOptions } = config;
+export async function performFetch(config: any): Promise<any> {
+  let { url, responseType = 'json', body, headers = {}, ...fetchOptions } = config;
+  
+  // Resolve URL if it's a string (should already be resolved by resolveConfig)
+  if (typeof url !== 'string') {
+    throw new Error('URL must be resolved to a string before calling performFetch');
+  }
   
   // Process the request body and headers
   let processedBody = body;

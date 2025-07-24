@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import DDOM, { createElement, createReactiveProperty, resolvePropertyAccessor, Signal } from '../lib/dist/index.js';
+import DDOM, { createElement, processProperty, getProperty, Signal } from '../lib/dist/index.js';
 
 describe('DDOM Core Functionality', () => {
   beforeEach(() => {
@@ -16,10 +16,10 @@ describe('DDOM Core Functionality', () => {
       expect(typeof DDOM).toBe('function');
       expect(createElement).toBeDefined();
       expect(typeof createElement).toBe('function');
-      expect(createReactiveProperty).toBeDefined();
-      expect(typeof createReactiveProperty).toBe('function');
-      expect(resolvePropertyAccessor).toBeDefined();
-      expect(typeof resolvePropertyAccessor).toBe('function');
+      expect(processProperty).toBeDefined();
+      expect(typeof processProperty).toBe('function');
+      expect(getProperty).toBeDefined();
+      expect(typeof getProperty).toBe('function');
       expect(Signal).toBeDefined();
       expect(Signal.State).toBeDefined();
       expect(typeof Signal.State).toBe('function');
@@ -132,8 +132,8 @@ describe('DDOM Core Functionality', () => {
       // Set up test data
       window.testData = new Signal.State(['Item 1', 'Item 2', 'Item 3']);
       
-      // Test resolvePropertyAccessor function
-      const resolved = resolvePropertyAccessor('window.testData', window);
+      // Test getProperty function
+      const resolved = getProperty('window.testData', window);
       expect(resolved).toBeDefined();
       
       if (resolved && typeof resolved === 'object' && 'get' in resolved) {
@@ -148,7 +148,7 @@ describe('DDOM Core Functionality', () => {
       const testObj = { nested: { value: new Signal.State('nested test') } };
       window.testObj = testObj;
       
-      const nestedResolved = resolvePropertyAccessor('window.testObj.nested.value', window);
+      const nestedResolved = getProperty('window.testObj.nested.value', window);
       expect(nestedResolved).toBeDefined();
     });
   });
