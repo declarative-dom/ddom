@@ -62,7 +62,7 @@ const getProperty = (path: string, context: any, fallback: any = null): any => {
       return path ?? fallback; // Only return path for non-accessor strings
     }
   } catch (error) {
-    console.warn('Accessor expression resolution failed:', path, error);
+    console.warn('Accessor resolution failed:', path, error);
     return fallback;
   }
 };
@@ -81,91 +81,51 @@ const getProperty = (path: string, context: any, fallback: any = null): any => {
  * traversePropertyPath('this.$currentCoords()?.lat', obj); // Mixed optional chaining
  */
 const traversePropertyPath = (path: string, obj: any): any => {
-  // Handle optional chaining by splitting on both . and ?.
-  // We need to preserve information about which splits were optional
-  const parts: Array<{ name: string; isOptional: boolean }> = [];
-
-  // Split the path while preserving optional chaining information
-  const segments = path.split(/(\?\.|\.)/);
-  let currentName = '';
-  let isOptional = false;
-
-  for (let i = 0; i < segments.length; i++) {
-    const segment = segments[i];
-    if (segment === '?.') {
-      // Next part is optional
-      if (currentName) {
-        parts.push({ name: currentName, isOptional });
-        currentName = '';
-      }
-      isOptional = true;
-    } else if (segment === '.') {
-      // Next part is required
-      if (currentName) {
-        parts.push({ name: currentName, isOptional });
-        currentName = '';
-      }
-      isOptional = false;
-    } else if (segment) {
-      // Accumulate the property name
-      currentName += segment;
+  // Parse path segments with optional chaining information
+  const parts = path.split(/(\?\.|\.)/).reduce((acc, seg) => {
+    if (seg === '?.' || seg === '.') {
+      acc.optional = seg === '?.';
+    } else if (seg) {
+      acc.result.push({ name: seg, isOptional: acc.optional });
+      acc.optional = false;
     }
-  }
-
-  // Add the final part
-  if (currentName) {
-    parts.push({ name: currentName, isOptional });
-  }  return parts.reduce((current, { name: part, isOptional }, index) => {
+    return acc;
+  }, { result: [] as Array<{ name: string; isOptional: boolean }>, optional: false }).result;  return parts.reduce((current, { name: part, isOptional }) => {
     // If this is an optional access and current is null/undefined, return undefined
     if (isOptional && current == null) {
       return undefined;
     }
 
-    // If the property exists in the current context, use it directly
-    if (Object.hasOwn(current || obj, part)) {
-      current = (current || obj)[part];
-    } else {
-      // Check if current is a signal that needs unwrapping
-      // We should unwrap signals when we need to access properties on their value
-      if (current?.get && typeof current.get === 'function') {
-        current = current.get();
-        // After unwrapping, if the value is null/undefined and next access is optional, return undefined
-        if (current == null && isOptional) {
-          return undefined;
-        }
-      }
+    // Helper function to unwrap signals when needed
+    const unwrap = (val: any) => 
+      val?.get && typeof val.get === 'function' ? val.get() : val;
 
-      // After unwrapping, check if we can continue
-      if (current == null) {
-        // If it's optional chaining, return undefined; otherwise return null/undefined
-        return isOptional ? undefined : current;
-      }
+    // Use unwrapped current or fallback to obj
+    current = unwrap(current) ?? obj;
+    if (current == null && isOptional) return undefined;
 
-      // Handle array access with property: item[1]
-      const arrayMatch = part.match(VALUE_PATTERNS.ARRAY_ACCESS);
-      if (arrayMatch) {
-        const [, baseName, indexStr] = arrayMatch;
-        const base = current[baseName];
-        return base ? base[parseInt(indexStr)] : undefined;
-      }
-
-      // Handle function call: method()
-      const funcMatch = part.match(VALUE_PATTERNS.FUNCTION_PARSE);
-      if (funcMatch) {
-        const [, name, argsStr] = funcMatch;
-        const func = current[name];
-        if (typeof func === 'function') {
-          const args = parseArgs(argsStr, current);
-          return func.call(current, ...args);
-        }
-        return undefined;
-      }
-
-      // Simple property access
-      current = current[part];
+    // Handle array access with property: item[1]
+    const arrayMatch = part.match(VALUE_PATTERNS.ARRAY_ACCESS);
+    if (arrayMatch) {
+      const [, baseName, indexStr] = arrayMatch;
+      const base = current[baseName];
+      return base ? base[parseInt(indexStr)] : undefined;
     }
 
-    return current;
+    // Handle function call: method()
+    const funcMatch = part.match(VALUE_PATTERNS.FUNCTION_PARSE);
+    if (funcMatch) {
+      const [, name, argsStr] = funcMatch;
+      const func = current[name];
+      if (typeof func === 'function') {
+        const args = parseArgs(argsStr, current);
+        return func.call(current, ...args);
+      }
+      return undefined;
+    }
+
+    // Simple property access
+    return current[part];
   }, obj);
 };
 
@@ -210,11 +170,7 @@ const parseValue = (str: string): any => {
   const trimmed = str.trim();
   if (VALUE_PATTERNS.LITERAL_STRING.test(trimmed)) return trimmed.slice(1, -1);
   if (VALUE_PATTERNS.LITERAL_NUMBER.test(trimmed)) return Number(trimmed);
-  if (trimmed === 'true') return true;
-  if (trimmed === 'false') return false;
-  if (trimmed === 'null') return null;
-  if (trimmed === 'undefined') return undefined;
-  return trimmed;
+  return { 'true': true, 'false': false, 'null': null, 'undefined': undefined }[trimmed] ?? trimmed;
 };
 
 /**
@@ -255,12 +211,15 @@ const callFunction = (expr: string, context: any): any => {
     return globals[funcPath](...unwrappedArgs);
   }
 
-  // Context method calls - resolve object path and call method
-  const obj = getProperty(funcPath.split('.').slice(0, -1).join('.'), context) || context;
-  const methodName = funcPath.split('.').pop()!;
-  const method = obj?.[methodName];
+  // Context method calls - cleaner resolution using reduce
+  const pathParts = funcPath.split('.');
+  const methodName = pathParts.pop()!;
+  const targetPath = pathParts.join('.');
+  
+  const target = targetPath ? getProperty(targetPath, context) : context;
+  const method = target?.[methodName];
 
-  return typeof method === 'function' ? method.call(obj, ...args) : null;
+  return typeof method === 'function' ? method.call(target, ...args) : null;
 };
 
 
@@ -310,7 +269,7 @@ const evaluateFilter = (filter: any, context: any): boolean => {
         return true; // Don't filter out on unknown operators
     }
   } catch (error) {
-    console.warn('Filter evaluation failed:', error, filter);
+    console.warn('Filter eval error:', error, filter);
     return true; // Don't filter out on errors
   }
 };
@@ -356,6 +315,12 @@ const compareValues = (expr: string, context: any): boolean | null => {
  * @returns {any} The evaluated result with signals unwrapped
  */
 const evaluateTemplateExpression = (expr: string, context: any): any => {
+  // Helper function to resolve and unwrap values
+  const resolve = (path: string) => {
+    const resolved = getProperty(path, context);
+    return getValue(resolved);
+  };
+
   // String concatenation: operand + operand (simple case)
   if (expr.includes(' + ') && !expr.includes('?')) {
     const parts = expr.split(' + ').map(part => {
@@ -368,8 +333,7 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
         return getValue(result);
       }
       // Resolve and unwrap automatically
-      const resolved = getProperty(trimmed, context);
-      return getValue(resolved);
+      return resolve(trimmed);
     });
     return parts.join('');
   }
@@ -403,8 +367,7 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
         return evaluateTemplateExpression(resultPath, context);
       } else {
         // Simple property access
-        const resolved = getProperty(resultPath, context);
-        return getValue(resolved);
+        return resolve(resultPath);
       }
     }
   }
@@ -413,10 +376,7 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
   if (expr.includes(' || ')) {
     for (const part of expr.split(' || ')) {
       const trimmed = part.trim();
-      const value = isLiteral(trimmed) ? parseValue(trimmed) : (() => {
-        const resolved = getProperty(trimmed, context);
-        return getValue(resolved);
-      })();
+      const value = isLiteral(trimmed) ? parseValue(trimmed) : resolve(trimmed);
       if (value) return value;
     }
     return undefined;
@@ -427,10 +387,7 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
     let result = true;
     for (const part of expr.split(' && ')) {
       const trimmed = part.trim();
-      const value = isLiteral(trimmed) ? parseValue(trimmed) : (() => {
-        const resolved = getProperty(trimmed, context);
-        return getValue(resolved);
-      })();
+      const value = isLiteral(trimmed) ? parseValue(trimmed) : resolve(trimmed);
       result = result && value;
       if (!result) return false;
     }
@@ -448,8 +405,7 @@ const evaluateTemplateExpression = (expr: string, context: any): any => {
   }
 
   // Simple property access - resolve and unwrap
-  const resolved = getProperty(expr, context);
-  return getValue(resolved);
+  return resolve(expr);
 };
 
 
@@ -475,7 +431,7 @@ const resolveTemplate = (template: string, context: any): string =>
       // This allows resolveConfig to detect unresolved templates
       return result !== undefined ? String(result) : match;
     } catch (error) {
-      console.warn('Template evaluation failed:', error);
+      console.warn('Template eval error:', error);
       return match;
     }
   });
