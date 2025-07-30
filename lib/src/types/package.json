@@ -1,6 +1,6 @@
 {
 	"name": "@declarative-dom/types",
-	"version": "0.5.1",
+	"version": "0.6.0",
 	"description": "TypeScript type definitions for Declarative DOM",
 	"author": "Declarative DOM Working Group",
 	"license": "MIT",
