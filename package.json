@@ -33,8 +33,8 @@
 		"@vitest/ui": "^3.2.4",
 		"jsdom": "^26.1.0",
 		"node-fetch": "^3.3.2",
-		"oxlint": "^1.6.0",
-		"release-it": "^19.0.3",
+		"oxlint": "^1.9.0",
+		"release-it": "^19.0.4",
 		"vitest": "^3.2.4"
 	},
 	"release-it": {

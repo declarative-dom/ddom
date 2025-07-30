@@ -11,6 +11,6 @@
 	"upgrade": "npx npm-check-updates -u && npm install"
   },
   "devDependencies": {
-    "vite": "^7.0.4"
+    "vite": "^7.0.6"
   }
 }
