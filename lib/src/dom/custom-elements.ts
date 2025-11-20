@@ -145,7 +145,9 @@ export function define(elements: CustomElementSpec[]) {
 				}
 
 				#initializeDOM() {
-					// Capture light DOM children for slot distribution before clearing
+					// Capture light DOM children for slot distribution before clearing.
+					// These children will be distributed to <slot> elements in the template
+					// after the template is rendered, enabling content composition.
 					const lightDOMChildren: Node[] = [];
 					if (this.#container !== this) {
 						// For shadow DOM, capture children from the host element (this)

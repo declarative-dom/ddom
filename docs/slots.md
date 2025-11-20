@@ -200,7 +200,7 @@ DDOM({
     body: {
       children: [
         {
-          tagName: 'button-component'
+          tagName: 'button-component',
           // No children provided
         }
       ]
@@ -293,7 +293,7 @@ DDOM({
 // Less helpful
 {
   tagName: 'slot',
-  attributes: { name: 'avatar' }
+  attributes: { name: 'avatar' },
   // No fallback
 }
 ```
