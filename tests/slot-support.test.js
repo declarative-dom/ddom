@@ -7,7 +7,7 @@ describe('Slot Support in Custom Elements', () => {
     document.body.innerHTML = '';
   });
 
-  test('should support default slot in custom element template', () => {
+  test('should support default slot in custom element template', async () => {
     // Define a custom element with a default slot
     DDOM({
       customElements: [{
@@ -56,6 +56,8 @@ describe('Slot Support in Custom Elements', () => {
     });
 
     // Wait for custom element to be initialized
+    await new Promise(resolve => setTimeout(resolve, 10));
+
     const card = document.querySelector('card-component');
     expect(card).toBeTruthy();
 
@@ -65,7 +67,7 @@ describe('Slot Support in Custom Elements', () => {
     expect(slottedParagraph.textContent).toBe('This is slotted content');
   });
 
-  test('should support named slots in custom element template', () => {
+  test('should support named slots in custom element template', async () => {
     // Define a custom element with named slots
     DDOM({
       customElements: [{
@@ -130,6 +132,9 @@ describe('Slot Support in Custom Elements', () => {
       }
     });
 
+    // Wait for custom element to be initialized
+    await new Promise(resolve => setTimeout(resolve, 10));
+
     const panel = document.querySelector('panel-component');
     expect(panel).toBeTruthy();
 
@@ -143,7 +148,7 @@ describe('Slot Support in Custom Elements', () => {
     expect(defaultSlot).toBeTruthy();
   });
 
-  test('should show fallback content when no slotted content provided', () => {
+  test('should show fallback content when no slotted content provided', async () => {
     // Define a custom element with fallback content in slot
     DDOM({
       customElements: [{
@@ -180,6 +185,9 @@ describe('Slot Support in Custom Elements', () => {
       }
     });
 
+    // Wait for custom element to be initialized
+    await new Promise(resolve => setTimeout(resolve, 10));
+
     const buttonComponent = document.querySelector('button-component');
     expect(buttonComponent).toBeTruthy();
 
@@ -192,7 +200,7 @@ describe('Slot Support in Custom Elements', () => {
     expect(fallbackSpan.textContent).toBe('Default Button Text');
   });
 
-  test('should replace fallback content when slotted content is provided', () => {
+  test('should replace fallback content when slotted content is provided', async () => {
     // Define a custom element with fallback content
     DDOM({
       customElements: [{
@@ -234,6 +242,9 @@ describe('Slot Support in Custom Elements', () => {
         }
       }
     });
+
+    // Wait for custom element to be initialized
+    await new Promise(resolve => setTimeout(resolve, 10));
 
     const greeting = document.querySelector('greeting-component');
     expect(greeting).toBeTruthy();
