@@ -1,5 +1,9 @@
 // Setup file for Vitest tests
 import { beforeEach, vi } from 'vitest';
+import indexedDB from 'fake-indexeddb';
+
+// Set up fake-indexeddb for jsdom environment
+globalThis.indexedDB = indexedDB;
 
 // Set up storage mocks globally before any modules load
 const createMockStorage = () => ({

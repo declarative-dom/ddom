@@ -55,7 +55,7 @@ export const createIndexedDBNamespace = (
   _element: any
 ): Signal.State<IndexedDBStoreFactory | null> => {
   // Check if IndexedDB is available
-  if (typeof indexedDB === 'undefined') {
+  if (typeof globalThis.indexedDB === 'undefined') {
     console.warn(`IndexedDB not available for ${key}`);
     return new Signal.State<IndexedDBStoreFactory | null>(null);
   }
@@ -143,7 +143,13 @@ async function initializeDatabase(config: IndexedDBConfig, key: string): Promise
  */
 async function openDatabase(dbName: string, version: number, config: IndexedDBConfig): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(dbName, version);
+    const request = globalThis.indexedDB.open(dbName, version);
+    
+    // Guard against undefined request (can happen in some test environments)
+    if (!request) {
+      reject(new Error('IndexedDB.open() returned undefined - IndexedDB may not be properly initialized'));
+      return;
+    }
     
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);

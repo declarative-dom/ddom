@@ -27,12 +27,21 @@ describe('Namespaced Properties - URL Namespace', () => {
 		});
 
 		test('should handle invalid URL namespaced properties gracefully', () => {
+			// Suppress expected warning for invalid config
+			const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+			
 			// Missing base URL should result in null signal
 			const element1 = createElement({
 				tagName: 'div',
 				$invalidUrl: { prototype: 'URL' } // Missing base
 			});
 			expect(element1.$invalidUrl).toBeNull(); // Should return null for invalid config
+			
+			// Verify warning was logged
+			expect(consoleWarnSpy).toHaveBeenCalled();
+			
+			// Restore console.warn
+			consoleWarnSpy.mockRestore();
 		});
 
 		test('should validate URL prototype-based namespace structure', () => {
@@ -80,6 +89,9 @@ describe('Namespaced Properties - URL Namespace', () => {
 		});
 
 		test('should handle invalid base URLs gracefully', () => {
+			// Suppress expected warning for invalid URL
+			const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+			
 			const element = createElement({
 				tagName: 'div',
 				$invalidUrl: {
@@ -90,6 +102,15 @@ describe('Namespaced Properties - URL Namespace', () => {
 
 			const url = element.$invalidUrl.get();
 			expect(url).toBe(''); // Should return empty string for invalid URLs
+			
+			// Verify warning was logged
+			expect(consoleWarnSpy).toHaveBeenCalledWith(
+				'URL construction failed:',
+				expect.any(Error)
+			);
+			
+			// Restore console.warn
+			consoleWarnSpy.mockRestore();
 		});
 	});
 

@@ -145,14 +145,6 @@ describe('Reactive Property Injection', () => {
           $userName: 'Carol',
           $userRole: 'Admin',
           displayText: function () {
-            console.log('Custom element getter - this:', this);
-            console.log('Custom element $userName:', this.$userName.get());
-            console.log(
-              'Global $userName:',
-              typeof globalThis !== 'undefined'
-                ? globalThis.$userName
-                : 'undefined'
-            );
             return `${$userName.get()} - ${$userRole.get()}`;
           },
         },
@@ -171,18 +163,13 @@ describe('Reactive Property Injection', () => {
 
     DDOM(spec);
 
+    vi.runAllTicks(); // Flush microtasks (including reactive effects)
+
     const element = document.getElementById('debug-custom-element');
-    console.log('Element:', element);
-    console.log(
-      'Element $userName:',
-      element ? element.$userName : 'element is null'
-    );
-    console.log(
-      'Element displayText:',
-      element && 'displayText' in element ? element.displayText : 'undefined'
-    );
 
     expect(element).toBeDefined();
+    expect(element.$userName).toBeDefined();
+    expect(element.displayText).toBeDefined();
   });
 
   test('should work with custom elements', () => {

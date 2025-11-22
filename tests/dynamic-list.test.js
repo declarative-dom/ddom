@@ -145,6 +145,7 @@ describe('Dynamic List Example', () => {
     const containerSpec = {
       tagName: 'dynamic-list-items',
       children: {
+        prototype: 'Array',
         items: ['Apple', 'Banana', 'Cherry'],
         map: {
           tagName: 'dynamic-list-item',

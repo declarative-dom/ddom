@@ -72,6 +72,9 @@ describe('Namespaced Properties - Storage APIs', () => {
     });
 
     test('should handle invalid namespace configurations gracefully', () => {
+      // Suppress expected warnings for invalid configs
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      
       // Invalid prototype should result in no signal being created
       const element1 = createElement({
         tagName: 'div',
@@ -86,6 +89,12 @@ describe('Namespaced Properties - Storage APIs', () => {
       });
       expect(element2.$invalid2).toBeDefined();
       expect(element2.$invalid2).toBeNull(); // Cookie namespace returns null for invalid config
+      
+      // Verify warnings were logged
+      expect(consoleWarnSpy).toHaveBeenCalled();
+      
+      // Restore console.warn
+      consoleWarnSpy.mockRestore();
     });
 
     test('should validate prototype-based namespace structure', () => {
@@ -200,6 +209,9 @@ describe('Namespaced Properties - Storage APIs', () => {
       // Store a plain string (not JSON)
       globalThis.sessionStorage.setItem('simpleKey', 'simpleValue');
       
+      // Suppress expected deserialization error for this test
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      
       const element = createElement({
         tagName: 'div',
         $simpleData: {
@@ -213,6 +225,15 @@ describe('Namespaced Properties - Storage APIs', () => {
       // This is the current behavior when a non-JSON string is encountered
       const value = element.$simpleData.get();
       expect(value).toEqual({});
+      
+      // Verify error was logged (even though we suppressed it)
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Deserialization error:',
+        expect.any(Error)
+      );
+      
+      // Restore console.error
+      consoleErrorSpy.mockRestore();
     });
 
     test('should automatically serialize objects when signal changes', async () => {
@@ -320,49 +341,70 @@ describe('Namespaced Properties - Storage APIs', () => {
   });
 
   describe('IndexedDB Namespace', () => {
-    test('should create an IndexedDB signal object', () => {
-      // Mock IndexedDB for this test
-      const mockIndexedDB = {
-        open: vi.fn()
-      };
-      Object.defineProperty(window, 'indexedDB', {
-        value: mockIndexedDB,
-        writable: true
-      });
-
+    test('should create an IndexedDB signal object', async () => {
       const element = createElement({
         tagName: 'div',
         $dbData: {
           prototype: 'IndexedDB',
           database: 'testDB',
           store: 'users',
-          key: 'user1',
-          value: [{ name: 'John', email: 'john@example.com' }]
+          keyPath: 'id',
+          autoIncrement: true,
+          value: [
+            { id: 1, name: 'John', email: 'john@example.com' },
+            { id: 2, name: 'Jane', email: 'jane@example.com' }
+          ]
         }
       });
 
       expect(element.$dbData).toBeDefined();
       expect(Signal.isState(element.$dbData)).toBe(true);
 
-      // IndexedDB namespace creates a signal that holds the factory object
-      // The actual database operations are async and handled via the factory
+      // Wait for IndexedDB initialization
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // The signal should contain the factory object
+      const factory = element.$dbData.get();
+      expect(factory).toBeDefined();
+      expect(factory).not.toBeNull();
+      
+      if (factory) {
+        expect(factory.database).toBe('testDB');
+        expect(factory.store).toBe('users');
+        expect(factory.getStore).toBeDefined();
+        expect(typeof factory.getStore).toBe('function');
+      }
     });
 
-    test('should handle missing IndexedDB gracefully', () => {
-      // IndexedDB is undefined in test environment anyway, so just test that behavior
+    test('should handle IndexedDB operations with the factory', async () => {
       const element = createElement({
         tagName: 'div',
         $dbData: {
           prototype: 'IndexedDB',
-          database: 'testDB',
-          store: 'users'
+          database: 'testDB2',
+          store: 'products',
+          keyPath: 'id',
+          value: [
+            { id: 1, name: 'Product A', price: 10 },
+            { id: 2, name: 'Product B', price: 20 }
+          ]
         }
       });
 
-      // Should still create a signal, but with null value due to missing IndexedDB
       expect(element.$dbData).toBeDefined();
-      expect(Signal.isState(element.$dbData)).toBe(true);
-      expect(element.$dbData.get()).toBeNull();
+      
+      // Wait for IndexedDB initialization
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const factory = element.$dbData.get();
+      expect(factory).not.toBeNull();
+      
+      if (factory) {
+        // Test that we can get a store
+        const store = await factory.getStore('readonly');
+        expect(store).toBeDefined();
+        expect(store.name).toBe('products');
+      }
     });
   });
 

@@ -223,21 +223,47 @@ describe('Reactive Custom Elements Example', () => {
   });
 
   test('should support dynamic array binding in custom elements', () => {
-    const arrayBindingSpec = {
-      tagName: 'todo-list',
-      id: 'todo-list',
-      $items: 'this.parentNode.$todos',
-      children: {
+    // First create a parent with $todos
+    const spec = {
+      $todos: [
+        { text: 'Task 1', completed: false },
+        { text: 'Task 2', completed: true }
+      ],
+      
+      customElements: [{
         tagName: 'todo-item',
-        $item: (item) => item,
-        $index: (item, index) => index
+        $item: {},
+        $index: 0,
+        textContent: '${this.$item.text}'
+      }],
+      
+      document: {
+        body: {
+          children: [{
+            tagName: 'todo-list',
+            id: 'todo-list',
+            $items: 'window.$todos',
+            children: {
+              prototype: 'Array',
+              items: 'this.$items',
+              map: {
+                tagName: 'todo-item',
+                $item: 'item',
+                $index: 'index'
+              }
+            }
+          }]
+        }
       }
     };
 
-    // Test that the array binding element can be created
-    const todoList = createElement(arrayBindingSpec);
+    // Create the structure
+    DDOM(spec);
+    
+    // Test that the todo list element was created
+    const todoList = document.getElementById('todo-list');
     expect(todoList).toBeDefined();
     expect(todoList.tagName.toLowerCase()).toBe('todo-list');
-    expect(todoList.id).toBe('todo-list');
+    expect(todoList.$items).toBeDefined();
   });
 });

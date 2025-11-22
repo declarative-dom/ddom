@@ -362,6 +362,9 @@ describe('Array Namespace', () => {
         // Missing the expected property, so resolution will fail
       };
 
+      // Suppress expected warning for this test
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
       expect(() => {
         const arrayNamespace = createArrayNamespace({
           prototype: 'Array',
@@ -371,6 +374,15 @@ describe('Array Namespace', () => {
         // Try to get the result - this should trigger the error
         arrayNamespace.get();
       }).not.toThrow(); // Should not throw, but should warn and return empty array
+      
+      // Verify warning was logged
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'ArrayNamespace: Source signal does not contain an array:',
+        expect.anything()
+      );
+      
+      // Restore console.warn
+      consoleWarnSpy.mockRestore();
     });
 
     it('should handle function references that return non-arrays', () => {
@@ -380,6 +392,9 @@ describe('Array Namespace', () => {
         }
       };
 
+      // Suppress expected warning for this test
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
       const arrayNamespace = createArrayNamespace({
         prototype: 'Array',
         items: 'this.$badFunction'
@@ -388,6 +403,15 @@ describe('Array Namespace', () => {
       // Should return empty array and warn
       const result = arrayNamespace.get();
       expect(result).toEqual([]);
+      
+      // Verify warning was logged
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'ArrayNamespace: Source signal does not contain an array:',
+        expect.anything()
+      );
+      
+      // Restore console.warn
+      consoleWarnSpy.mockRestore();
     });
   });
 

@@ -48,6 +48,9 @@ describe('Namespaced Properties - Request Namespace', () => {
     });
 
     test('should handle invalid namespaced properties gracefully', () => {
+      // Suppress expected warnings for invalid configs
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      
       // Invalid prototype should result in no signal being created
       const element1 = createElement({
         tagName: 'div',
@@ -62,6 +65,12 @@ describe('Namespaced Properties - Request Namespace', () => {
       });
       expect(element2.$incomplete).toBeDefined();
       expect(element2.$incomplete).toBeNull(); // Request namespace returns null for invalid config
+      
+      // Verify warnings were logged
+      expect(consoleWarnSpy).toHaveBeenCalled();
+      
+      // Restore console.warn
+      consoleWarnSpy.mockRestore();
     });
 
     test('should validate prototype-based namespace structure', () => {

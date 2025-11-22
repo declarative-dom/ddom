@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import DDOM from '../lib/dist/index.js';
 
 describe('Reactive Property Debug', () => {
@@ -9,6 +9,13 @@ describe('Reactive Property Debug', () => {
         delete window[key];
       }
     });
+    // Use fake timers to control microtask execution
+    vi.useFakeTimers({ toFake: ['nextTick', 'queueMicrotask'] });
+  });
+
+  afterEach(() => {
+    // Clean up fake timers after each test
+    vi.useRealTimers();
   });
 
   test('should create scope properties as signals', () => {
@@ -18,17 +25,10 @@ describe('Reactive Property Debug', () => {
 
     DDOM(spec);
     
-    console.log('window.$testValue:', window.$testValue);
-    console.log('typeof window.$testValue:', typeof window.$testValue);
-    
-    if (window.$testValue && typeof window.$testValue === 'object') {
-      console.log('Has get method:', 'get' in window.$testValue);
-      if ('get' in window.$testValue) {
-        console.log('Value from get():', window.$testValue.get());
-      }
-    }
-    
     expect(window.$testValue).toBeDefined();
+    expect(typeof window.$testValue).toBe('object');
+    expect('get' in window.$testValue).toBe(true);
+    expect(window.$testValue.get()).toBe('hello world');
   });
 
   test('debug function injection', () => {
@@ -42,14 +42,9 @@ describe('Reactive Property Debug', () => {
             tagName: 'button',
             id: 'debug-function',
             onclick: function() {
-              console.log('Function called with $userName:', $userName);
-              console.log('$userName type:', typeof $userName);
               if ($userName && 'get' in $userName) {
-                console.log('$userName.get():', $userName.get());
                 const result = 'Signal value: ' + $userName.get();
-                console.log('Setting clickedName to:', result);
                 clickedName = result;
-                console.log('clickedName after assignment:', clickedName);
               } else {
                 clickedName = 'Direct value: ' + $userName;
               }
@@ -64,11 +59,11 @@ describe('Reactive Property Debug', () => {
     const button = document.getElementById('debug-function');
     button.click();
     
-    console.log('Final clickedName:', clickedName);
     expect(clickedName).toBeDefined();
+    expect(clickedName).toBe('Signal value: Bob');
   });
 
-  test('debug template function call', () => {
+  test('should support custom function properties', () => {
     const spec = {
       $name: 'Alice',
       document: {
@@ -76,10 +71,9 @@ describe('Reactive Property Debug', () => {
           children: [{
             tagName: 'div',
             id: 'debug-test',
-            textContent: function () {
-              console.log('Getter called with this:', this);
-              console.log('Getter $name:', this.$name);
-              return 'Hello from getter!';
+            // Custom function property (not a DOM property)
+            getGreeting: function () {
+              return `Hello ${this.$name.get()} from getter!`;
             }
           }]
         }
@@ -88,10 +82,14 @@ describe('Reactive Property Debug', () => {
 
     DDOM(spec);
     
+    vi.runAllTicks(); // Flush microtasks (including reactive effects)
+    
     const element = document.getElementById('debug-test');
-    console.log('Element textContent from getter:', element.textContent);
     
     expect(element).toBeDefined();
+    expect(element.getGreeting).toBeDefined();
+    expect(typeof element.getGreeting).toBe('function');
+    expect(element.getGreeting()).toBe('Hello Alice from getter!');
   });
 
   test('debug simple template literal', () => {
@@ -109,6 +107,8 @@ describe('Reactive Property Debug', () => {
     };
 
     DDOM(spec);
+    
+    vi.runAllTicks(); // Flush microtasks (including reactive effects)
     
     const element = document.getElementById('debug-test');
     
