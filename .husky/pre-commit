@@ -1,0 +1,16 @@
+#!/bin/sh
+echo "Running pre-commit hooks..."
+
+# Run linting
+echo "1. Running linter..."
+npm run lint || exit 1
+
+# Run build
+echo "2. Running build..."
+npm run build || exit 1
+
+# Run tests
+echo "3. Running tests..."
+npm test || exit 1
+
+echo "All pre-commit checks passed!"
