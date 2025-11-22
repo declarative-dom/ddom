@@ -4,6 +4,7 @@ import interactiveFormExample from './interactive-form.js';
 import dynamicListExample from './dynamic-list.js';
 import computedPropertiesExample from './computed-properties.js';
 import declarativeFetchExample from './declarative-fetch.js';
+import slotSupportExample from './slot-support.js';
 import jsesc from 'https://cdn.jsdelivr.net/npm/jsesc/+esm';
 
 export default {
@@ -33,6 +34,11 @@ export default {
       name: 'Declarative Fetch',
       config: declarativeFetchExample,
       path: '/declarative-fetch.html',
+    },
+    'slot-support': {
+      name: 'Slot Support',
+      config: slotSupportExample,
+      path: '/slot-support.html',
     }
   },
 
