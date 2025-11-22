@@ -100,6 +100,63 @@ DDOM supports declarative child elements using arrays, enabling nested structure
 }
 ```
 
+### 📦 Slot Support for Custom Elements
+
+Custom elements support the standard `<slot>` element for content composition, enabling reusable components with customizable content areas:
+
+```JavaScript
+// Define a custom element with slots
+DDOM({
+  customElements: [{
+    tagName: 'card-component',
+    children: [
+      {
+        tagName: 'header',
+        children: [
+          { tagName: 'slot', attributes: { name: 'header' } } // Named slot
+        ]
+      },
+      {
+        tagName: 'main',
+        children: [
+          { tagName: 'slot' } // Default slot
+        ]
+      }
+    ]
+  }]
+});
+
+// Use the component with slotted content
+DDOM({
+  document: {
+    body: {
+      children: [{
+        tagName: 'card-component',
+        children: [
+          {
+            tagName: 'h2',
+            attributes: { slot: 'header' }, // Goes to header slot
+            textContent: 'Card Title'
+          },
+          {
+            tagName: 'p',
+            textContent: 'Card content' // Goes to default slot
+          }
+        ]
+      }]
+    }
+  }
+});
+```
+
+**Slot Features:**
+* **Default slots** - Accept content without slot attribute
+* **Named slots** - Target specific insertion points with `slot="name"`
+* **Fallback content** - Display default content when no slotted content provided
+* **Standard compliance** - Follows the HTML slot specification
+
+See the [Slot Documentation](docs/slots.md) for more examples and patterns.
+
 ### 🎨 Nested CSS
 
 Styles are represented as objects with CSSOM camelCase property names and support full CSS nesting syntax:
