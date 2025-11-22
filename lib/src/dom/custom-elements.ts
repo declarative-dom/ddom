@@ -145,6 +145,18 @@ export function define(elements: CustomElementSpec[]) {
 				}
 
 				#initializeDOM() {
+					// Capture light DOM children for slot distribution before clearing.
+					// These children will be distributed to <slot> elements in the template
+					// after the template is rendered, enabling content composition.
+					const lightDOMChildren: Node[] = [];
+					if (this.#container !== this) {
+						// For shadow DOM, capture children from the host element (this)
+						lightDOMChildren.push(...Array.from(this.childNodes));
+					} else {
+						// For light DOM rendering, capture existing children
+						lightDOMChildren.push(...Array.from(this.#container.childNodes));
+					}
+
 					// Clear existing content
 					if ('innerHTML' in this.#container) {
 						this.#container.innerHTML = '';
@@ -167,10 +179,71 @@ export function define(elements: CustomElementSpec[]) {
 
 						// Disable CSS processing since styles are already registered at definition time
 						adoptNode(spec, this.#container, { css: false, ignoreKeys: instanceIgnoreKeys });
+
+						// After rendering the template, distribute light DOM children to slots
+						this.#distributeSlots(lightDOMChildren);
 					} finally {
 						delete (globalThis as any).__ddom_abort_signal;
 						delete (globalThis as any).__ddom_component_watcher;
 					}
+				}
+
+				/**
+				 * Distributes light DOM children to slot elements in the template.
+				 * Supports both named slots and the default slot.
+				 * 
+				 * @param lightDOMChildren - Array of child nodes to distribute to slots
+				 */
+				#distributeSlots(lightDOMChildren: Node[]) {
+					if (lightDOMChildren.length === 0) {
+						return;
+					}
+
+					// Find all slot elements in the container
+					const slots = this.#container.querySelectorAll('slot');
+					if (slots.length === 0) {
+						return;
+					}
+
+					// Separate slotted content by slot name
+					const slottedContentMap = new Map<string, Node[]>();
+					const defaultSlotContent: Node[] = [];
+
+					lightDOMChildren.forEach(node => {
+						// Check if this node has a slot attribute (for named slots)
+						if (node instanceof Element && node.hasAttribute('slot')) {
+							const slotName = node.getAttribute('slot')!;
+							if (!slottedContentMap.has(slotName)) {
+								slottedContentMap.set(slotName, []);
+							}
+							slottedContentMap.get(slotName)!.push(node);
+						} else {
+							// No slot attribute - goes to default slot
+							defaultSlotContent.push(node);
+						}
+					});
+
+					// Distribute content to each slot
+					slots.forEach(slot => {
+						const slotName = slot.getAttribute('name');
+						let contentToSlot: Node[] = [];
+
+						if (slotName) {
+							// Named slot - use content with matching slot attribute
+							contentToSlot = slottedContentMap.get(slotName) || [];
+						} else {
+							// Default slot - use content without slot attribute
+							contentToSlot = defaultSlotContent;
+						}
+
+						if (contentToSlot.length > 0) {
+							// Clear fallback content if we have slotted content
+							slot.innerHTML = '';
+							// Append slotted content to the slot
+							contentToSlot.forEach(node => slot.appendChild(node));
+						}
+						// If no content for this slot, keep the fallback content (don't modify)
+					});
 				}
 
 				// Standard custom element callbacks with optional spec handlers
