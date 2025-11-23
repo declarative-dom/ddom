@@ -1,6 +1,6 @@
 {
 	"name": "@declarative-dom/types",
-	"version": "0.7.0",
+	"version": "0.7.1",
 	"description": "TypeScript type definitions for Declarative DOM",
 	"author": "Declarative DOM Working Group",
 	"license": "MIT",
@@ -19,7 +19,7 @@
 	],
 	"scripts": {
 		"build": "tsc",
-		"clean": "rm -rf dist",
+		"clean": "rimraf dist",
 		"prepublishOnly": "npm run clean && npm run build",
 		"test": "tsc --noEmit",
 		"release": "release-it"
