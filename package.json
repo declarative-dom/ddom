@@ -59,7 +59,7 @@
 		"upgrade-all": "npm run upgrade && cd lib && npm run upgrade && cd ../examples && npm run upgrade"
 	},
 	"type": "module",
-	"version": "0.6.0",
+	"version": "0.7.0",
 	"workspaces": [
 		"lib/src/types",
 		"lib"
