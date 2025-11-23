@@ -48,8 +48,8 @@
   },
   "scripts": {
     "build": "rollup -c",
-    "clean": "rm -rf dist",
-    "debug": "NO_COLOR=true rollup -c 2>&1 | tee build.log",
+    "clean": "rimraf dist",
+    "debug": "cross-env NO_COLOR=true rollup -c",
     "dev": "rollup -c --watch",
     "prepare": "ts-patch install",
     "prepublishOnly": "npm run build",
