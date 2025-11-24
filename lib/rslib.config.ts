@@ -32,17 +32,22 @@ export default defineConfig({
 		rspack: {
 			plugins: [
 				new TypiaRspackPlugin(),
-				// Rsdoctor is a build analyzer - enable with RSDOCTOR=true npm run build
-				process.env.RSDOCTOR === 'true' &&
-					new RsdoctorRspackPlugin({
-						// Rsdoctor options
-						linter: {
-							rules: {
-								'ecma-version-check': 'off',
-							},
-						},
-					}),
-			].filter(Boolean),
+				// Rsdoctor is a build analyzer - enable with RSDOCTOR=true or npm run build:analyze
+				// Only instantiate the plugin when RSDOCTOR env variable is set to avoid overhead
+				...(process.env.RSDOCTOR === 'true'
+					? [
+							new RsdoctorRspackPlugin({
+								// Rsdoctor options
+								linter: {
+									rules: {
+										// Disable ecma-version-check since we explicitly set target in lib config
+										'ecma-version-check': 'off',
+									},
+								},
+							}),
+						]
+					: []),
+			],
 		},
 	},
 });
