@@ -1,10 +1,10 @@
 /**
  * DOM Property Binding System
- * 
+ *
  * This module handles all DOM mutations and property binding logic for the DDOM library.
  * It provides a clean interface for applying property resolutions to DOM elements,
  * separating pure property resolution logic from side-effect operations.
- * 
+ *
  * The binding system supports:
  * - Reactive property binding with signals and computed values
  * - Direct property assignment for static values
@@ -12,11 +12,11 @@
  * - CSS style property binding with reactive updates
  * - Event handler attachment
  * - Namespace property handling (arrays, storage, etc.)
- * 
+ *
  * This is where the "rubber meets the road" for DDOM's declarative-to-imperative
  * translation. All DOM mutations are centralized here to maintain clean separation
  * of concerns and enable easier testing and debugging.
- * 
+ *
  * @module dom/binding
  * @version 0.4.0
  * @author Declarative DOM Working Group
@@ -36,24 +36,24 @@ import { define } from './custom-elements';
 
 /**
  * Applies property resolution and binding to a DOM element (the impure DOM magic!).
- * This is where all DOM mutations and reactive bindings happen, using the pure 
+ * This is where all DOM mutations and reactive bindings happen, using the pure
  * property values resolved by the properties module.
- * 
+ *
  * @param spec - The declarative DOM specification object
  * @param el - The target DOM node to apply bindings to
  * @param key - The property name being processed
  * @param value - The property value to resolve and bind
  * @param options - Optional configuration for DOM operations
  * @returns void - This function performs side effects on the DOM element
- * 
+ *
  * @example
  * ```typescript
  * // Simple property binding
  * applyPropertyBinding(spec, element, 'textContent', 'Hello World');
- * 
+ *
  * // Reactive template binding
  * applyPropertyBinding(spec, element, 'textContent', 'Hello ${this.$name.get()}');
- * 
+ *
  * // Signal binding
  * const nameSignal = new Signal.State('John');
  * applyPropertyBinding(spec, element, 'textContent', nameSignal);
@@ -193,21 +193,21 @@ function applyStandardPropertyBinding(
  * Binds a signal value to a DOM property with automatic updates.
  * Creates a reactive effect that updates the DOM property whenever the signal changes.
  * This is a low-level binding function for direct property assignment.
- * 
+ *
  * @param element - The DOM node to bind the property to
  * @param property - The property name to update (e.g., 'textContent', 'value', 'checked')
  * @param signal - The signal or computed value to bind to the property
  * @returns A cleanup function to remove the reactive effect
- * 
+ *
  * @example
  * ```typescript
  * const nameSignal = new Signal.State('John');
  * const cleanup = bindSignalToProperty(span, 'textContent', nameSignal);
- * 
+ *
  * // Later, to stop reactivity:
  * cleanup();
  * ```
- * 
+ *
  * @example
  * ```typescript
  * // Binding input value
@@ -237,28 +237,28 @@ export function bindSignalToProperty(
  * Binds a signal value to a DOM attribute with automatic updates.
  * Creates a reactive effect that updates the DOM attribute whenever the signal changes.
  * Handles null/undefined values by removing the attribute entirely.
- * 
+ *
  * @param element - The DOM element to bind the attribute to (must be an Element)
  * @param attributeName - The attribute name to update (e.g., 'class', 'data-value', 'aria-label')
  * @param signal - The signal or computed value to bind to the attribute
  * @returns A cleanup function to remove the reactive effect
- * 
+ *
  * @example
  * ```typescript
  * const classSignal = new Signal.State('active');
  * const cleanup = bindSignalToAttribute(div, 'class', classSignal);
- * 
+ *
  * // Updates the class attribute when signal changes
  * classSignal.set('inactive');
  * ```
- * 
+ *
  * @example
  * ```typescript
  * // Binding data attribute
  * const dataValue = new Signal.Computed(() => `item-${id.get()}`);
  * bindSignalToAttribute(element, 'data-item-id', dataValue);
  * ```
- * 
+ *
  * @example
  * ```typescript
  * // Conditional attribute (removes when null/undefined)
@@ -288,7 +288,7 @@ export function bindSignalToAttribute(
 /**
  * Applies attributes binding using specialized attribute value processing.
  * Uses the attribute-specific processor for optimal performance and correctness.
- * 
+ *
  * @param element - The DOM element to apply attributes to
  * @param attributes - Object containing attribute name/value pairs
  */
@@ -332,7 +332,11 @@ function applyAttributesBinding(element: Element, attributes: Record<string, any
  */
 function setAttributeValue(element: Element, name: string, value: any): void {
   if (typeof value === 'boolean') {
-    value ? element.setAttribute(name, '') : element.removeAttribute(name);
+    if (value) {
+      element.setAttribute(name, '');
+    } else {
+      element.removeAttribute(name);
+    }
   } else if (value == null) {
     element.removeAttribute(name);
   } else {
@@ -344,11 +348,11 @@ function setAttributeValue(element: Element, name: string, value: any): void {
  * Enhanced reactive array adoption with fine-grained updates.
  * This is the heart of DDOM's efficient list rendering - it tracks elements by stable keys,
  * performs surgical updates, and minimizes DOM manipulation for optimal performance.
- * 
+ *
  * @param arraySignal - The reactive array signal from the namespace system
  * @param parentElement - The parent DOM element to render items into
  * @param options - Optional configuration object with named parameters
- * 
+ *
  * @example
  * ```typescript
  * // Basic array adoption
@@ -358,7 +362,7 @@ function setAttributeValue(element: Element, name: string, value: any): void {
  * ]);
  * bindReactiveArray(itemsSignal, listElement);
  * ```
- * 
+ *
  * @example
  * ```typescript
  * // With mutable property tracking for surgical updates
