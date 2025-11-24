@@ -1,5 +1,6 @@
 import { defineConfig } from '@rslib/core';
 import { TypiaRspackPlugin } from 'typia-rspack-plugin';
+import { RsdoctorRspackPlugin } from '@rsdoctor/rspack-plugin';
 
 export default defineConfig({
 	lib: [
@@ -31,7 +32,17 @@ export default defineConfig({
 		rspack: {
 			plugins: [
 				new TypiaRspackPlugin(),
-			],
+				// Rsdoctor is a build analyzer - enable with RSDOCTOR=true npm run build
+				process.env.RSDOCTOR === 'true' &&
+					new RsdoctorRspackPlugin({
+						// Rsdoctor options
+						linter: {
+							rules: {
+								'ecma-version-check': 'off',
+							},
+						},
+					}),
+			].filter(Boolean),
 		},
 	},
 });
