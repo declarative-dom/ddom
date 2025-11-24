@@ -16,11 +16,6 @@
     "sourceMap": false,
     "strict": true,
     "target": "ES2022",
-    "plugins": [
-      {
-        "transform": "typia/lib/transform"
-      }
-    ],
     "strictNullChecks": true
   },
   "exclude": [
