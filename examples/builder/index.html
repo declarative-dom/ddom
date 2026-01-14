@@ -5,9 +5,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Declarative DOM Builder</title>
-    <script type="module" src="../../lib/dist/index.js"></script>
     <script type="module">
+		import DDOM from '../../lib/dist/index.js';
         import builderConfig from './index.js';
+
+        // Expose DDOM globally for the builder app
+        window.DDOM = DDOM;
 
         // Wait for DDOM to be available
         window.addEventListener('load', () => {

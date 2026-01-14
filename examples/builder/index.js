@@ -16,6 +16,8 @@ export default {
 
 	selectedElement: null,
 	selectedPath: null,
+	isDraggingNewElement: false,
+	draggedCanvasElement: null,
 
 	customElements: [
 		{
@@ -23,6 +25,7 @@ export default {
 			children: [
 				{
 					tagName: 'div',
+					id: 'property-container',
 					style: {
 						marginBottom: '15px',
 						display: 'flex',
@@ -49,20 +52,20 @@ export default {
 					]
 				}
 			],
-			connectedCallback: function (element) {
-				const label = element.querySelector('label');
-				const input = element.querySelector('input');
-				const container = element.querySelector('div');
+			connectedCallback: function () {
+				const label = this.querySelector('label');
+				const input = this.querySelector('input');
+				const container = this.querySelector('div');
 
 				if (label) {
-					label.textContent = element.getAttribute('label') || '';
+					label.textContent = this.getAttribute('label') || '';
 				}
 
 				if (input) {
-					const inputType = element.getAttribute('inputType') || 'text';
+					const inputType = this.getAttribute('inputType') || 'text';
 					input.type = inputType;
-					input.value = element.getAttribute('value') || '';
-					input.placeholder = element.getAttribute('placeholder') || '';
+					input.value = this.getAttribute('value') || '';
+					input.placeholder = this.getAttribute('placeholder') || '';
 
 					// Special styling for color inputs
 					if (inputType === 'color') {
@@ -73,7 +76,7 @@ export default {
 					}
 
 					// Add change handler
-					const property = element.getAttribute('property');
+					const property = this.getAttribute('property');
 					input.onchange = function () {
 						if (property && window.builderApp) {
 							window.builderApp.updateProperty(property, this.value);
@@ -96,31 +99,36 @@ export default {
 				fontSize: '14px',
 				userSelect: 'none'
 			},
-			connectedCallback: function(element) {
-				const icon = element.getAttribute('icon') || '';
-				const name = element.getAttribute('name') || '';
-				const elementType = JSON.parse(element.getAttribute('elementType') || '{}');
-				
+			connectedCallback: function () {
+				const icon = this.getAttribute('icon') || '';
+				const name = this.getAttribute('name') || '';
+				const elementType = JSON.parse(this.getAttribute('elementType') || '{}');
+
 				// Use textContent to preserve styling instead of innerHTML
-				element.textContent = `${icon} ${name}`;
-				element.onclick = () => window.builderApp.addElement(elementType);
-				
+				this.textContent = `${icon} ${name}`;
+				this.onclick = () => window.builderApp.addElement(elementType);
+
 				// Make draggable
-				element.draggable = true;
-				element.ondragstart = (e) => {
+				this.draggable = true;
+				this.ondragstart = (e) => {
 					e.dataTransfer.setData('application/element-type', JSON.stringify(elementType));
 					e.dataTransfer.setData('text/plain', 'new-element');
 					e.dataTransfer.effectAllowed = 'copy';
-					element.style.opacity = '0.5';
+					this.style.opacity = '0.5';
+					// Clear any existing dragged element - this signals it's a new element
+					window.builderApp.draggedCanvasElement = null;
+					window.builderApp.isDraggingNewElement = true;
 				};
-				
-				element.ondragend = (_e) => {
-					element.style.opacity = '1';
+
+				this.ondragend = (_e) => {
+					this.style.opacity = '1';
+					window.builderApp.isDraggingNewElement = false;
+					window.builderApp.clearAllDropIndicators();
 				};
-				
+
 				// Hover effects
-				element.onmouseover = () => element.style.backgroundColor = '#e9ecef';
-				element.onmouseout = () => element.style.backgroundColor = 'white';
+				this.onmouseover = () => this.style.backgroundColor = '#e9ecef';
+				this.onmouseout = () => this.style.backgroundColor = 'white';
 			}
 		},
 		{
@@ -132,78 +140,78 @@ export default {
 				userSelect: 'none',
 				position: 'relative'
 			},
-			connectedCallback: function(element) {
-				const elementData = JSON.parse(element.getAttribute('elementData') || '{}');
-				const index = parseInt(element.getAttribute('index') || '0');
-				const depth = parseInt(element.getAttribute('depth') || '0');
-				
+			connectedCallback: function () {
+				const elementData = JSON.parse(this.getAttribute('elementData') || '{}');
+				const index = parseInt(this.getAttribute('index') || '0');
+				const depth = parseInt(this.getAttribute('depth') || '0');
+
 				// Set padding based on depth
-				element.style.padding = `4px 8px 4px ${depth * 20 + 8}px`;
-				
-				element.textContent = `${elementData.tagName}${elementData.id ? ` (#${elementData.id})` : ''}`;
-				element.onclick = () => window.builderApp.selectElement(elementData.id);
-				
+				this.style.padding = `4px 8px 4px ${depth * 20 + 8}px`;
+
+				this.textContent = `${elementData.tagName}${elementData.id ? ` (#${elementData.id})` : ''}`;
+				this.onclick = () => window.builderApp.selectElement(elementData.id);
+
 				// Make item draggable
-				element.draggable = true;
-				element.dataset.elementId = elementData.id;
-				element.dataset.elementIndex = index;
-				element.dataset.elementDepth = depth;
-				
+				this.draggable = true;
+				this.dataset.elementId = elementData.id;
+				this.dataset.elementIndex = index;
+				this.dataset.elementDepth = depth;
+
 				// Store reference for tree operations
-				element._elementData = elementData;
-				element._index = index;
-				element._depth = depth;
-				
+				this._elementData = elementData;
+				this._index = index;
+				this._depth = depth;
+
 				// Drag event handlers
-				element.ondragstart = (e) => {
+				this.ondragstart = (e) => {
 					e.dataTransfer.setData('text/plain', elementData.id);
 					e.dataTransfer.effectAllowed = 'move';
-					element.style.opacity = '0.5';
-					window.builderApp.draggedElement = { 
-						element: elementData, 
-						index, 
+					this.style.opacity = '0.5';
+					window.builderApp.draggedElement = {
+						element: elementData,
+						index,
 						depth
 					};
 				};
-				
-				element.ondragend = (_e) => {
-					element.style.opacity = '1';
+
+				this.ondragend = (_e) => {
+					this.style.opacity = '1';
 					window.builderApp.draggedElement = null;
 					// Remove any drop indicators
 					document.querySelectorAll('drop-indicator').forEach(el => el.remove());
 				};
-				
-				element.ondragover = (e) => {
+
+				this.ondragover = (e) => {
 					e.preventDefault();
 					e.dataTransfer.dropEffect = 'move';
-					
+
 					if (window.builderApp.draggedElement && window.builderApp.draggedElement.element.id !== elementData.id) {
-						window.builderApp.showDropIndicator(element, e);
+						window.builderApp.showDropIndicator(this, e);
 					}
 				};
-				
-				element.ondragleave = (e) => {
+
+				this.ondragleave = (e) => {
 					// Only remove indicator if leaving the item completely
-					if (!element.contains(e.relatedTarget)) {
-						window.builderApp.removeDropIndicator(element);
+					if (!this.contains(e.relatedTarget)) {
+						window.builderApp.removeDropIndicator(this);
 					}
 				};
-				
-				element.ondrop = (e) => {
+
+				this.ondrop = (e) => {
 					e.preventDefault();
-					window.builderApp.removeDropIndicator(element);
-					
+					window.builderApp.removeDropIndicator(this);
+
 					if (window.builderApp.draggedElement && window.builderApp.draggedElement.element.id !== elementData.id) {
 						// Find the elements array this item belongs to
-						const elements = window.builderApp.findElementsArrayForTreeItem(element);
+						const elements = window.builderApp.findElementsArrayForTreeItem(this);
 						window.builderApp.handleElementDrop(elementData, index, depth, elements, e);
 					}
 				};
-				
+
 				// Highlight if selected
 				if (window.builderApp?.selectedElement && window.builderApp.selectedElement.id === elementData.id) {
-					element.style.backgroundColor = '#e3f2fd';
-					element.style.fontWeight = 'bold';
+					this.style.backgroundColor = '#e3f2fd';
+					this.style.fontWeight = 'bold';
 				}
 			}
 		},
@@ -253,15 +261,17 @@ export default {
 					}
 				}
 			],
-			connectedCallback: function(element) {
-				const input = element.querySelector('input');
-				const originalText = element.getAttribute('originalText') || '';
-				const dataElement = JSON.parse(element.getAttribute('dataElement') || '{}');
-				
+			connectedCallback: function () {
+				const input = this.querySelector('input');
+				const originalText = this.getAttribute('originalText') || '';
+				const dataElement = JSON.parse(this.getAttribute('dataElement') || '{}');
+
 				input.value = originalText;
 				input.focus();
 				input.select();
-				
+
+				const self = this;
+
 				// Handle save/cancel
 				const saveEdit = () => {
 					const newText = input.value.trim();
@@ -269,15 +279,15 @@ export default {
 						dataElement.textContent = newText;
 						window.builderApp.updatePropertiesPanel();
 					}
-					element.parentElement.removeChild(element);
-					element.parentElement.textContent = newText || originalText;
+					self.parentElement.removeChild(self);
+					self.parentElement.textContent = newText || originalText;
 				};
-				
+
 				const cancelEdit = () => {
-					element.parentElement.removeChild(element);
-					element.parentElement.textContent = originalText;
+					self.parentElement.removeChild(self);
+					self.parentElement.textContent = originalText;
 				};
-				
+
 				// Event listeners
 				input.onblur = saveEdit;
 				input.onkeydown = (e) => {
@@ -289,7 +299,7 @@ export default {
 						cancelEdit();
 					}
 				};
-				
+
 				// Prevent drag events while editing
 				input.ondragstart = (e) => e.preventDefault();
 			}
@@ -426,9 +436,9 @@ export default {
 		const dataStr = JSON.stringify(this.currentStructure, null, 2);
 		const dataBlob = new Blob([dataStr], { type: 'application/json' });
 		const url = URL.createObjectURL(dataBlob);
-		
+
 		// Create download link using declarative DOM
-		const link = DDOM.createElement({
+		const link = window.DDOM.createElement({
 			tagName: 'a',
 			attributes: {
 				href: url,
@@ -436,32 +446,93 @@ export default {
 			},
 			style: { display: 'none' }
 		});
-		
+
 		document.body.appendChild(link);
 		link.click();
 		document.body.removeChild(link);
 		URL.revokeObjectURL(url);
 	},
 
-	createElementCanvas: function () {
-		const canvas = document.getElementById('canvas-area');
-		if (!canvas) return;
+	// Shadow DOM for isolated canvas styles
+	canvasShadowRoot: null,
 
-		canvas.innerHTML = '';
+	createElementCanvas: function () {
+		const canvasHost = document.getElementById('canvas-area');
+		if (!canvasHost) return;
+
+		// Initialize shadow root if not already done
+		if (!this.canvasShadowRoot) {
+			this.canvasShadowRoot = canvasHost.attachShadow({ mode: 'open' });
+		}
+
+		// Clear existing content
+		this.canvasShadowRoot.innerHTML = '';
+
+		// Create an isolated stylesheet for the shadow DOM
+		const style = document.createElement('style');
+		style.textContent = `
+			:host {
+				display: block;
+				min-height: 100%;
+				padding: 20px;
+				box-sizing: border-box;
+			}
+			.empty-state {
+				text-align: center;
+				color: #999;
+				padding: 40px;
+			}
+			.canvas-drop-indicator {
+				position: absolute;
+				left: 0;
+				right: 0;
+				height: 3px;
+				background-color: #007bff;
+				z-index: 1000;
+				pointer-events: none;
+				border-radius: 1px;
+			}
+			.container-drop-indicator {
+				position: absolute;
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				border: 3px dashed #007bff;
+				background-color: rgba(0, 123, 255, 0.1);
+				z-index: 1000;
+				pointer-events: none;
+				border-radius: 4px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: #007bff;
+				font-weight: bold;
+				font-size: 14px;
+			}
+		`;
+		this.canvasShadowRoot.appendChild(style);
 
 		// Make canvas a drop target for new elements
-		canvas.ondragover = (e) => {
+		canvasHost.ondragover = (e) => {
 			e.preventDefault();
-			const elementType = e.dataTransfer.getData('application/element-type');
-			if (elementType) {
+			if (this.isDraggingNewElement) {
 				e.dataTransfer.dropEffect = 'copy';
 			} else {
 				e.dataTransfer.dropEffect = 'move';
 			}
 		};
 
-		canvas.ondrop = (e) => {
+		canvasHost.ondragleave = (e) => {
+			// Clear indicators when leaving canvas entirely
+			if (!canvasHost.contains(e.relatedTarget) && !this.canvasShadowRoot.contains(e.relatedTarget)) {
+				this.clearAllDropIndicators();
+			}
+		};
+
+		canvasHost.ondrop = (e) => {
 			e.preventDefault();
+			this.clearAllDropIndicators();
 			const elementType = e.dataTransfer.getData('application/element-type');
 			if (elementType) {
 				const type = JSON.parse(elementType);
@@ -470,36 +541,95 @@ export default {
 		};
 
 		if (this.currentStructure.document.body.children.length === 0) {
-			canvas.innerHTML = '<div style="text-align: center; color: #999; padding: 40px;">Drop elements here to start building</div>';
+			const emptyState = document.createElement('div');
+			emptyState.className = 'empty-state';
+			emptyState.textContent = 'Drop elements here to start building';
+			this.canvasShadowRoot.appendChild(emptyState);
 			return;
 		}
 
-		// createElement each child element with explicit ID-based selectors
+		// Create each child element with inline styles for shadow DOM isolation
 		this.currentStructure.document.body.children.forEach((child, index) => {
-			// Ensure the element has an ID for specific styling
+			// Ensure the element has an ID
 			if (!child.id) {
 				child.id = 'element-' + Date.now() + '-' + index;
 			}
-			
-			const element = DDOM.createElement(child, undefined, null, index + 1);
+
+			// Create element with inline styles (bypasses global stylesheet)
+			const element = this.createCanvasElement(child);
 			if (element) {
 				this.setupElementDragAndDrop(element, child, index, []);
-				canvas.appendChild(element);
+				this.canvasShadowRoot.appendChild(element);
 			}
 		});
 	},
 
+	// Creates an element for the canvas with inline styles (no global CSS pollution)
+	createCanvasElement: function (spec) {
+		const el = document.createElement(spec.tagName);
+
+		// Set ID
+		if (spec.id) {
+			el.id = spec.id;
+		}
+
+		// Apply styles inline
+		if (spec.style) {
+			for (const [key, value] of Object.entries(spec.style)) {
+				if (typeof value === 'string') {
+					el.style[key] = value;
+				}
+			}
+		}
+
+		// Apply text content
+		if (spec.textContent !== undefined) {
+			el.textContent = spec.textContent;
+		}
+
+		// Apply attributes
+		if (spec.attributes) {
+			for (const [key, value] of Object.entries(spec.attributes)) {
+				el.setAttribute(key, value);
+			}
+		}
+
+		// Recursively create children
+		if (spec.children && Array.isArray(spec.children)) {
+			spec.children.forEach((child, childIndex) => {
+				if (!child.id) {
+					child.id = 'element-' + Date.now() + '-' + childIndex;
+				}
+				const childEl = this.createCanvasElement(child);
+				if (childEl) {
+					el.appendChild(childEl);
+				}
+			});
+		}
+
+		return el;
+	},
+
 	showCanvasDropIndicator: function (element, event) {
-		// Remove existing indicators
-		document.querySelectorAll('.canvas-drop-indicator').forEach(el => el.remove());
+		// Remove all existing indicators first
+		this.clearAllDropIndicators();
 
 		const rect = element.getBoundingClientRect();
 		const midY = rect.top + rect.height / 2;
 		const isAbove = event.clientY < midY;
 
-		const indicator = DDOM.createElement({
-			tagName: 'canvas-drop-indicator'
-		});
+		const indicator = document.createElement('div');
+		indicator.className = 'canvas-drop-indicator';
+		indicator.style.cssText = `
+			position: absolute;
+			left: 0;
+			right: 0;
+			height: 3px;
+			background-color: #007bff;
+			z-index: 1000;
+			pointer-events: none;
+			border-radius: 1px;
+		`;
 
 		if (isAbove) {
 			indicator.style.top = '-2px';
@@ -515,7 +645,11 @@ export default {
 	handleCanvasElementDrop: function (targetIndex, _event) {
 		if (!this.draggedCanvasElement) return;
 
-		const indicator = document.querySelector('.canvas-drop-indicator');
+		// Check shadow DOM first, then document
+		let indicator = this.canvasShadowRoot?.querySelector('.canvas-drop-indicator');
+		if (!indicator) {
+			indicator = document.querySelector('.canvas-drop-indicator');
+		}
 		const position = indicator ? indicator.dataset.position : 'after';
 
 		let newIndex = targetIndex;
@@ -543,7 +677,7 @@ export default {
 		this.selectElement(movedElement.id);
 	},
 
-	findElementsArrayForTreeItem: function(_treeItem) {
+	findElementsArrayForTreeItem: function (_treeItem) {
 		// This would need to be implemented to find the parent elements array
 		// For now, default to the main children array
 		return this.currentStructure.document.body.children;
@@ -557,13 +691,13 @@ export default {
 		this.selectElement(dataElement.id);
 
 		// Create input element
-		const input = DDOM.createElement({
+		const input = window.DDOM.createElement({
 			tagName: 'inline-editor',
 			attributes: {
 				originalText: dataElement.textContent || '',
 				dataElement: JSON.stringify(dataElement)
 			}
-		});
+		}, { css: false });
 
 		// Store original text and hide it
 		const _originalText = domElement.textContent;
@@ -583,7 +717,7 @@ export default {
 
 	createElementElementTree: function (elements, container, depth) {
 		elements.forEach((element, index) => {
-			const item = DDOM.createElement({
+			const item = window.DDOM.createElement({
 				tagName: 'tree-item',
 				attributes: {
 					elementData: JSON.stringify(element),
@@ -630,7 +764,7 @@ export default {
 		const midY = rect.top + rect.height / 2;
 		const isAbove = event.clientY < midY;
 
-		const indicator = DDOM.createElement({
+		const indicator = window.DDOM.createElement({
 			tagName: 'drop-indicator'
 		});
 
@@ -709,17 +843,17 @@ export default {
 		panel.innerHTML = '';
 
 		if (!this.selectedElement) {
-			const emptyState = DDOM.createElement({
+			const emptyState = window.DDOM.createElement({
 				tagName: 'div',
 				style: { padding: '20px', textAlign: 'center', color: '#999' },
 				textContent: 'Select an element to edit properties'
-			});
+			}, { css: false });
 			panel.appendChild(emptyState);
 			return;
 		}
 
 		// Create properties container
-		const container = DDOM.createElement({
+		const container = window.DDOM.createElement({
 			tagName: 'div',
 			style: { padding: '15px' },
 			children: [
@@ -841,20 +975,22 @@ export default {
 					]
 				}
 			]
-		});
+		}, { css: false });
 
 		panel.appendChild(container);
 	},
 
 	highlightSelectedElement: function (elementId) {
+		if (!this.canvasShadowRoot) return;
+
 		// Remove previous highlights
-		document.querySelectorAll('[data-highlighted]').forEach(el => {
+		this.canvasShadowRoot.querySelectorAll('[data-highlighted]').forEach(el => {
 			el.style.outline = '';
 			el.removeAttribute('data-highlighted');
 		});
 
-		// Highlight current selection
-		const element = document.getElementById(elementId);
+		// Highlight current selection in shadow DOM
+		const element = this.canvasShadowRoot.getElementById(elementId);
 		if (element) {
 			element.style.outline = '2px solid #007bff';
 			element.setAttribute('data-highlighted', 'true');
@@ -984,8 +1120,7 @@ export default {
 									tagName: 'div',
 									id: 'canvas-area',
 									style: {
-										minHeight: '100%',
-										padding: '20px'
+										minHeight: '100%'
 									}
 								}
 							]
@@ -1036,7 +1171,7 @@ export default {
 		const palette = document.getElementById('element-palette');
 		if (palette) {
 			this.elementTypes.forEach(elementType => {
-				const button = DDOM.createElement({
+				const button = window.DDOM.createElement({
 					tagName: 'palette-button',
 					attributes: {
 						icon: elementType.icon,
@@ -1067,38 +1202,42 @@ export default {
 		element.ondragstart = (e) => {
 			e.stopPropagation();
 			e.dataTransfer.effectAllowed = 'move';
+			e.dataTransfer.setData('text/plain', dataElement.id);
 			element.style.opacity = '0.5';
-			this.draggedCanvasElement = { 
-				element: dataElement, 
-				index, 
-				parentPath: [...parentPath] 
+			this.draggedCanvasElement = {
+				element: dataElement,
+				index,
+				parentPath: [...parentPath]
 			};
 		};
 
 		element.ondragend = (_e) => {
 			element.style.opacity = '1';
 			this.draggedCanvasElement = null;
-			// Remove drop indicators
-			document.querySelectorAll('.canvas-drop-indicator, .container-drop-indicator').forEach(el => el.remove());
+			// Remove all drop indicators
+			this.clearAllDropIndicators();
 		};
 
 		element.ondragover = (e) => {
 			e.preventDefault();
 			e.stopPropagation();
-			
-			const elementType = e.dataTransfer.getData('application/element-type');
-			const isNewElement = elementType && e.dataTransfer.getData('text/plain') === 'new-element';
-			
+
+			// Check if this is a new element from palette using the flag
+			const isNewElement = this.isDraggingNewElement === true;
+
 			if (isNewElement && this.isContainer(dataElement)) {
 				// New element being dropped into container
 				e.dataTransfer.dropEffect = 'copy';
-				this.showContainerDropIndicator(element, e);
+				this.showContainerDropIndicator(element);
 			} else if (!this.draggedCanvasElement || this.draggedCanvasElement.element.id === dataElement.id) {
-				return;
+				// Not dragging anything or dragging over self - do nothing
+				if (!isNewElement) {
+					return;
+				}
 			} else if (this.isContainer(dataElement)) {
 				// Existing element being moved into container
-				e.dataTransfer.dropEffect = 'copy';
-				this.showContainerDropIndicator(element, e);
+				e.dataTransfer.dropEffect = 'move';
+				this.showContainerDropIndicator(element);
 			} else {
 				// Element reordering
 				e.dataTransfer.dropEffect = 'move';
@@ -1109,40 +1248,42 @@ export default {
 		element.ondragleave = (e) => {
 			// Only remove indicators if we're actually leaving the element
 			if (!element.contains(e.relatedTarget)) {
-				element.querySelectorAll('.canvas-drop-indicator, .container-drop-indicator').forEach(el => el.remove());
+				this.clearDropIndicatorsFromElement(element);
 			}
 		};
 
 		element.ondrop = (e) => {
 			e.preventDefault();
 			e.stopPropagation();
-			
+
+			// Clear all indicators first
+			this.clearAllDropIndicators();
+
 			const elementType = e.dataTransfer.getData('application/element-type');
 			const isNewElement = elementType && e.dataTransfer.getData('text/plain') === 'new-element';
-			
+
 			if (isNewElement && this.isContainer(dataElement)) {
 				// Adding new element to container
 				const type = JSON.parse(elementType);
 				const newElement = this.createDefaultElement(type);
-				
+
 				if (!dataElement.children) {
 					dataElement.children = [];
 				}
 				dataElement.children.push(newElement);
-				
+
 				this.createElementCanvas();
 				this.updateElementList();
 				this.selectElement(newElement.id);
 				return;
 			}
-			
+
 			if (!this.draggedCanvasElement || this.draggedCanvasElement.element.id === dataElement.id) {
 				return;
 			}
 
 			// Check if dropping into a container
-			const indicator = element.querySelector('.container-drop-indicator');
-			if (indicator && this.isContainer(dataElement)) {
+			if (this.isContainer(dataElement)) {
 				this.handleDropIntoContainer(dataElement, parentPath, e);
 			} else {
 				this.handleCanvasElementDrop(index, e);
@@ -1164,10 +1305,10 @@ export default {
 
 		// Setup drag and drop for child elements if this is a container
 		if (dataElement.children && dataElement.children.length > 0) {
-			// Find the container element in the DOM and setup its children
+			// Find child elements in shadow DOM and setup drag/drop
 			setTimeout(() => {
 				dataElement.children.forEach((child, childIndex) => {
-					const childElement = document.getElementById(child.id);
+					const childElement = this.canvasShadowRoot?.getElementById(child.id);
 					if (childElement) {
 						this.setupElementDragAndDrop(childElement, child, childIndex, [...parentPath, index, 'children']);
 					}
@@ -1176,39 +1317,49 @@ export default {
 		}
 	},
 
+	clearAllDropIndicators: function () {
+		// Clear from document
+		document.querySelectorAll('.canvas-drop-indicator, .container-drop-indicator, canvas-drop-indicator, drop-indicator').forEach(el => el.remove());
+		// Clear from shadow DOM
+		if (this.canvasShadowRoot) {
+			this.canvasShadowRoot.querySelectorAll('.canvas-drop-indicator, .container-drop-indicator').forEach(el => el.remove());
+		}
+	},
+
+	clearDropIndicatorsFromElement: function (element) {
+		element.querySelectorAll('.canvas-drop-indicator, .container-drop-indicator').forEach(el => el.remove());
+	},
+
 	isContainer: function (dataElement) {
 		// Elements that can contain other elements
 		return ['div', 'section', 'article', 'main', 'aside', 'header', 'footer', 'nav'].includes(dataElement.tagName);
 	},
 
-	showContainerDropIndicator: function (element, _event) {
-		// Remove existing indicators in this element
-		element.querySelectorAll('.container-drop-indicator').forEach(el => el.remove());
+	showContainerDropIndicator: function (element) {
+		// Remove existing indicators from all elements first
+		this.clearAllDropIndicators();
 
-		const indicator = DDOM.createElement({
-			tagName: 'div',
-			className: 'container-drop-indicator',
-			style: {
-				position: 'absolute',
-				top: '0',
-				left: '0',
-				right: '0',
-				bottom: '0',
-				border: '2px dashed #007bff',
-				backgroundColor: 'rgba(0, 123, 255, 0.1)',
-				zIndex: '1000',
-				pointerEvents: 'none',
-				borderRadius: '4px'
-			},
-			textContent: 'Drop here to add to container'
-		});
-
-		indicator.style.display = 'flex';
-		indicator.style.alignItems = 'center';
-		indicator.style.justifyContent = 'center';
-		indicator.style.color = '#007bff';
-		indicator.style.fontWeight = 'bold';
-		indicator.style.fontSize = '14px';
+		const indicator = document.createElement('div');
+		indicator.className = 'container-drop-indicator';
+		indicator.style.cssText = `
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			border: 3px dashed #007bff;
+			background-color: rgba(0, 123, 255, 0.1);
+			z-index: 1000;
+			pointer-events: none;
+			border-radius: 4px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			color: #007bff;
+			font-weight: bold;
+			font-size: 14px;
+		`;
+		indicator.textContent = 'Drop here to add to container';
 
 		element.appendChild(indicator);
 	},
