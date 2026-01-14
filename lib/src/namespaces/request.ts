@@ -14,11 +14,11 @@ import { PrototypeConfig } from './types';
  * Local configuration interface for Request namespace
  */
 export interface RequestConfig extends PrototypeConfig, RequestInit {
-  prototype: 'Request';
-  url: string | { prototype: 'URL'; base: string; searchParams?: Record<string, any> };
-  manual?: boolean;
-  debounce?: number;
-  responseType?: XMLHttpRequestResponseType;
+	prototype: 'Request';
+	url: string | { prototype: 'URL'; base: string; searchParams?: Record<string, any> };
+	manual?: boolean;
+	debounce?: number;
+	responseType?: XMLHttpRequestResponseType;
 }
 
 /**
@@ -27,42 +27,42 @@ export interface RequestConfig extends PrototypeConfig, RequestInit {
  * Contains the parsed response data directly and provides a fetch method for manual execution.
  */
 export interface RequestSignal<T = any> extends Signal.State<T> {
-  fetch(): Promise<void>;             // Manual fetch trigger
+	fetch(): Promise<void>;             // Manual fetch trigger
 }
 
 /**
  * Creates a reactive Request signal with fetch capabilities
  */
 export const createRequestNamespace = (
-  config: RequestConfig,
-  key: string,
-  element: any
+	config: RequestConfig,
+	key: string,
+	element: any
 ): RequestSignal => {
-  // Create the signal that will hold the response (can be data or error object)
-  const responseSignal = new Signal.State<any>(null);
-  
-  // Set up automatic fetching unless manual mode
-  if (!config.manual) {
-    createRequestEffect(responseSignal, config, element);
-  }
-  
-  // Add fetch method to the signal for manual triggering
-  (responseSignal as any).fetch = async () => {
-    const { value: resolvedConfig, isValid } = resolveConfig(config, element);
-    if (!resolvedConfig || !isValid) return {};
-    
-    try {
-      const response = await performFetch(resolvedConfig);
-      responseSignal.set(response);
-      return response;
-    } catch (error) {
-      const errorResponse = { error: error instanceof Error ? error.message : String(error) };
-      responseSignal.set(errorResponse);
-      throw error;
-    }
-  };
-  
-  return responseSignal as RequestSignal;
+	// Create the signal that will hold the response (can be data or error object)
+	const responseSignal = new Signal.State<any>(null);
+
+	// Set up automatic fetching unless manual mode
+	if (!config.manual) {
+		createRequestEffect(responseSignal, config, element);
+	}
+
+	// Add fetch method to the signal for manual triggering
+	(responseSignal as any).fetch = async () => {
+		const { value: resolvedConfig, isValid } = resolveConfig(config, element);
+		if (!resolvedConfig || !isValid) return {};
+
+		try {
+			const response = await performFetch(resolvedConfig);
+			responseSignal.set(response);
+			return response;
+		} catch (error) {
+			const errorResponse = { error: error instanceof Error ? error.message : String(error) };
+			responseSignal.set(errorResponse);
+			throw error;
+		}
+	};
+
+	return responseSignal as RequestSignal;
 };
 
 /**
@@ -71,50 +71,50 @@ export const createRequestNamespace = (
  * Handles debouncing through setTimeout in the effect.
  */
 function createRequestEffect(
-  requestSignal: Signal.State<any>,
-  config: RequestConfig,
-  element: any
+	requestSignal: Signal.State<any>,
+	config: RequestConfig,
+	element: any
 ): void {
-  let debounceTimer: any = null;
+	let debounceTimer: any = null;
 
-  const componentWatcher = (globalThis as any).__ddom_component_watcher as
-    | ComponentSignalWatcher
-    | undefined;
+	const componentWatcher = (globalThis as any).__ddom_component_watcher as
+		| ComponentSignalWatcher
+		| undefined;
 
-  const cleanup = createEffect(() => {
-    try {
-      // Reactively resolve config - this will create dependencies on signals
-      const { value: resolvedConfig, isValid } = resolveConfig(config, element);
+	const cleanup = createEffect(() => {
+		try {
+			// Reactively resolve config - this will create dependencies on signals
+			const { value: resolvedConfig, isValid } = resolveConfig(config, element);
 
-      if (!resolvedConfig || !isValid) {
-        // Don't execute if config is invalid
-        return;
-      }
+			if (!resolvedConfig || !isValid) {
+				// Don't execute if config is invalid
+				return;
+			}
 
-      // Clear existing debounce timer
-      if (debounceTimer) {
-        clearTimeout(debounceTimer);
-      }
+			// Clear existing debounce timer
+			if (debounceTimer) {
+				clearTimeout(debounceTimer);
+			}
 
-      // Execute with debounce if specified
-      if (resolvedConfig.debounce && resolvedConfig.debounce > 0) {
-        debounceTimer = setTimeout(() => {
-          executeRequest(requestSignal, resolvedConfig);
-        }, resolvedConfig.debounce);
-      } else {
-        executeRequest(requestSignal, resolvedConfig);
-      }
-    } catch {
-      // If there's an error resolving config, don't execute
-      return;
-    }
-  }, componentWatcher);
+			// Execute with debounce if specified
+			if (resolvedConfig.debounce && resolvedConfig.debounce > 0) {
+				debounceTimer = setTimeout(() => {
+					executeRequest(requestSignal, resolvedConfig);
+				}, resolvedConfig.debounce);
+			} else {
+				executeRequest(requestSignal, resolvedConfig);
+			}
+		} catch {
+			// If there's an error resolving config, don't execute
+			return;
+		}
+	}, componentWatcher);
 
-  // Auto-cleanup with AbortController if available
-  const signal = (globalThis as any).__ddom_abort_signal;
-  if (signal && !signal.aborted) {
-    signal.addEventListener('abort', cleanup, { once: true });
-  }
+	// Auto-cleanup with AbortController if available
+	const signal = (globalThis as any).__ddom_abort_signal;
+	if (signal && !signal.aborted) {
+		signal.addEventListener('abort', cleanup, { once: true });
+	}
 }
 
 /**
@@ -122,23 +122,23 @@ function createRequestEffect(
  * Receives already-evaluated primitive config values.
  */
 async function executeRequest(
-  requestSignal: Signal.State<any>,
-  resolvedConfig: any
+	requestSignal: Signal.State<any>,
+	resolvedConfig: any
 ): Promise<void> {
-  try {
-    // URL is required and must be valid
-    if (!resolvedConfig.url || resolvedConfig.url === '' || resolvedConfig.url === 'undefined') {
-      // Don't log an error for empty/undefined URLs - just skip silently
-      return;
-    }
+	try {
+		// URL is required and must be valid
+		if (!resolvedConfig.url || resolvedConfig.url === '' || resolvedConfig.url === 'undefined') {
+			// Don't log an error for empty/undefined URLs - just skip silently
+			return;
+		}
 
-    const response = await performFetch(resolvedConfig);
-    requestSignal.set(response);
-  } catch (error) {
-    console.warn('Request failed:', error);
-    // For errors, set error response
-    requestSignal.set({ error: error instanceof Error ? error.message : String(error) });
-  }
+		const response = await performFetch(resolvedConfig);
+		requestSignal.set(response);
+	} catch (error) {
+		console.warn('Request failed:', error);
+		// For errors, set error response
+		requestSignal.set({ error: error instanceof Error ? error.message : String(error) });
+	}
 }
 
 
@@ -146,60 +146,60 @@ async function executeRequest(
  * Performs an HTTP fetch with DDOM-specific handling
  */
 export async function performFetch(config: any): Promise<any> {
-  let { url, responseType = 'json', body, headers = {}, ...fetchOptions } = config;
-  
-  // Resolve URL if it's a string (should already be resolved by resolveConfig)
-  if (typeof url !== 'string') {
-    throw new Error('URL must be resolved to a string before calling performFetch');
-  }
-  
-  // Process the request body and headers
-  let processedBody = body;
-  let processedHeaders: Record<string, string> = { ...headers as Record<string, string> };
-  
-  // Auto-serialize object bodies to JSON and set Content-Type
-  if (body && typeof body === 'object' && !(body instanceof FormData) && !(body instanceof URLSearchParams) && !(body instanceof Blob) && !(body instanceof ArrayBuffer)) {
-    processedBody = JSON.stringify(body);
-    // Set Content-Type header if not already set
-    if (!processedHeaders['Content-Type'] && !processedHeaders['content-type']) {
-      processedHeaders['Content-Type'] = 'application/json';
-    }
-  }
-  
-  // Perform the fetch
-  const response = await fetch(url, {
-    ...fetchOptions,
-    body: processedBody,
-    headers: processedHeaders
-  });
-  
-  // Handle non-ok responses
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  }
-  
-  // Parse response based on responseType
-  switch (responseType) {
-    case 'json':
-      return await response.json();
-      
-    case 'text':
-      return await response.text();
-      
-    case 'blob':
-      return await response.blob();
-      
-    case 'arraybuffer':
-      return await response.arrayBuffer();
-      
-    case 'document':
-      const text = await response.text();
-      const parser = new DOMParser();
-      return parser.parseFromString(text, 'text/html');
-      
-    case '':
-    default:
-      // Return the Response object itself
-      return response;
-  }
+	let { url, responseType = 'json', body, headers = {}, ...fetchOptions } = config;
+
+	// Resolve URL if it's a string (should already be resolved by resolveConfig)
+	if (typeof url !== 'string') {
+		throw new Error('URL must be resolved to a string before calling performFetch');
+	}
+
+	// Process the request body and headers
+	let processedBody = body;
+	let processedHeaders: Record<string, string> = { ...headers as Record<string, string> };
+
+	// Auto-serialize object bodies to JSON and set Content-Type
+	if (body && typeof body === 'object' && !(body instanceof FormData) && !(body instanceof URLSearchParams) && !(body instanceof Blob) && !(body instanceof ArrayBuffer)) {
+		processedBody = JSON.stringify(body);
+		// Set Content-Type header if not already set
+		if (!processedHeaders['Content-Type'] && !processedHeaders['content-type']) {
+			processedHeaders['Content-Type'] = 'application/json';
+		}
+	}
+
+	// Perform the fetch
+	const response = await fetch(url, {
+		...fetchOptions,
+		body: processedBody,
+		headers: processedHeaders
+	});
+
+	// Handle non-ok responses
+	if (!response.ok) {
+		throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+	}
+
+	// Parse response based on responseType
+	switch (responseType) {
+		case 'json':
+			return await response.json();
+
+		case 'text':
+			return await response.text();
+
+		case 'blob':
+			return await response.blob();
+
+		case 'arraybuffer':
+			return await response.arrayBuffer();
+
+		case 'document': {
+			const text = await response.text();
+			const parser = new DOMParser();
+			return parser.parseFromString(text, 'text/html');
+		}
+		case '':
+		default:
+			// Return the Response object itself
+			return response;
+	}
 }
