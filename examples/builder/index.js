@@ -1,6 +1,11 @@
-export default {
+import DDOM, { Signal, createEffect } from '../../lib/dist/index.js';
+
+// ==================== Shared State & Methods ====================
+// Created before DDOM processes the spec so custom elements can use immediately
+
+const builderState = {
 	// Shared state - the declarative structure being built
-	$currentStructure: {
+	$currentStructure: new Signal.State({
 		document: {
 			body: {
 				style: {
@@ -12,19 +17,19 @@ export default {
 				children: []
 			}
 		}
-	},
+	}),
 
 	// Selection state
-	$selectedElement: null,
-	$selectedPath: null,
+	$selectedElement: new Signal.State(null),
+	$selectedPath: new Signal.State(null),
 
 	// Drag state - shared across components
-	$isDragging: false,
-	$isDraggingNewElement: false,
-	$draggedElement: null,
-	$draggedElementType: null,
-	$dropTarget: null,
-	$dropPosition: null,
+	$isDragging: new Signal.State(false),
+	$isDraggingNewElement: new Signal.State(false),
+	$draggedElement: new Signal.State(null),
+	$draggedElementType: new Signal.State(null),
+	$dropTarget: new Signal.State(null),
+	$dropPosition: new Signal.State(null),
 
 	// Configuration
 	containerTags: ['div', 'section', 'article', 'main', 'aside', 'header', 'footer', 'nav'],
@@ -42,19 +47,18 @@ export default {
 		{ name: 'Link', tagName: 'a', icon: 'A' }
 	],
 
-	// ==================== Shared Utility Methods ====================
+	// ==================== Utility Methods ====================
 
-	isContainer: function (dataElement) {
+	isContainer(dataElement) {
 		return this.containerTags.includes(dataElement.tagName);
 	},
 
-	createDefaultElement: function (elementType) {
+	createDefaultElement(elementType) {
 		const element = {
 			tagName: elementType.tagName,
 			id: `element-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 		};
 
-		// Add default content based on element type
 		if (['h1', 'h2', 'p', 'button', 'a'].includes(elementType.tagName)) {
 			element.textContent = `New ${elementType.name}`;
 		}
@@ -71,13 +75,13 @@ export default {
 		return element;
 	},
 
-	addElement: function (elementType) {
+	addElement(elementType) {
 		const element = this.createDefaultElement(elementType);
 		this.$currentStructure.get().document.body.children.push(element);
-		this.$currentStructure.set({ ...this.$currentStructure.get() }); // Trigger update
+		this.$currentStructure.set({ ...this.$currentStructure.get() });
 	},
 
-	selectElement: function (elementId) {
+	selectElement(elementId) {
 		const found = this.findElementById(elementId);
 		if (found) {
 			this.$selectedElement.set(found.element);
@@ -85,7 +89,7 @@ export default {
 		}
 	},
 
-	findElementById: function (id, elements = null, parentPath = []) {
+	findElementById(id, elements = null, parentPath = []) {
 		elements = elements || this.$currentStructure.get().document.body.children;
 
 		for (let i = 0; i < elements.length; i++) {
@@ -100,7 +104,7 @@ export default {
 		return null;
 	},
 
-	getElementsAtPath: function (path) {
+	getElementsAtPath(path) {
 		if (!path || path.length === 0) {
 			return this.$currentStructure.get().document.body.children;
 		}
@@ -117,7 +121,7 @@ export default {
 		return current;
 	},
 
-	removeSelectedElement: function () {
+	removeSelectedElement() {
 		const selectedPath = this.$selectedPath.get();
 		if (!this.$selectedElement.get() || !selectedPath) return;
 
@@ -137,7 +141,7 @@ export default {
 		this.$currentStructure.set({ ...this.$currentStructure.get() });
 	},
 
-	updateProperty: function (property, value) {
+	updateProperty(property, value) {
 		const selected = this.$selectedElement.get();
 		if (!selected) return;
 
@@ -152,24 +156,30 @@ export default {
 		this.$currentStructure.set({ ...this.$currentStructure.get() });
 	},
 
-	exportStructure: function () {
+	exportStructure() {
 		const structure = this.$currentStructure.get();
 		const dataStr = JSON.stringify(structure, null, 2);
 		const dataBlob = new Blob([dataStr], { type: 'application/json' });
 		const url = URL.createObjectURL(dataBlob);
 
-		const link = window.DDOM.createElement({
-			tagName: 'a',
-			attributes: { href: url, download: 'declarative-dom-structure.json' },
-			style: { display: 'none' }
-		});
-
+		const link = document.createElement('a');
+		link.href = url;
+		link.download = 'declarative-dom-structure.json';
+		link.style.display = 'none';
 		document.body.appendChild(link);
 		link.click();
 		document.body.removeChild(link);
 		URL.revokeObjectURL(url);
-	},
+	}
+};
 
+// Make it globally available immediately
+window.builderState = builderState;
+
+// Shorthand for builderState (used in all callbacks below)
+const BS = builderState;
+
+export default {
 	// ==================== Custom Element Definitions ====================
 
 	customElements: [
@@ -195,7 +205,7 @@ export default {
 			],
 			connectedCallback: function () {
 				const container = this.querySelector('.palette-items');
-				window.builderApp.elementTypes.forEach(elementType => {
+				BS.elementTypes.forEach(elementType => {
 					const button = window.DDOM.createElement({
 						tagName: 'palette-item',
 						attributes: {
@@ -236,18 +246,18 @@ export default {
 				this.textContent = `${icon} ${name}`;
 
 				// Click to add
-				this.onclick = () => window.builderApp.addElement(elementType);
+				this.onclick = () => BS.addElement(elementType);
 
 				// Mouse-based drag
 				this.onmousedown = (e) => {
 					if (e.button !== 0) return;
 					e.preventDefault();
 
-					window.builderApp.$isDragging.set(true);
-					window.builderApp.$isDraggingNewElement.set(true);
-					window.builderApp.$draggedElementType.set(elementType);
-					window.builderApp.$dropTarget.set(null);
-					window.builderApp.$dropPosition.set(null);
+					BS.$isDragging.set(true);
+					BS.$isDraggingNewElement.set(true);
+					BS.$draggedElementType.set(elementType);
+					BS.$dropTarget.set(null);
+					BS.$dropPosition.set(null);
 
 					this.style.opacity = '0.5';
 					document.body.style.cursor = 'grabbing';
@@ -267,9 +277,9 @@ export default {
 						const canvas = document.querySelector('builder-canvas');
 						if (canvas) canvas.handleDrop();
 
-						window.builderApp.$isDragging.set(false);
-						window.builderApp.$isDraggingNewElement.set(false);
-						window.builderApp.$draggedElementType.set(null);
+						BS.$isDragging.set(false);
+						BS.$isDraggingNewElement.set(false);
+						BS.$draggedElementType.set(null);
 					};
 
 					document.addEventListener('mousemove', onMouseMove);
@@ -307,12 +317,12 @@ export default {
 				this.render();
 
 				// Re-render when structure changes
-				window.builderApp.$currentStructure.subscribe(() => this.render());
-				window.builderApp.$selectedElement.subscribe(() => this.render());
+				createEffect(() => { BS.$currentStructure.get(); this.render(); });
+				createEffect(() => { BS.$selectedElement.get(); this.render(); });
 			},
 			render: function () {
 				this._container.innerHTML = '';
-				const children = window.builderApp.$currentStructure.get().document.body.children;
+				const children = BS.$currentStructure.get().document.body.children;
 				this.renderItems(children, 0, []);
 			},
 			renderItems: function (elements, depth, parentPath) {
@@ -363,7 +373,7 @@ export default {
 				this._parentPath = parentPath;
 
 				// Highlight if selected
-				const selected = window.builderApp.$selectedElement.get();
+				const selected = BS.$selectedElement.get();
 				if (selected && selected.id === elementData.id) {
 					this.style.backgroundColor = '#e3f2fd';
 					this.style.fontWeight = 'bold';
@@ -371,8 +381,8 @@ export default {
 
 				// Selection click
 				this.onclick = () => {
-					if (!window.builderApp.$isDragging.get()) {
-						window.builderApp.selectElement(elementData.id);
+					if (!BS.$isDragging.get()) {
+						BS.selectElement(elementData.id);
 					}
 				};
 
@@ -381,9 +391,9 @@ export default {
 					if (e.button !== 0) return;
 					e.preventDefault();
 
-					window.builderApp.$isDragging.set(true);
-					window.builderApp.$isDraggingNewElement.set(false);
-					window.builderApp.$draggedElement.set({
+					BS.$isDragging.set(true);
+					BS.$isDraggingNewElement.set(false);
+					BS.$draggedElement.set({
 						element: elementData,
 						index,
 						depth,
@@ -402,8 +412,8 @@ export default {
 						document.body.style.cursor = '';
 						this.handleTreeDrop();
 
-						window.builderApp.$isDragging.set(false);
-						window.builderApp.$draggedElement.set(null);
+						BS.$isDragging.set(false);
+						BS.$draggedElement.set(null);
 						this.clearDropIndicators();
 					};
 
@@ -413,7 +423,7 @@ export default {
 			},
 
 			handleTreeDragOver: function (event) {
-				const dragged = window.builderApp.$draggedElement.get();
+				const dragged = BS.$draggedElement.get();
 				if (!dragged) return;
 
 				this.style.visibility = 'hidden';
@@ -430,14 +440,14 @@ export default {
 
 				if (!targetItem || !targetItem._elementData || dragged.element.id === targetItem._elementData.id) {
 					this.clearDropIndicators();
-					window.builderApp.$dropTarget.set(null);
-					window.builderApp.$dropPosition.set(null);
+					BS.$dropTarget.set(null);
+					BS.$dropPosition.set(null);
 					return;
 				}
 
 				const rect = targetItem.getBoundingClientRect();
 				const relativeY = event.clientY - rect.top;
-				const isContainer = window.builderApp.isContainer(targetItem._elementData);
+				const isContainer = BS.isContainer(targetItem._elementData);
 
 				let position;
 				if (isContainer) {
@@ -448,13 +458,13 @@ export default {
 					position = relativeY < rect.height / 2 ? 'before' : 'after';
 				}
 
-				window.builderApp.$dropTarget.set({
+				BS.$dropTarget.set({
 					element: targetItem._elementData,
 					domElement: targetItem,
 					index: targetItem._index,
 					parentPath: targetItem._parentPath
 				});
-				window.builderApp.$dropPosition.set(position);
+				BS.$dropPosition.set(position);
 
 				this.showDropIndicator(targetItem, position, isContainer);
 			},
@@ -485,28 +495,28 @@ export default {
 			},
 
 			handleTreeDrop: function () {
-				const dragged = window.builderApp.$draggedElement.get();
-				const target = window.builderApp.$dropTarget.get();
-				const position = window.builderApp.$dropPosition.get();
+				const dragged = BS.$draggedElement.get();
+				const target = BS.$dropTarget.get();
+				const position = BS.$dropPosition.get();
 
 				if (!dragged || !target || !position) return;
 
-				const sourceElements = window.builderApp.getElementsAtPath(dragged.parentPath);
+				const sourceElements = BS.getElementsAtPath(dragged.parentPath);
 				const movedElement = sourceElements.splice(dragged.index, 1)[0];
 
 				if (position === 'inside') {
 					if (!target.element.children) target.element.children = [];
 					target.element.children.push(movedElement);
 				} else {
-					const targetElements = window.builderApp.getElementsAtPath(target.parentPath);
+					const targetElements = BS.getElementsAtPath(target.parentPath);
 					let newIndex = target.index + (position === 'after' ? 1 : 0);
 					const sameContainer = JSON.stringify(dragged.parentPath) === JSON.stringify(target.parentPath);
 					if (sameContainer && dragged.index < newIndex) newIndex--;
 					targetElements.splice(newIndex, 0, movedElement);
 				}
 
-				window.builderApp.$currentStructure.set({ ...window.builderApp.$currentStructure.get() });
-				window.builderApp.selectElement(movedElement.id);
+				BS.$currentStructure.set({ ...BS.$currentStructure.get() });
+				BS.selectElement(movedElement.id);
 			}
 		},
 
@@ -533,8 +543,8 @@ export default {
 				this.render();
 
 				// Re-render when structure changes
-				window.builderApp.$currentStructure.subscribe(() => this.render());
-				window.builderApp.$selectedElement.subscribe(() => this.highlightSelected());
+				createEffect(() => { BS.$currentStructure.get(); this.render(); });
+				createEffect(() => { BS.$selectedElement.get(); this.highlightSelected(); });
 			},
 
 			render: function () {
@@ -561,7 +571,7 @@ export default {
 				this._shadowRoot.appendChild(style);
 
 				// Render elements
-				const children = window.builderApp.$currentStructure.get().document.body.children;
+				const children = BS.$currentStructure.get().document.body.children;
 				children.forEach((spec, index) => {
 					const el = this.createCanvasElement(spec, index, []);
 					if (el) this._shadowRoot.appendChild(el);
@@ -599,9 +609,9 @@ export default {
 			setupElementInteractions: function (element, dataElement, index, parentPath) {
 				// Selection
 				element.onclick = (e) => {
-					if (!window.builderApp.$isDragging.get()) {
+					if (!BS.$isDragging.get()) {
 						e.stopPropagation();
-						window.builderApp.selectElement(dataElement.id);
+						BS.selectElement(dataElement.id);
 					}
 				};
 
@@ -622,9 +632,9 @@ export default {
 					e.preventDefault();
 					e.stopPropagation();
 
-					window.builderApp.$isDragging.set(true);
-					window.builderApp.$isDraggingNewElement.set(false);
-					window.builderApp.$draggedElement.set({
+					BS.$isDragging.set(true);
+					BS.$isDraggingNewElement.set(false);
+					BS.$draggedElement.set({
 						element: dataElement,
 						domElement: element,
 						index,
@@ -643,8 +653,8 @@ export default {
 						document.body.style.cursor = '';
 						this.handleDrop();
 
-						window.builderApp.$isDragging.set(false);
-						window.builderApp.$draggedElement.set(null);
+						BS.$isDragging.set(false);
+						BS.$draggedElement.set(null);
 						this.clearDropIndicators();
 					};
 
@@ -658,8 +668,8 @@ export default {
 				if (event.clientX < rect.left || event.clientX > rect.right ||
 					event.clientY < rect.top || event.clientY > rect.bottom) {
 					this.clearDropIndicators();
-					window.builderApp.$dropTarget.set(null);
-					window.builderApp.$dropPosition.set(null);
+					BS.$dropTarget.set(null);
+					BS.$dropPosition.set(null);
 					return;
 				}
 
@@ -673,7 +683,7 @@ export default {
 				for (const el of shadowElements) {
 					if (el.dataset?.canvasElement && el !== draggedElement) {
 						targetElement = el;
-						const found = window.builderApp.findElementById(el.id);
+						const found = BS.findElementById(el.id);
 						if (found) targetData = found;
 						break;
 					}
@@ -683,13 +693,13 @@ export default {
 
 				if (!targetElement || !targetData) {
 					this.clearDropIndicators();
-					window.builderApp.$dropTarget.set({ element: null, index: -1, parentPath: [] });
-					window.builderApp.$dropPosition.set('append');
+					BS.$dropTarget.set({ element: null, index: -1, parentPath: [] });
+					BS.$dropPosition.set('append');
 					return;
 				}
 
 				// Don't drop on self
-				const dragged = window.builderApp.$draggedElement.get();
+				const dragged = BS.$draggedElement.get();
 				if (dragged && dragged.element.id === targetData.element.id) {
 					this.clearDropIndicators();
 					return;
@@ -698,7 +708,7 @@ export default {
 				// Calculate 25/50/25 zones for containers
 				const targetRect = targetElement.getBoundingClientRect();
 				const relativeY = event.clientY - targetRect.top;
-				const isContainer = window.builderApp.isContainer(targetData.element);
+				const isContainer = BS.isContainer(targetData.element);
 
 				let position;
 				if (isContainer) {
@@ -709,13 +719,13 @@ export default {
 					position = relativeY < targetRect.height / 2 ? 'before' : 'after';
 				}
 
-				window.builderApp.$dropTarget.set({
+				BS.$dropTarget.set({
 					element: targetData.element,
 					domElement: targetElement,
 					index: targetData.index,
 					parentPath: targetData.parentPath
 				});
-				window.builderApp.$dropPosition.set(position);
+				BS.$dropPosition.set(position);
 
 				this.showDropIndicator(targetElement, position, isContainer);
 			},
@@ -765,50 +775,50 @@ export default {
 			},
 
 			handleDrop: function () {
-				const target = window.builderApp.$dropTarget.get();
-				const position = window.builderApp.$dropPosition.get();
-				const isNewElement = window.builderApp.$isDraggingNewElement.get();
-				const draggedType = window.builderApp.$draggedElementType.get();
-				const dragged = window.builderApp.$draggedElement.get();
+				const target = BS.$dropTarget.get();
+				const position = BS.$dropPosition.get();
+				const isNewElement = BS.$isDraggingNewElement.get();
+				const draggedType = BS.$draggedElementType.get();
+				const dragged = BS.$draggedElement.get();
 
 				this.clearDropIndicators();
 
 				if (isNewElement && draggedType) {
 					// New element from palette
-					const newElement = window.builderApp.createDefaultElement(draggedType);
+					const newElement = BS.createDefaultElement(draggedType);
 
 					if (!target || position === 'append') {
-						window.builderApp.$currentStructure.get().document.body.children.push(newElement);
+						BS.$currentStructure.get().document.body.children.push(newElement);
 					} else if (position === 'inside') {
 						if (!target.element.children) target.element.children = [];
 						target.element.children.push(newElement);
 					} else {
-						const targetElements = window.builderApp.getElementsAtPath(target.parentPath);
+						const targetElements = BS.getElementsAtPath(target.parentPath);
 						let newIndex = target.index + (position === 'after' ? 1 : 0);
 						targetElements.splice(newIndex, 0, newElement);
 					}
 
-					window.builderApp.$currentStructure.set({ ...window.builderApp.$currentStructure.get() });
-					window.builderApp.selectElement(newElement.id);
+					BS.$currentStructure.set({ ...BS.$currentStructure.get() });
+					BS.selectElement(newElement.id);
 
 				} else if (dragged && target && position) {
 					// Moving existing element
-					const sourceElements = window.builderApp.getElementsAtPath(dragged.parentPath);
+					const sourceElements = BS.getElementsAtPath(dragged.parentPath);
 					const movedElement = sourceElements.splice(dragged.index, 1)[0];
 
 					if (position === 'inside') {
 						if (!target.element.children) target.element.children = [];
 						target.element.children.push(movedElement);
 					} else {
-						const targetElements = window.builderApp.getElementsAtPath(target.parentPath);
+						const targetElements = BS.getElementsAtPath(target.parentPath);
 						let newIndex = target.index + (position === 'after' ? 1 : 0);
 						const sameContainer = JSON.stringify(dragged.parentPath) === JSON.stringify(target.parentPath);
 						if (sameContainer && dragged.index < newIndex) newIndex--;
 						targetElements.splice(newIndex, 0, movedElement);
 					}
 
-					window.builderApp.$currentStructure.set({ ...window.builderApp.$currentStructure.get() });
-					window.builderApp.selectElement(movedElement.id);
+					BS.$currentStructure.set({ ...BS.$currentStructure.get() });
+					BS.selectElement(movedElement.id);
 				}
 			},
 
@@ -816,7 +826,7 @@ export default {
 				this._shadowRoot.querySelectorAll('[data-canvas-element]').forEach(el => {
 					el.classList.remove('selected');
 				});
-				const selected = window.builderApp.$selectedElement.get();
+				const selected = BS.$selectedElement.get();
 				if (selected) {
 					const el = this._shadowRoot.getElementById(selected.id);
 					if (el) el.classList.add('selected');
@@ -843,7 +853,7 @@ export default {
 				const save = () => {
 					const newText = input.value.trim();
 					dataElement.textContent = newText || originalText;
-					window.builderApp.$currentStructure.set({ ...window.builderApp.$currentStructure.get() });
+					BS.$currentStructure.set({ ...BS.$currentStructure.get() });
 				};
 
 				input.onblur = save;
@@ -884,13 +894,13 @@ export default {
 			connectedCallback: function () {
 				this._content = this.querySelector('.properties-content');
 				this.render();
-				window.builderApp.$selectedElement.subscribe(() => this.render());
-				window.builderApp.$currentStructure.subscribe(() => this.render());
+				createEffect(() => { BS.$selectedElement.get(); this.render(); });
+				createEffect(() => { BS.$currentStructure.get(); this.render(); });
 			},
 
 			render: function () {
 				this._content.innerHTML = '';
-				const selected = window.builderApp.$selectedElement.get();
+				const selected = BS.$selectedElement.get();
 
 				if (!selected) {
 					this._content.innerHTML = `
@@ -938,7 +948,7 @@ export default {
 					background: #dc3545; color: white; border: none;
 					border-radius: 4px; cursor: pointer; font-size: 14px;
 				`;
-				deleteBtn.onclick = () => window.builderApp.removeSelectedElement();
+				deleteBtn.onclick = () => BS.removeSelectedElement();
 				container.appendChild(deleteBtn);
 
 				this._content.appendChild(container);
@@ -952,7 +962,7 @@ export default {
 					<input type="text" value="${value}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
 				`;
 				field.querySelector('input').onchange = (e) => {
-					window.builderApp.updateProperty(property, e.target.value);
+					BS.updateProperty(property, e.target.value);
 				};
 				container.appendChild(field);
 			}
@@ -1001,7 +1011,7 @@ export default {
 								cursor: 'pointer'
 							},
 							onclick: function () {
-								window.builderApp.exportStructure();
+								BS.exportStructure();
 							}
 						}
 					]
@@ -1046,6 +1056,7 @@ export default {
 	},
 
 	oncreateElement: function () {
-		window.builderApp = this;
+		// builderState (BS) is already globally available
+		// This hook is called when the document is fully created
 	}
 };
