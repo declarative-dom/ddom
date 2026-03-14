@@ -1,0 +1,100 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "DDOM Element Types",
+	"description": "Schema for defining available element types in the DDOM builder",
+	"type": "object",
+	"required": ["version", "categories"],
+	"properties": {
+		"$schema": {
+			"type": "string"
+		},
+		"version": {
+			"type": "string",
+			"description": "Schema version"
+		},
+		"categories": {
+			"type": "array",
+			"description": "Categories of elements",
+			"items": {
+				"$ref": "#/definitions/category"
+			}
+		}
+	},
+	"definitions": {
+		"category": {
+			"type": "object",
+			"required": ["id", "name", "elements"],
+			"properties": {
+				"id": {
+					"type": "string",
+					"description": "Unique identifier for the category"
+				},
+				"name": {
+					"type": "string",
+					"description": "Display name for the category"
+				},
+				"icon": {
+					"type": "string",
+					"description": "Icon identifier or emoji"
+				},
+				"elements": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/elementType"
+					}
+				}
+			}
+		},
+		"elementType": {
+			"type": "object",
+			"required": ["name", "tagName", "icon"],
+			"properties": {
+				"name": {
+					"type": "string",
+					"description": "Display name for the element"
+				},
+				"tagName": {
+					"type": "string",
+					"description": "HTML tag name"
+				},
+				"icon": {
+					"type": "string",
+					"description": "Icon identifier"
+				},
+				"description": {
+					"type": "string",
+					"description": "Help text for the element"
+				},
+				"isContainer": {
+					"type": "boolean",
+					"description": "Whether this element can contain children",
+					"default": false
+				},
+				"defaults": {
+					"$ref": "#/definitions/elementDefaults"
+				}
+			}
+		},
+		"elementDefaults": {
+			"type": "object",
+			"description": "Default values when creating a new element",
+			"properties": {
+				"textContent": {
+					"type": "string"
+				},
+				"attributes": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "string"
+					}
+				},
+				"style": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "string"
+					}
+				}
+			}
+		}
+	}
+}

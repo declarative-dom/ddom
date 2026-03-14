@@ -1,0 +1,357 @@
+{
+	"$schema": "./elements.schema.json",
+	"version": "1.0.0",
+	"categories": [
+		{
+			"id": "text",
+			"name": "Text",
+			"icon": "T",
+			"elements": [
+				{
+					"name": "Heading 1",
+					"tagName": "h1",
+					"icon": "H1",
+					"description": "Large heading for page titles",
+					"defaults": {
+						"textContent": "New Heading 1"
+					}
+				},
+				{
+					"name": "Heading 2",
+					"tagName": "h2",
+					"icon": "H2",
+					"description": "Section heading",
+					"defaults": {
+						"textContent": "New Heading 2"
+					}
+				},
+				{
+					"name": "Heading 3",
+					"tagName": "h3",
+					"icon": "H3",
+					"description": "Subsection heading",
+					"defaults": {
+						"textContent": "New Heading 3"
+					}
+				},
+				{
+					"name": "Paragraph",
+					"tagName": "p",
+					"icon": "P",
+					"description": "Block of text content",
+					"defaults": {
+						"textContent": "New Paragraph"
+					}
+				},
+				{
+					"name": "Span",
+					"tagName": "span",
+					"icon": "SP",
+					"description": "Inline text container",
+					"defaults": {
+						"textContent": "New Span"
+					}
+				}
+			]
+		},
+		{
+			"id": "layout",
+			"name": "Layout",
+			"icon": "L",
+			"elements": [
+				{
+					"name": "Div Container",
+					"tagName": "div",
+					"icon": "DIV",
+					"description": "Generic block container",
+					"isContainer": true,
+					"defaults": {
+						"style": {
+							"padding": "10px",
+							"minHeight": "50px"
+						}
+					}
+				},
+				{
+					"name": "Section",
+					"tagName": "section",
+					"icon": "SEC",
+					"description": "Semantic section container",
+					"isContainer": true,
+					"defaults": {
+						"style": {
+							"padding": "20px"
+						}
+					}
+				},
+				{
+					"name": "Article",
+					"tagName": "article",
+					"icon": "ART",
+					"description": "Self-contained content",
+					"isContainer": true
+				},
+				{
+					"name": "Header",
+					"tagName": "header",
+					"icon": "HDR",
+					"description": "Header section",
+					"isContainer": true
+				},
+				{
+					"name": "Footer",
+					"tagName": "footer",
+					"icon": "FTR",
+					"description": "Footer section",
+					"isContainer": true
+				},
+				{
+					"name": "Nav",
+					"tagName": "nav",
+					"icon": "NAV",
+					"description": "Navigation container",
+					"isContainer": true
+				},
+				{
+					"name": "Main",
+					"tagName": "main",
+					"icon": "MN",
+					"description": "Main content area",
+					"isContainer": true
+				},
+				{
+					"name": "Aside",
+					"tagName": "aside",
+					"icon": "ASD",
+					"description": "Sidebar content",
+					"isContainer": true
+				}
+			]
+		},
+		{
+			"id": "interactive",
+			"name": "Interactive",
+			"icon": "I",
+			"elements": [
+				{
+					"name": "Button",
+					"tagName": "button",
+					"icon": "BTN",
+					"description": "Clickable button",
+					"defaults": {
+						"textContent": "Click Me",
+						"style": {
+							"padding": "8px 16px",
+							"cursor": "pointer"
+						}
+					}
+				},
+				{
+					"name": "Link",
+					"tagName": "a",
+					"icon": "A",
+					"description": "Hyperlink",
+					"defaults": {
+						"textContent": "Link Text",
+						"attributes": {
+							"href": "#"
+						}
+					}
+				},
+				{
+					"name": "Text Input",
+					"tagName": "input",
+					"icon": "IN",
+					"description": "Single-line text input",
+					"defaults": {
+						"attributes": {
+							"type": "text",
+							"placeholder": "Enter text..."
+						}
+					}
+				},
+				{
+					"name": "Checkbox",
+					"tagName": "input",
+					"icon": "CB",
+					"description": "Checkbox input",
+					"defaults": {
+						"attributes": {
+							"type": "checkbox"
+						}
+					}
+				},
+				{
+					"name": "Radio Button",
+					"tagName": "input",
+					"icon": "RB",
+					"description": "Radio button input",
+					"defaults": {
+						"attributes": {
+							"type": "radio"
+						}
+					}
+				},
+				{
+					"name": "Textarea",
+					"tagName": "textarea",
+					"icon": "TA",
+					"description": "Multi-line text input",
+					"defaults": {
+						"attributes": {
+							"placeholder": "Enter text...",
+							"rows": "4"
+						}
+					}
+				},
+				{
+					"name": "Select",
+					"tagName": "select",
+					"icon": "SEL",
+					"description": "Dropdown selection",
+					"isContainer": true
+				}
+			]
+		},
+		{
+			"id": "media",
+			"name": "Media",
+			"icon": "M",
+			"elements": [
+				{
+					"name": "Image",
+					"tagName": "img",
+					"icon": "IMG",
+					"description": "Image element",
+					"defaults": {
+						"attributes": {
+							"src": "https://via.placeholder.com/150",
+							"alt": "Placeholder image"
+						}
+					}
+				},
+				{
+					"name": "Video",
+					"tagName": "video",
+					"icon": "VID",
+					"description": "Video player",
+					"defaults": {
+						"attributes": {
+							"controls": "true",
+							"width": "320"
+						}
+					}
+				},
+				{
+					"name": "Audio",
+					"tagName": "audio",
+					"icon": "AUD",
+					"description": "Audio player",
+					"defaults": {
+						"attributes": {
+							"controls": "true"
+						}
+					}
+				},
+				{
+					"name": "Canvas",
+					"tagName": "canvas",
+					"icon": "CVS",
+					"description": "Drawing canvas",
+					"defaults": {
+						"attributes": {
+							"width": "300",
+							"height": "150"
+						},
+						"style": {
+							"border": "1px solid #ccc"
+						}
+					}
+				}
+			]
+		},
+		{
+			"id": "lists",
+			"name": "Lists",
+			"icon": "UL",
+			"elements": [
+				{
+					"name": "Unordered List",
+					"tagName": "ul",
+					"icon": "UL",
+					"description": "Bulleted list",
+					"isContainer": true
+				},
+				{
+					"name": "Ordered List",
+					"tagName": "ol",
+					"icon": "OL",
+					"description": "Numbered list",
+					"isContainer": true
+				},
+				{
+					"name": "List Item",
+					"tagName": "li",
+					"icon": "LI",
+					"description": "List item",
+					"defaults": {
+						"textContent": "List item"
+					}
+				}
+			]
+		},
+		{
+			"id": "table",
+			"name": "Table",
+			"icon": "TBL",
+			"elements": [
+				{
+					"name": "Table",
+					"tagName": "table",
+					"icon": "TBL",
+					"description": "Data table",
+					"isContainer": true,
+					"defaults": {
+						"style": {
+							"borderCollapse": "collapse",
+							"width": "100%"
+						}
+					}
+				},
+				{
+					"name": "Table Row",
+					"tagName": "tr",
+					"icon": "TR",
+					"description": "Table row",
+					"isContainer": true
+				},
+				{
+					"name": "Table Header Cell",
+					"tagName": "th",
+					"icon": "TH",
+					"description": "Header cell",
+					"defaults": {
+						"textContent": "Header",
+						"style": {
+							"border": "1px solid #ccc",
+							"padding": "8px"
+						}
+					}
+				},
+				{
+					"name": "Table Cell",
+					"tagName": "td",
+					"icon": "TD",
+					"description": "Data cell",
+					"defaults": {
+						"textContent": "Cell",
+						"style": {
+							"border": "1px solid #ccc",
+							"padding": "8px"
+						}
+					}
+				}
+			]
+		}
+	]
+}

@@ -1,4 +1,17 @@
 import DDOM, { Signal, createEffect } from '../../lib/dist/index.js';
+import elementMetadata from './metadata/elements.json' with { type: 'json' };
+
+// ==================== Process Metadata ====================
+// Flatten categories into a single array and build container lookup
+
+const elementTypes = elementMetadata.categories.flatMap(category =>
+	category.elements.map(el => ({ ...el, category: category.id }))
+);
+
+const containerTags = elementMetadata.categories
+	.flatMap(cat => cat.elements)
+	.filter(el => el.isContainer)
+	.map(el => el.tagName);
 
 // ==================== Shared State & Methods ====================
 // Created before DDOM processes the spec so custom elements can use immediately
@@ -31,25 +44,20 @@ const builderState = {
 	$dropTarget: new Signal.State(null),
 	$dropPosition: new Signal.State(null),
 
-	// Configuration
-	containerTags: ['div', 'section', 'article', 'main', 'aside', 'header', 'footer', 'nav'],
-
-	// Available element types
-	elementTypes: [
-		{ name: 'Heading 1', tagName: 'h1', icon: 'H1' },
-		{ name: 'Heading 2', tagName: 'h2', icon: 'H2' },
-		{ name: 'Paragraph', tagName: 'p', icon: 'P' },
-		{ name: 'Button', tagName: 'button', icon: 'BTN' },
-		{ name: 'Div Container', tagName: 'div', icon: 'DIV' },
-		{ name: 'Section', tagName: 'section', icon: 'SEC' },
-		{ name: 'Input', tagName: 'input', icon: 'IN' },
-		{ name: 'Image', tagName: 'img', icon: 'IMG' },
-		{ name: 'Link', tagName: 'a', icon: 'A' }
-	],
+	// Metadata references
+	elementMetadata,
+	elementTypes,
+	containerTags,
 
 	// ==================== Utility Methods ====================
 
 	isContainer(dataElement) {
+		// Check if element's metadata explicitly defines it as a container
+		const elementDef = this.elementTypes.find(et => et.tagName === dataElement.tagName);
+		if (elementDef?.isContainer !== undefined) {
+			return elementDef.isContainer;
+		}
+		// Fallback to tag-based detection
 		return this.containerTags.includes(dataElement.tagName);
 	},
 
@@ -59,17 +67,17 @@ const builderState = {
 			id: `element-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 		};
 
-		if (['h1', 'h2', 'p', 'button', 'a'].includes(elementType.tagName)) {
-			element.textContent = `New ${elementType.name}`;
-		}
-		if (elementType.tagName === 'input') {
-			element.attributes = { type: 'text', placeholder: 'Enter text...' };
-		}
-		if (elementType.tagName === 'img') {
-			element.attributes = { src: 'https://via.placeholder.com/150', alt: 'Placeholder image' };
-		}
-		if (elementType.tagName === 'a') {
-			element.attributes = { href: '#' };
+		// Apply defaults from metadata
+		if (elementType.defaults) {
+			if (elementType.defaults.textContent) {
+				element.textContent = elementType.defaults.textContent;
+			}
+			if (elementType.defaults.attributes) {
+				element.attributes = { ...elementType.defaults.attributes };
+			}
+			if (elementType.defaults.style) {
+				element.style = { ...elementType.defaults.style };
+			}
 		}
 
 		return element;
@@ -200,21 +208,77 @@ export default {
 				},
 				{
 					tagName: 'div',
-					className: 'palette-items'
+					className: 'palette-categories'
 				}
 			],
 			connectedCallback: function () {
-				const container = this.querySelector('.palette-items');
-				BS.elementTypes.forEach(elementType => {
-					const button = window.DDOM.createElement({
-						tagName: 'palette-item',
-						attributes: {
-							icon: elementType.icon,
-							name: elementType.name,
-							elementType: JSON.stringify(elementType)
+				const container = this.querySelector('.palette-categories');
+
+				// Render categories from metadata
+				BS.elementMetadata.categories.forEach(category => {
+					// Category header (collapsible)
+					const categorySection = window.DDOM.createElement({
+						tagName: 'div',
+						className: 'palette-category',
+						style: { marginBottom: '10px' }
+					});
+
+					const header = window.DDOM.createElement({
+						tagName: 'div',
+						className: 'category-header',
+						textContent: `${category.icon || ''} ${category.name}`,
+						style: {
+							padding: '6px 8px',
+							backgroundColor: '#e9ecef',
+							borderRadius: '4px',
+							cursor: 'pointer',
+							fontWeight: 'bold',
+							fontSize: '12px',
+							color: '#495057',
+							userSelect: 'none',
+							display: 'flex',
+							justifyContent: 'space-between',
+							alignItems: 'center'
 						}
 					});
-					container.appendChild(button);
+
+					const arrow = window.DDOM.createElement({
+						tagName: 'span',
+						textContent: '▼',
+						style: { fontSize: '10px', transition: 'transform 0.2s' }
+					});
+					header.appendChild(arrow);
+
+					const itemsContainer = window.DDOM.createElement({
+						tagName: 'div',
+						className: 'category-items',
+						style: { marginTop: '6px' }
+					});
+
+					// Toggle collapse
+					header.onclick = () => {
+						const isCollapsed = itemsContainer.style.display === 'none';
+						itemsContainer.style.display = isCollapsed ? 'block' : 'none';
+						arrow.style.transform = isCollapsed ? 'rotate(0deg)' : 'rotate(-90deg)';
+					};
+
+					// Add elements to category
+					category.elements.forEach(elementType => {
+						const button = window.DDOM.createElement({
+							tagName: 'palette-item',
+							attributes: {
+								icon: elementType.icon,
+								name: elementType.name,
+								description: elementType.description || '',
+								elementType: JSON.stringify(elementType)
+							}
+						});
+						itemsContainer.appendChild(button);
+					});
+
+					categorySection.appendChild(header);
+					categorySection.appendChild(itemsContainer);
+					container.appendChild(categorySection);
 				});
 			}
 		},
@@ -224,14 +288,14 @@ export default {
 			tagName: 'palette-item',
 			style: {
 				display: 'block',
-				padding: '10px',
-				marginBottom: '8px',
+				padding: '8px 10px',
+				marginBottom: '4px',
 				background: 'white',
 				border: '1px solid #dee2e6',
 				borderRadius: '4px',
 				cursor: 'grab',
 				textAlign: 'left',
-				fontSize: '14px',
+				fontSize: '13px',
 				userSelect: 'none',
 				transition: 'background-color 0.15s, transform 0.1s',
 				':hover': {
@@ -241,9 +305,13 @@ export default {
 			connectedCallback: function () {
 				const icon = this.getAttribute('icon') || '';
 				const name = this.getAttribute('name') || '';
+				const description = this.getAttribute('description') || '';
 				const elementType = JSON.parse(this.getAttribute('elementType') || '{}');
 
 				this.textContent = `${icon} ${name}`;
+				if (description) {
+					this.title = description;
+				}
 
 				// Click to add
 				this.onclick = () => BS.addElement(elementType);
