@@ -18,7 +18,7 @@
  */
 
 import { Signal } from './signals';
-import { resolveExpression, resolveTemplate } from './evaluation';
+import { resolveExpression, resolveTemplate, evaluateTemplateExpression } from './evaluation';
 import { isSignal } from '../utils/detection';
 import { processNamespacedProperty } from '../namespaces/index';
 
@@ -74,7 +74,7 @@ function createTemplateSignal(template: string, contextNode: any): Signal.Comput
  */
 const VALUE_PATTERNS = {
   TEMPLATE: /\$\{/,           // Template literals: 'Hello ${name}'
-  ACCESSOR: /^(window\.|document\.|this\.)/,  // Property accessors: 'window.data'
+  ACCESSOR: /^(window\.|document\.|this\.)/,  // Property accessors: 'window.data', 'window.fn()', 'window.obj?.prop'
   FUNCTION: (v: any) => typeof v === 'function',
   STRING: (v: any) => typeof v === 'string',
   OBJECT: (v: any) => v !== null && typeof v === 'object' && !Array.isArray(v),
@@ -331,7 +331,29 @@ export function processAttributeValue(
         return ValueProcessors.template(attributeName, value, contextNode);
 
       case 'accessor':
-        // Accessors get resolved
+        // Check if accessor is an expression (contains operators/comparisons)
+        if (typeof value === 'string' && /[<>=!+\-*/%&|^~?:]/.test(value)) {
+          // Expression accessor - create computed that evaluates and returns actual value (not stringified)
+          try {
+            const context = {
+              this: contextNode,
+              window: globalThis.window,
+              document: globalThis.document
+            };
+            const computed = new Signal.Computed(() => {
+              // Evaluate expression and return actual value (boolean, number, etc.)
+              return evaluateTemplateExpression(value, context);
+            });
+            return {
+              type: 'Signal.Computed',
+              value: computed,
+              isValid: validateComputedValue(computed)
+            };
+          } catch (error) {
+            return createErrorProperty(`Expression evaluation failed: ${error}`, value);
+          }
+        }
+        // Simple accessor - resolve normally
         return ValueProcessors.accessor(attributeName, value, contextNode);
 
       case 'function':

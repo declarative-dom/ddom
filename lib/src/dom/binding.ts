@@ -118,6 +118,24 @@ export function applyPropertyBinding(
       break;
 
     case 'style':
+      // Handle Object namespace for dynamic style objects
+      if (value && typeof value === 'object' && value.prototype === 'Object') {
+        const signal = processNamespacedProperty(key, value, el);
+        if (signal) {
+          // Set up reactive effect for style updates
+          createEffect(() => {
+            const styleObj = signal.get();
+            if (styleObj && typeof styleObj === 'object') {
+              // Generate a unique selector for this element
+              const selector = (el as any).id ? `#${(el as any).id}` : generatePathSelector(el as Element);
+              // Apply styles using the DDOM CSS rule system
+              insertRules(styleObj, selector);
+            }
+          });
+        }
+        return;
+      }
+      
       // Generate a unique selector for this element
       const selector = (el as any).id ? `#${(el as any).id}` : generatePathSelector(el as Element);
       // Apply styles using the DDOM CSS rule system

@@ -48,6 +48,22 @@ type WritableOverrides = {
 };
 
 /**
+ * ShadowRootSpec Type Definition
+ * Represents a declarative Shadow DOM configuration with all ShadowRootInit options.
+ * Enables declarative definition of shadow root properties, content, and behavior.
+ * @property mode - Shadow DOM mode: 'open' (accessible via element.shadowRoot) or 'closed' (not accessible).
+ * @property delegatesFocus - Whether focus is delegated to the first focusable element in the shadow tree.
+ * @property slotAssignment - How slots are assigned: 'named' (default) or 'manual'.
+ * @property children - Child elements to render inside the shadow root.
+ * @property style - CSS properties for shadow root styling.
+ */
+export type ShadowRootSpec = WritableOverrides & {
+	mode?: 'open' | 'closed';
+	delegatesFocus?: boolean;
+	slotAssignment?: 'manual' | 'named';
+};
+
+/**
  * CustomElementSpec Type Definition
  * Defines a custom HTML element (Web Component) with declarative structure and behavior.
  * Supports all standard Web Component lifecycle methods and reactive properties.
@@ -70,6 +86,7 @@ type WritableOverrides = {
  * @property formResetCallback - Called when associated form is reset.
  * @property formStateRestoreCallback - Called when form state is restored.
  * @property observedAttributes - Array of attribute names to observe for changes.
+ * @property shadowRoot - Shadow DOM configuration for isolated rendering.
  */
 export type CustomElementSpec = WritableOverrides & {
 	tagName: string; // Required for custom elements
@@ -84,6 +101,7 @@ export type CustomElementSpec = WritableOverrides & {
 	formResetCallback?: (element: HTMLElement) => void;
 	formStateRestoreCallback?: (element: HTMLElement, state: any, mode: 'restore' | 'autocomplete') => void;
 	observedAttributes?: string[];
+	shadowRoot?: ShadowRootSpec | null;
 };
 
 /**
@@ -137,17 +155,17 @@ export type WindowSpec = Omit<Window, keyof WritableOverrides> & WritableOverrid
 /**
  * DOMSpec Type Definition
  * Union type representing all possible Declarative DOM node types.
- * This includes all element types, documents, windows, and custom elements.
+ * This includes all element types, documents, windows, custom elements, and shadow roots.
  * Used as the top-level type for any Declarative DOM structure.
  */
-export type DOMSpec = HTMLElementSpec | HTMLBodyElementSpec | HTMLHeadElementSpec | DocumentSpec | WindowSpec | CustomElementSpec;
+export type DOMSpec = CustomElementSpec | HTMLElementSpec | HTMLBodyElementSpec | HTMLHeadElementSpec | DocumentSpec | WindowSpec | ShadowRootSpec;
 
 /**
  * ElementSpec Type Definition
  * Union type representing all Declarative DOM element types (excluding Document and Window).
  * Used when specifically referring to element nodes rather than document or window objects.
  */
-export type ElementSpec = HTMLElementSpec | HTMLBodyElementSpec | HTMLHeadElementSpec | CustomElementSpec;
+export type ElementSpec = HTMLElementSpec | HTMLBodyElementSpec | HTMLHeadElementSpec | CustomElementSpec | ShadowRootSpec;
 
 /**
  * DOMNode Type Definition

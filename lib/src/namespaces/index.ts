@@ -12,6 +12,7 @@ import { type PrototypeConfig } from './types';
 import { processProperty } from '../core/properties';
 
 import { createArrayNamespace, type ArrayConfig } from './array';
+import { createObjectNamespace, type ObjectConfig } from './object';
 import { createRequestNamespace, type RequestConfig } from './request';
 import { createFormDataNamespace, type FormDataConfig } from './form-data';
 import { createURLSearchParamsNamespace, type URLSearchParamsConfig } from './url-search-params';
@@ -69,6 +70,9 @@ const NAMESPACE_REGISTRY: Record<string, NamespaceEntry> = {
   'Uint32Array': { handler: createArrayNamespace, validator: arrayConfigValidator },
   'Float32Array': { handler: createArrayNamespace, validator: arrayConfigValidator },
   'Float64Array': { handler: createArrayNamespace, validator: arrayConfigValidator },
+
+  // Object type for dynamic key-value pair expansion
+  'Object': { handler: createObjectNamespace, validator: typia.createIs<ObjectConfig>() },
 
   // Web API types
   'Request': { handler: createRequestNamespace, validator: typia.createIs<RequestConfig>() },

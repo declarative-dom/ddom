@@ -607,6 +607,7 @@ const createContext = (component: any, additionalProps?: any) => ({
 export {
   compareValues,
   evaluateFilter,
+  evaluateTemplateExpression,
   getProperty,
   resolveOperand,
   resolveTemplate,

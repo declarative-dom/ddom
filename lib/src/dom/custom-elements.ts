@@ -98,7 +98,12 @@ export function define(elements: CustomElementSpec[]) {
 
 			// Properties to ignore during DOM adoption
 			const ignoreKeys = [
-				'tagName', 'document', 'style', 'constructor'
+				'constructor',
+				'document',
+				'mode',
+				'shadowRoot',
+				'style',
+				'tagName',
 			];
 
 			customElements.define(spec.tagName, class extends HTMLElement {
@@ -113,6 +118,13 @@ export function define(elements: CustomElementSpec[]) {
 
 					// Initialize component-specific signal watcher
 					this.#signalWatcher = new ComponentSignalWatcher();
+
+					// Create shadow root if specified in config
+					if (spec.shadowRoot && !this.shadowRoot) {
+						this.attachShadow({ 
+							mode: spec.shadowRoot.mode || 'open' 
+						});
+					}
 
 					// Initialize internals once
 					try {
@@ -177,8 +189,11 @@ export function define(elements: CustomElementSpec[]) {
 							)
 						];
 
+						// If shadowRoot config exists, use it for the container; otherwise use the spec
+						const nodeSpec = spec.shadowRoot || spec;
+
 						// Disable CSS processing since styles are already registered at definition time
-						adoptNode(spec, this.#container, { css: false, ignoreKeys: instanceIgnoreKeys });
+						adoptNode(nodeSpec, this.#container, { css: false, ignoreKeys: instanceIgnoreKeys });
 
 						// After rendering the template, distribute light DOM children to slots
 						this.#distributeSlots(lightDOMChildren);

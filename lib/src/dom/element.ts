@@ -35,8 +35,10 @@ import {
 } from '../types';
 
 import { processScopeProperty, processProperty } from '../core/properties';
+import { processNamespacedProperty } from '../namespaces/index';
 import { applyPropertyBinding } from './binding';
 import { DOMSpecOptions } from './types';
+import { createEffect } from '../core/signals';
 
 /**
  * Adopts a DocumentSpec into the current document context.
@@ -89,6 +91,33 @@ export function adoptNode(
   el: DOMNode,
   options: DOMSpecOptions = {}
 ): void {
+  // Check if the spec itself is a namespace config (e.g., Object namespace)
+  if (spec && typeof spec === 'object' && 'prototype' in spec && spec.prototype === 'Object') {
+    // Process the namespace to get a signal
+    console.debug('Adopting Object namespace spec:', spec);
+    const signal = processNamespacedProperty('_spec', spec as any, el);
+    
+    // Set up reactive adoption - clear and re-adopt when signal changes
+    createEffect(() => {
+      // Get current value from signal
+      const actualSpec = signal?.get ? signal.get() : signal;
+      
+      // Clear existing content (but preserve the element itself)
+      if ('innerHTML' in el) {
+        el.innerHTML = '';
+      }
+
+      console.debug('Re-adopting Object namespace resolved spec:', actualSpec);
+      
+      // Adopt the resolved spec with reactivity
+      if (actualSpec && typeof actualSpec === 'object') {
+        adoptNode(actualSpec, el, options);
+      }
+    });
+    
+    return;
+  }
+
   // Process all properties using key/value pairs
   const specEntries = Object.entries(spec);
 

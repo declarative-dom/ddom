@@ -110,6 +110,25 @@ export default {
         },
       ],
     },
+    {
+      tagName: 'example-renderer',
+
+      // Shadow DOM for isolated example rendering
+      shadowRoot: {
+        mode: 'open',
+        
+        // Spread the entire example config using Object namespace
+        prototype: 'Object',
+        entries: 'this.$spec',
+      },
+
+      style: {
+        display: 'block',
+        flex: '1',
+        backgroundColor: 'white',
+        overflow: 'auto',
+      },
+    },
   ],
 
   switchExample: function (exampleKey) {
@@ -184,15 +203,11 @@ export default {
                 backgroundColor: '#dee2e6',
               },
               children: [
-                // Left side - iframe with example
+                // Left side - shadow DOM rendered example
                 {
-                  tagName: 'iframe',
-                  src: '${window.currentExampleURL()}',
-                  style: {
-                    flex: '1',
-                    border: 'none',
-                    backgroundColor: 'white',
-                  },
+                  tagName: 'example-renderer',
+                  key: '${window.$currentExample}', // Force re-render on example change
+                  $spec: 'window?.currentExampleConfig()',
                 },
                 // Right side - DDOM code
                 {
